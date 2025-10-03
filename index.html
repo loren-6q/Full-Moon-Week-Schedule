@@ -234,6 +234,18 @@
                             </button>
                             <p id="addStatus" class="text-xs mt-1"></p>
                         </div>
+                        
+                         <!-- Bulk Upload (NEW FEATURE) -->
+                        <div class="mb-6 p-4 border border-accent/50 rounded-lg bg-accent/10 space-y-3">
+                            <h3 class="font-medium text-accent">Bulk Tag Database Import/Export:</h3>
+                            <p class="text-xs text-gray-700">Paste your entire tag database (JSON format) below and click Import to overwrite the cloud list.</p>
+                            <button onclick="copyInitialInstaMap()" class="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-xs">Copy Default Map JSON</button>
+                            <textarea id="bulkInstaMapInput" placeholder='{"Name": {"tag": "@handle", "category": "DJ"}, ...}' class="w-full border border-gray-300 rounded-lg p-2 text-xs min-h-[100px]"></textarea>
+                            <button onclick="bulkImportTags()" class="w-full py-2 bg-accent text-white font-bold rounded-lg hover:bg-amber-600 transition duration-200">
+                                BULK IMPORT TAGS (Overwrite)
+                            </button>
+                            <p id="bulkStatus" class="text-xs mt-1"></p>
+                        </div>
 
                         <!-- Current List Display -->
                         <h3 class="font-medium text-gray-700 mb-2 mt-6 hidden">Current Entries:</h3>
@@ -626,6 +638,50 @@
 
         // --- DATA MANAGEMENT: NAME-TAG DB (2a) ---
 
+        function copyInitialInstaMap() {
+            const mapJson = JSON.stringify(getInitialInstaMap(), null, 2);
+            copyToClipboard(mapJson);
+            document.getElementById('bulkStatus').textContent = 'Default map copied to clipboard. Paste into the box above.';
+            document.getElementById('bulkStatus').className = 'text-xs mt-1 text-secondary';
+        }
+
+        async function bulkImportTags() {
+            const jsonStr = document.getElementById('bulkInstaMapInput').value.trim();
+            const statusEl = document.getElementById('bulkStatus');
+            
+            statusEl.className = 'text-xs mt-1 text-red-600';
+
+            if (!jsonStr) {
+                statusEl.textContent = 'Error: Paste JSON data before importing.';
+                return;
+            }
+
+            try {
+                const importedData = JSON.parse(jsonStr);
+                
+                // Simple validation: ensure it's an object of objects/tags
+                if (typeof importedData !== 'object' || Array.isArray(importedData)) {
+                    throw new Error("Invalid format. Must be a JSON object like: {\"Name\": {\"tag\": \"@handle\", ...}}");
+                }
+                
+                // Clear current local map and load new data
+                for (const prop in nameTagDatabase) { delete nameTagDatabase[prop]; }
+                Object.assign(nameTagDatabase, importedData);
+                
+                // Save to Firestore (overwriting the cloud data)
+                await saveDataToFirestore(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+                
+                // Clear input field
+                document.getElementById('bulkInstaMapInput').value = '';
+
+                statusEl.className = 'text-xs mt-1 text-secondary';
+                statusEl.textContent = `Success! Imported ${Object.keys(nameTagDatabase).length} tags and saved to cloud.`;
+                
+            } catch (e) {
+                statusEl.textContent = `Import Error: ${e.message}`;
+            }
+        }
+
         function renderNameMap() {
             const listEl = document.getElementById('databaseList');
             const searchVal = document.getElementById('nameSearch').value.toLowerCase();
@@ -657,7 +713,7 @@
                     </div>
                     <div class="flex items-center space-x-1">
                         <button onclick="copyToClipboard('${tag}')" class="text-primary hover:text-indigo-600 p-1 rounded hover:bg-indigo-50 transition" title="Copy Tag">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
                         </button>
                         <button data-name="${name}" onclick="removeNameMapEntry(this)" class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition" title="Remove Entry">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -987,7 +1043,8 @@
                     }
                     
                     // b) For 3a injection: store {Name: "@handle"}
-                    const injectionCheckRegex = new RegExp(`\\b${escapedName}\\s*${tag.replace('@', '@?')}\\b`, 'i');
+                    // Check if the name is already followed by the tag (or any @-tag)
+                    const injectionCheckRegex = new RegExp(`\\b${escapedName}\\s*@\\w+\\b`, 'i');
                     if (!block.match(injectionCheckRegex)) {
                         tagsToInject[name] = tagData.tag; // Store original casing of the tag
                     }
@@ -1002,8 +1059,12 @@
             sortedNames.forEach(name => {
                 const tagToInject = tagsToInject[name];
                 
-                const injectionRegex = new RegExp(`(\\b${name}\\b)(?!\\s*@\\w+)`, 'gi');
+                // FIX: This simplified injection regex is robust across browsers.
+                const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                // Regex: Find the whole word (name) that IS NOT followed by an @-tag. (The pre-check should handle the not-followed part, but this ensures a clean match.)
+                const injectionRegex = new RegExp(`(\\b${escapedName}\\b)`, 'g');
                 
+                // Use $1 to preserve casing in the text.
                 postDescription = postDescription.replace(injectionRegex, `$1 ${tagToInject}`);
             });
 
