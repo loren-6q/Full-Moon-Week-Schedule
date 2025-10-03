@@ -356,7 +356,7 @@
         var eventDatabase = {};   
         var textSnippets = {};    
         var eventSchedule = [];   
-        var mediaFolderLink = ''; // New global variable for the link
+        var mediaFolderLink = ''; 
 
 
         // --- FIREBASE INITIALIZATION AND DATA LOADING ---
@@ -368,15 +368,39 @@
             }
             
             try {
-                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-                const app = firebase.initializeApp(firebaseConfig);
+                // --- START: CUSTOM FIREBASE CONFIGURATION BLOCK ---
+                // *** REQUIRED FOR GITHUB PAGES/EXTERNAL DEPLOYMENT ***
+                // Your live keys have been pasted here:
+                const EXTERNAL_FIREBASE_CONFIG = {
+                    apiKey: "AIzaSyBGESFzwqoO9lQivws195udUCo6MXnHeHc", 
+                    authDomain: "full-moon-week.firebaseapp.com",
+                    projectId: "full-moon-week",
+                    storageBucket: "full-moon-week.firebasestorage.app",
+                    messagingSenderId: "1064130029135", 
+                    appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
+                    measurementId: "G-3SS3BJQCRN"
+                };
+                // --- END: CUSTOM FIREBASE CONFIGURATION BLOCK ---
+                
+                const configToUse = (typeof __firebase_config !== 'undefined' && __firebase_config.length > 2) 
+                    ? JSON.parse(__firebase_config) 
+                    : EXTERNAL_FIREBASE_CONFIG;
+                    
+                if (!configToUse.projectId || configToUse.projectId === "YOUR_PROJECT_ID") {
+                    console.error("FIREBASE ERROR: Configuration keys are missing or invalid in code. Please update the EXTERNAL_FIREBASE_CONFIG block.");
+                    document.getElementById('statusMessage').textContent = 'CRITICAL ERROR: Firebase config missing. Please paste your keys into the code and re-deploy to GitHub.';
+                    document.getElementById('statusMessage').className = 'mt-4 sm:mt-0 text-sm text-red-600 font-bold w-full text-center sm:text-left';
+                    return;
+                }
+
+                const app = firebase.initializeApp(configToUse);
                 auth = firebase.getAuth(app);
                 db = firebase.getFirestore(app);
 
                 await authenticateUser();
                 await setupListeners();
                 
-                document.getElementById('statusMessage').textContent = 'Ready to parse.';
+                document.getElementById('statusMessage').textContent = 'Ready to parse. Connected to Cloud Sync.';
                 document.getElementById('statusMessage').className = 'mt-4 sm:mt-0 text-sm text-gray-600 w-full text-center sm:text-left';
 
             } catch (e) {
@@ -390,6 +414,7 @@
             return new Promise(async (resolve) => {
                 const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 
+                // Use custom token if available (i.e., running in Canvas); otherwise, sign in anonymously (external deployment).
                 if (initialToken) {
                     await firebase.signInWithCustomToken(auth, initialToken);
                 } else {
@@ -738,6 +763,13 @@
                 const finalPostText = dayPrefix + event.postText;
                 
                 const mediaFileName = event.mediaFileName || 'N/A';
+                
+                // FIX: Make the filename a clickable link to the media folder
+                let mediaLinkHtml = mediaFileName;
+                if (window.mediaFolderLink && window.mediaFolderLink !== '') {
+                    mediaLinkHtml = `<a href="${window.mediaFolderLink}" target="_blank" class="text-blue-600 underline hover:text-blue-800 break-all">${mediaFileName}</a>`;
+                }
+
 
                 const div = document.createElement('div');
                 div.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3 cursor-grab';
@@ -757,7 +789,7 @@
                     
                     <div class="flex items-center space-x-2 bg-gray-100 p-2 rounded border border-dashed">
                         <span class="text-xs font-semibold text-gray-900">Media File:</span>
-                        <span class="text-xs font-mono text-gray-700 break-all">${mediaFileName}</span>
+                        <span class="text-xs font-mono text-gray-700 break-all">${mediaLinkHtml}</span>
                         <button onclick="copyToClipboard('${mediaFileName}')" class="text-xs text-primary hover:text-indigo-600" title="Copy Filename">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
                         </button>
