@@ -562,25 +562,43 @@
         }
 
         async function authenticateUser() {
-            return new Promise(async (resolve) => {
-                const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                
+            // FIX: Restructured to guarantee userId is set using the immediate result of sign-in,
+            // preventing data loss due to asynchronous timing issues with onAuthStateChanged.
+            const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            
+            try {
                 if (initialToken) {
                     await firebase.signInWithCustomToken(auth, initialToken);
                 } else {
                     await firebase.signInAnonymously(auth);
                 }
+                
+                // If the sign-in was successful, auth.currentUser is set.
+                if (auth.currentUser) {
+                    userId = auth.currentUser.uid;
+                } else {
+                     // Fallback: This should ideally not happen if sign-in promises resolved, but acts as a safeguard.
+                    console.error("Sign-in resolved but auth.currentUser is null. Using random ID.");
+                    userId = crypto.randomUUID();
+                }
 
-                firebase.onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        resolve(true);
-                    } else {
-                        userId = crypto.randomUUID();
-                        resolve(false);
+            } catch (e) {
+                console.error("Authentication failed, falling back to anonymous/random ID.", e);
+                
+                // If sign-in fails entirely (e.g., bad token), sign in anonymously as a last resort
+                if (!auth.currentUser) {
+                    try {
+                        await firebase.signInAnonymously(auth);
+                        userId = auth.currentUser.uid;
+                    } catch (anonError) {
+                         console.error("Anonymous sign-in also failed. Using random ID. Data access is blocked.", anonError);
+                         userId = crypto.randomUUID();
                     }
-                });
-            });
+                }
+            }
+            
+            // Always return a resolved promise equivalent to maintain flow consistency
+            return Promise.resolve(!!auth.currentUser);
         }
 
         function getDocRef(collectionName, docId) {
