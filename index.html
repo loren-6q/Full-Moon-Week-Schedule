@@ -89,8 +89,14 @@
         
         /* FIX: Explicit background colors for visual distinction (using !important to bypass overrides) */
         .schedule-container { background-color: #eef2ff !important; /* Indigo-50 */ }
-        .settings-column-one-bg { background-color: #f0fff4 !important; /* Emerald-50 */ }
+        /* Adjusted background colors */
+        .settings-column-one-bg { background-color: white !important; }
         .settings-column-two-bg { background-color: white !important; }
+        /* Bulk Upload gets its amber/accent border only */
+        .bulk-upload-bg { background-color: #fffbeb !important; } /* Amber-50 */
+        .template-bg { background-color: #eef2ff !important; } /* Indigo-50 */
+        .tag-add-bg { background-color: #f0fff4 !important; } /* Emerald-50 */
+
 
         /* Modal Styles */
         .modal {
@@ -275,7 +281,7 @@
                 
                 <!-- Column 1: Tags, List, New Entry, Bulk Import (30% width) -->
                 <div class="space-y-6">
-                    <div class="settings-column-one-bg p-6 rounded-xl shadow-lg">
+                    <div class="settings-column-one-bg p-6 rounded-xl shadow-lg border border-gray-300">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                             <svg class="w-6 h-6 mr-2 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m-4 12v-2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2"></path></svg>
                             Tags
@@ -306,7 +312,7 @@
                     </div>
                     
                     <!-- Add New Entry (Matches screenshot look) -->
-                    <div class="settings-column-one-bg p-6 rounded-xl shadow-lg border border-secondary/50">
+                    <div class="tag-add-bg p-6 rounded-xl shadow-lg border border-secondary/50">
                              <h2 class="text-lg font-semibold text-gray-900 mb-3">Add New Tag:</h2>
                             <div class="space-y-3">
                                 <input type="text" id="newName" placeholder="Name (e.g., John Smith)" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-secondary focus:border-secondary">
@@ -327,7 +333,8 @@
                     </div>
                         
                     <!-- Bulk Upload (Matches screenshot look) -->
-                    <div class="settings-column-one-bg p-6 rounded-xl shadow-lg border border-accent/50">
+                    <!-- FIX: Reverting background color to amber/yellow family for visual distinction and fixing tag -->
+                    <div class="bulk-upload-bg p-6 rounded-xl shadow-lg border border-accent/50">
                              <h2 class="text-lg font-semibold text-gray-900 mb-3">Bulk Tag Database Import</h2>
                             <!-- FIX: Reverted description to include Tab-separated values -->
                             <p class="text-xs text-gray-700">Paste raw spreadsheet data (Name, @Tag, Category) below, or JSON, to merge with the cloud list.</p>
@@ -345,7 +352,7 @@
                 <div class="space-y-6 flex flex-col">
                     
                     <!-- Global Default Hashtags (Moved to the top of the second column) -->
-                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg">
+                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                             <svg class="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                             Global Default Hashtags
@@ -356,7 +363,7 @@
                     </div>
 
                     <!-- Reusable Text Snippets -->
-                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg">
+                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                             <svg class="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             Reusable Text Snippets
@@ -375,23 +382,10 @@
                     </div>
 
                     <!-- Recurring Event Templates -->
-                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            Recurring Event Templates
-                        </h2>
-                         <div class="space-y-3">
-                            <input type="text" id="eventDbName" placeholder="Template Name (e.g., Utopia Festival)" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
-                             <button onclick="saveEventTemplate()" class="w-full py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition text-sm">Save Current Input as Template</button>
-                             <div id="eventDbList" class="max-h-32 overflow-y-auto mt-2 p-2 border border-gray-300 rounded-lg bg-gray-50 text-sm">
-                                <!-- List of saved templates will appear here -->
-                             </div>
-                             <p id="eventTemplateStatus" class="text-xs mt-1"></p>
-                        </div>
-                    </div>
-
+                    <!-- REMOVED SECTION as requested. -->
+                    
                     <!-- Media Link Management -->
-                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg">
+                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                             <svg class="w-6 h-6 mr-2 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                             Media Source Folder
