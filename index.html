@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Full Moon Week Posting</title>
+    <title>Full Moon Posting Scheduler</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -87,10 +87,10 @@
             }
         }
         
-        /* FIX: Explicit background colors for visual distinction */
-        .schedule-container { background-color: #eef2ff; /* Indigo-50 */ }
-        .settings-column-one-bg { background-color: #f0fff4; /* Emerald-50 */ }
-        .settings-column-two-bg { background-color: white; }
+        /* FIX: Explicit background colors for visual distinction (using !important to bypass overrides) */
+        .schedule-container { background-color: #eef2ff !important; /* Indigo-50 */ }
+        .settings-column-one-bg { background-color: #f0fff4 !important; /* Emerald-50 */ }
+        .settings-column-two-bg { background-color: white !important; }
 
         /* Modal Styles */
         .modal {
@@ -102,6 +102,18 @@
         .modal.active {
             pointer-events: auto;
             opacity: 1;
+        }
+        
+        /* Collapsible Button Styling */
+        .collapsible-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
         }
     </style>
 </head>
@@ -265,7 +277,7 @@
                 <div class="space-y-6">
                     <div class="settings-column-one-bg p-6 rounded-xl shadow-lg">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m-4 12v-2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2"></path></svg>
+                            <svg class="w-6 h-6 mr-2 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m-4 12v-2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2"></path></svg>
                             Tags
                         </h2>
                         
@@ -295,7 +307,7 @@
                     
                     <!-- Add New Entry (Matches screenshot look) -->
                     <div class="settings-column-one-bg p-6 rounded-xl shadow-lg border border-secondary/50">
-                             <h2 class="text-lg font-semibold text-gray-900 mb-3">Add New Entry:</h2>
+                             <h2 class="text-lg font-semibold text-gray-900 mb-3">Add New Tag:</h2>
                             <div class="space-y-3">
                                 <input type="text" id="newName" placeholder="Name (e.g., John Smith)" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-secondary focus:border-secondary">
                                 <input type="text" id="newTag" placeholder="Tag (e.g., @JohnSmithOfficial)" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-secondary focus:border-secondary">
@@ -374,6 +386,7 @@
                              <div id="eventDbList" class="max-h-32 overflow-y-auto mt-2 p-2 border border-gray-300 rounded-lg bg-gray-50 text-sm">
                                 <!-- List of saved templates will appear here -->
                              </div>
+                             <p id="eventTemplateStatus" class="text-xs mt-1"></p>
                         </div>
                     </div>
 
@@ -451,6 +464,18 @@
                 </div>
             </div>
         </div>
+        
+        <!-- CUSTOM PROMPT MODAL (New - for template saving and other text inputs) -->
+        <div id="promptModal" class="modal fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50" onclick="closePromptModal(null)">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm mx-auto w-full" onclick="event.stopPropagation()">
+                <h3 id="promptModalTitle" class="text-lg font-bold text-primary mb-4">Enter Value</h3>
+                <input type="text" id="promptModalInput" class="w-full p-2 border border-gray-300 rounded-lg mb-6" placeholder="Template Name">
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closePromptModal(null)" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</button>
+                    <button onclick="submitPromptModal()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600">Submit</button>
+                </div>
+            </div>
+        </div>
 
     </div>
 
@@ -483,6 +508,7 @@
         var globalTagsString = "fullmoonweek, fullmoonparty, kohphangan, thailand, parties, fullmoonpartykohphangan"; // Initial value
         
         let resolveModalPromise = null;
+        let resolvePromptPromise = null; // New global for prompt modal
         let currentEditingName = null;
 
         // ====================================================================
@@ -651,13 +677,28 @@
         }
 
         function copyToClipboard(text) {
+            // FIX: Use document.execCommand('copy') as navigator.clipboard.writeText is blocked in iframes
+            // The existing implementation already handles this, maintaining it for robustness.
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text).catch(err => {
-                    console.error('Could not copy text: ', err);
+                    console.error('Could not copy text using navigator.clipboard (using fallback): ', err);
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.position = 'fixed'; // Prevents scrolling to bottom
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    try {
+                        document.execCommand('copy');
+                        console.log('Text copied using execCommand.');
+                    } catch (e) {
+                        console.error('Fallback copy method failed too:', e);
+                    }
+                    document.body.removeChild(textarea);
                 });
             } else {
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
+                textarea.style.position = 'fixed';
                 document.body.appendChild(textarea);
                 textarea.select();
                 document.execCommand('copy');
@@ -728,203 +769,34 @@
             }
         }
         
-        // --- DATA STRUCTURES ---
-
-        function getInitialInstaMap() {
-             return {"2nd Floor Sunset Bar":{"tag":"@2ndfloor.sunsetbar","category":"Venue"},"3MAN":{"tag":"@3man_uk","category":"DJ"},"Aaron Suiss":{"tag":"@aaronsuissofficial","category":"DJ"},"Aatma":{"tag":"@aatmawithin","category":"DJ"},"Abro":{"tag":"@abro.ofc","category":"DJ"},"Acker":{"tag":"@acker_phangan","category":"DJ"},"Acrobat":{"tag":"@acrobat.music","category":"DJ"},"Adi Oren":{"tag":"@_adioren_","category":"DJ"},"Adi Shabat":{"tag":"@adishabat_","category":"DJ"},"AFTERLIFE label":{"tag":"@afterlife_ofc","category":"Label"},"Akshit Shetty":{"tag":"@akshit_shetty","category":"DJ"},"Alan Koh":{"tag":"@alan.island_","category":"DJ"},"Alviker":{"tag":"@alviker","category":"DJ"},"Amiram":{"tag":"@ami_rising_dust","category":"DJ"},"Angelika":{"tag":"@djangelikaofficial","category":"DJ"},"Anna Panilli":{"tag":"@annapanilli","category":"DJ"},"Annabelle":{"tag":"@djparty_kohphangan","category":"DJ"},"Anuyut":{"tag":"@living_things_studio","category":"DJ"},"Apnea":{"tag":"@apneanarchy","category":"DJ"},"Apple Bar, Haad Yao":{"tag":"@applebarhaadyao","category":"Venue"},"Aracil":{"tag":"@aracil_official","category":"DJ"},"Armi":{"tag":"@djarmikp","category":"DJ"},"ArtCore":{"tag":"@ron_levanon_artcore","category":"Artist"},"Artur Snake":{"tag":"@artursnakefilm","category":"DJ"},"Assaf Almog":{"tag":"@dj_assaf_almog","category":"DJ"},"Astrida":{"tag":"@astrida_astridakini","category":"DJ"},"Atman Ananda":{"tag":"@atmanananda_dj","category":"DJ"},"AUM Sound Healing Center":{"tag":"@aumsoundhealing","category":"Venue"},"B.E.M.E.T":{"tag":"@b_e_m_e_t","category":"DJ"},"B14CKPE4R1S":{"tag":"@_b14ckpe4r1s_","category":"DJ"},"B4gle":{"tag":"@b4gle","category":"DJ"},"Back to Donnie":{"tag":"@donniemusic","category":"DJ"},"Bambu":{"tag":"@bambuhuts","category":"Venue"},"Bank Waterfall":{"tag":"@Bank_Waterfall","category":"DJ"},"Barak White":{"tag":"@barakwhite","category":"DJ"},"Bata":{"tag":"@batasamuilover","category":"Artist"},"Bello":{"tag":"@BelloDJ","category":"Category"},"Berry Linn":{"tag":"@Berry_Linn","category":"DJ"},"Big Splash":{"tag":"@Big_Splash_DnBPresenter","category":"Presenter"},"Black Barrel":{"tag":"@blackbarrel_leocap","category":"DJ"},"Black Venus":{"tag":"@blackvenus__","category":"DJ"},"Bluerama":{"tag":"@bluerama_official","category":"Venue"},"Boyonic":{"tag":"@boyonic7","category":"DJ"},"Brahma":{"tag":"@brahma_music","category":"DJ"},"Bushwacka!":{"tag":"@bushwacka","category":"DJ"},"Cafe 13 Koh Phangan":{"tag":"@cafe13_kohphangan","category":"Venue"},"Cartel De Los Amigos":{"tag":"@carteldelosamigos","category":"Presenter"},"Chill Up":{"tag":"@chill_up_phangan","category":"Venue"},"Chupis":{"tag":"@mr_chupis","category":"DJ"},"Cleo P":{"tag":"@djcleop","category":"DJ"},"Cocoyard":{"tag":"@cocoyard.th","category":"Venue"},"Cosimo Scimo":{"tag":"@cosimoscimo33_45","category":"DJ"},"Cosmic Vibes":{"tag":"@djcosmicvibes","category":"DJ"},"Cosmosis":{"tag":"@cosmosis1","category":"DJ"},"Crealab108":{"tag":"@crealab108_uv_artwork","category":"Artist"},"Culture Club":{"tag":"@cultureclub.kpg","category":"Venue"},"D-Unity":{"tag":"@d_unity","category":"DJ"},"Dalah":{"tag":"@dalahfr","category":"DJ"},"Dani V":{"tag":"@ddjdaniv","category":"DJ"},"Darco":{"tag":"@____darco____","category":"DJ"},"Darin Epsilon":{"tag":"@darinepsilon","category":"DJ"},"Darragh Casey":{"tag":"@darraghcasey","category":"DJ"},"Darwish":{"tag":"@djdarwish","category":"DJ"},"Dava Di Toma":{"tag":"@davaditoma","category":"DJ"},"David Chong":{"tag":"@dj_david_chong","category":"DJ"},"Deborah De Luca":{"tag":"@deborahdeluca","category":"DJ"},"Denium":{"tag":"@hill","category":"DJ"},"Denoit has been changed to Denium, this is to ensure that the code is correct, and will not cause an error.":{"tag":"@denishorvat","category":"DJ"},"Dennis Lee":{"tag":"@djdennislee","category":"DJ"},"Dennyck":{"tag":"@davidenicolucci","category":"DJ"},"Densoner":{"tag":"@dens_oner","category":"DJ"},"Desert Sail":{"tag":"@desert_sail_music","category":"DJ"},"Dima Odivo":{"tag":"@dima_odivo","category":"DJ"},"Disco Boi":{"tag":"@yigital_","category":"DJ"},"DJ Bishh":{"tag":"@dj.bishh","category":"DJ"},"DJ Danny Dan":{"tag":"@danny_trunprodigital","category":"DJ"},"DJ Darkus":{"tag":"@djdarkus12","category":"DJ"},"DJ Flim":{"tag":"@djflimofficial","category":"DJ"},"DJ Noize":{"tag":"@noizefmp","category":"DJ"},"DJ NOT":{"tag":"@djjj_not","category":"DJ"},"DJ NowAnanda":{"tag":"@nowananda.music","category":"DJ"},"DJ Profile":{"tag":"@djprofileuk","category":"DJ"},"DJ Sith":{"tag":"@djsith555","category":"DJ"},"DJ Yam":{"tag":"@djy.a.m.","category":"DJ"},"DJ Yamagushi":{"tag":"@dj.yamagushi","category":"DJ"},"DJ​xMC Paekingboom":{"tag":"@pae_kingboom","category":"DJ"},"Doc":{"tag":"@doc.moh77","category":"DJ"},"Dovetail":{"tag":"@dovetail.sounds","category":"DJ"},"Dr. Knows":{"tag":"@mr.andidressler","category":"DJ"},"Dragos":{"tag":"@dragos_kpg","category":"DJ"},"Dust":{"tag":"@dustlooneymoon","category":"DJ"},"Dusty Kid":{"tag":"@dustykid_official","category":"DJ"},"Dyslex":{"tag":"@dyslex_phangan","category":"DJ"},"E-Mook":{"tag":"@dj_e.mook","category":"DJ"},"Echo Beach":{"tag":"@echo_beach_hostel","category":"Venue"},"Eden Party":{"tag":"@edengarden_kohphangan","category":"Venue"},"El Gluck":{"tag":"@el.gluck","category":"DJ"},"Electrom":{"tag":"@electromdj","category":"DJ"},"Eli Cicada":{"tag":"@eli.cicada","category":"DJ"},"Erkin Ekici":{"tag":"@erkinekicii","category":"DJ"},"Esterlis":{"tag":"@alex_esterlis","category":"DJ"},"eva180":{"tag":"@eva_brabus_180","category":"DJ"},"Evgeny Sviridov":{"tag":"@evgeny.sviridov_ofc","category":"DJ"},"𝔽𝔸𝔽𝔸 (People on Top)":{"tag":"@fafa.peopleontop","category":"DJ"},"Farid":{"tag":"@farid__ofc","category":"DJ"},"Felon MC":{"tag":"@felonmc","category":"DJ"},"Fred Canal":{"tag":"@fredcanal","category":"DJ"},"Freestylers":{"tag":"@thefreestylersofficial","category":"DJ"},"Funkintao":{"tag":"@vroom.music","category":"DJ"},"Fuziger":{"tag":"@FuzigerDJ","category":"DJ"},"Gadi Schneider":{"tag":"@gadi__schneider","category":"DJ"},"Gana Eden":{"tag":"@gana_eden","category":"DJ"},"Gayatree":{"tag":"@dj_osman_gayatree","category":"DJ"},"Genetica":{"tag":"@genetica_music","category":"DJ"},"Gera Dzhio":{"tag":"@gera_dzhio","category":"DJ"},"Ghost Rider":{"tag":"@ghostrider.music","category":"DJ"},"Gily":{"tag":"@iamgily","category":"DJ"},"Global Flaming":{"tag":"@global_flaming","category":"Artist"},"Golo":{"tag":"@omergolo","category":"DJ"},"Goodman":{"tag":"@GoodmanDJ","category":"DJ"},"Gorovich":{"tag":"@gorovich_official","category":"DJ"},"Graham Gold":{"tag":"@djgrahamgold","category":"DJ"},"Grasshopper Bar":{"tag":"@grasshopperbeachbar","category":"Venue"},"Greg Hilight Tribe":{"tag":"@greghilight","category":"DJ"},"Groovy Tunes":{"tag":"@groovytunes__","category":"Presenter"},"Gunnar Stiller":{"tag":"@gunnarstiller","category":"DJ"},"Guy’s Bar":{"tag":"@guysbarthailand","category":"Venue"},"Guybro":{"tag":"@guyboyangu","category":"DJ"},"Half Moon Festival":{"tag":"@halfmoon.festival","category":"Venue"},"Happy People":{"tag":"@_happy_people_events_","category":"Presenter"},"Harmony Beach Club":{"tag":"@harmonybeachclub","category":"Venue"},"Hioko":{"tag":"@hioko_yo","category":"DJ"},"Hippapa":{"tag":"@real_hippapa","category":"DJ"},"Holice":{"tag":"@holice___","category":"DJ"},"Hollystone":{"tag":"@hollystonephangan","category":"Venue"},"Hooligan":{"tag":"@hooligan_koh_phangan","category":"Venue"},"Hot Stuff":{"tag":"@hot_stuff_phangan","category":"Presenter"},"Hujaboy":{"tag":"@hujaboy","category":"DJ"},"Hybrid UV":{"tag":"@hybriduv","category":"Artist"},"Imagine Mars":{"tag":"@imaginemarsmusic","category":"DJ"},"Infinity Beach Club":{"tag":"@infinitykohphangan","category":"Venue"},"Insomnia Bar":{"tag":"@insomnia_koh_phangan","category":"Venue"},"Islandboy":{"tag":"@islandboy_og","category":"DJ"},"Istina":{"tag":"@djistina_vlubvi","category":"DJ"},"Ivan Croz":{"tag":"@ivancroz","category":"Artist"},"Jaybee":{"tag":"@dnbjaybee","category":"DJ"},"Jo Moontribe":{"tag":"@jomoontribe","category":"DJ"},"Joe Rickard":{"tag":"@joe.rickard.547","category":"DJ"},"Jonny T Fusion":{"tag":"@jonnytribalfusion","category":"DJ"},"Jordan Love":{"tag":"@dj.jordanlove","category":"DJ"},"Juan Verdera":{"tag":"@juanverderafernandez","category":"DJ"},"Julia Kosjakova":{"tag":"@kosjakova","category":"Artist"},"Jungle Experience Festival":{"tag":"@jungleexperiencekohphangan","category":"Venue"},"Kai Vice":{"tag":"@kaivice_music","category":"DJ"},"Kaliko Flow":{"tag":"@kalikoflow","category":"DJ"},"Kasat Ka":{"tag":"@kasatka_dj","category":"DJ"},"Kat":{"tag":"@djkat.music","category":"DJ"},"Kia Goa":{"tag":"@djkia_goa","category":"DJ"},"KIKKAT":{"tag":"@kikkat.music","category":"DJ"},"KINGS CVSTLE":{"tag":"@KingsCvstle","category":"DJ"},"Klang Therapie":{"tag":"@klangtherapie_","category":"DJ"},"Konos":{"tag":"@konosmusic","category":"DJ"},"Konstantin Sibold":{"tag":"@konstantinsibold","category":"DJ"},"Kreis":{"tag":"@thibaut_kreis","category":"DJ"},"Kris Nami":{"tag":"@kris.nami","category":"DJ"},"Kuma":{"tag":"@kuma.musique","category":"DJ"},"Kyzersan":{"tag":"@kyzersan","category":"DJ"},"L'il Chai":{"tag":"@lilchai_16","category":"DJ"},"Laroz":{"tag":"@larozmusic","category":"DJ"},"Lazykay":{"tag":"@l.a.z.y.k.a.y","category":"DJ"},"Le Club Koh Phangan":{"tag":"@leclubkohphangan","category":"Venue"},"Lee Doron":{"tag":"@leedoron15","category":"DJ"},"Leon Mester":{"tag":"@leon_phangan","category":"DJ"},"Libra Libur":{"tag":"@libralibur","category":"DJ"},"Lighthouse Koh Phangan":{"tag":"@lighthousekohphangan","category":"Venue"},"Lirixx":{"tag":"@liriezra5","category":"DJ"},"Los Amigos":{"tag":"@LosAmigosDJ","category":"DJ"},"Lugasi":{"tag":"@_lugasi_","category":"DJ"},"Magic Island":{"tag":"@magicisland_bar","category":"Venue"},"Magit Cacoon":{"tag":"@magitcacoon","category":"DJ"},"Marchelo":{"tag":"@djmarchelo","category":"DJ"},"Marco Loco":{"tag":"@marcolocomusic","category":"DJ"},"Marietty":{"tag":"@MariettyDJ","category":"DJ"},"Mark Bale":{"tag":"@markbale","category":"DJ"},"Markuuz":{"tag":"@markuuz_markuuz","category":"DJ"},"Master Mario":{"tag":"@djmastermario","category":"DJ"},"Matan Rivivi":{"tag":"@matanrevivi","category":"DJ"},"Matt-E":{"tag":"@ergotjames","category":"DJ"},"Medussa Music":{"tag":"@medussamusicth","category":"DJ"},"Merkaba Beach Club, Koh Phangan":{"tag":"@merkabasunset","category":"Venue"},"Mesto":{"tag":"@nashemesto.kohphangan","category":"Venue"},"Minty":{"tag":"@mintybelle","category":"DJ"},"MOBIT":{"tag":"@Mobit.Phangan","category":"DJ"},"Moksha Lane":{"tag":"@moksha_lane","category":"DJ"},"Monkey Space":{"tag":"@monkeyspace_ofc","category":"DJ"},"Mono & the Ocean":{"tag":"@mono_and_the_ocean","category":"DJ"},"Monsteras":{"tag":"@djmonsteras","category":"DJ"},"Moon House":{"tag":"@moon.house.beachbar","category":"Venue"},"Moonrise Beach, Koh Phangan":{"tag":"@moonrisebeach_kohphangan","category":"Venue"},"Mr Z":{"tag":"@zifrmusic","category":"DJ"},"Muhla":{"tag":"@therealmuhla","category":"DJ"},"N1RVAAN":{"tag":"@nirvaanmusic_","category":"DJ"},"Nakadia":{"tag":"@nakadia_music","category":"DJ"},"Nastia":{"tag":"@nastia.dj","category":"DJ"},"Nata":{"tag":"@natarusakovsky","category":"DJ"},"Natralist":{"tag":"@jaynatralist","category":"DJ"},"Nebila Deussal":{"tag":"@nebila_deussal","category":"DJ"},"Nicare":{"tag":"@nicaremusic","category":"DJ"},"Nico Pauly":{"tag":"@nico_pauly","category":"DJ"},"Nicola Calbi":{"tag":"@nicola.calbi","category":"DJ"},"Niiya":{"tag":"@niiyamusica","category":"DJ"},"Nilopeech":{"tag":"@nilopeech_meditation","category":"DJ"},"Nima":{"tag":"@nima_shamarli_","category":"DJ"},"Nisa Brown":{"tag":"@nisa_brown","category":"DJ"},"NO:MAD":{"tag":"@nomad_liveset","category":"DJ"},"Omer Bar":{"tag":"@omerbar_official","category":"DJ"},"OMKA":{"tag":"@omri.m.hay","category":"DJ"},"ØNIZΛL":{"tag":"@onizalart","category":"Artist"},"Oscar L":{"tag":"@oscarldj","category":"DJ"},"Out of Orbit":{"tag":"@outoforbitofficial","category":"DJ"},"Outsiders":{"tag":"@outsiders_music","category":"DJ"},"OXA Beach":{"tag":"@oxapartykohphangan","category":"Venue"},"OXA Party":{"tag":"@oxapartyphangan","category":"Venue"},"P.H.B.":{"tag":"@fabrice.dj.phb","category":"DJ"},"Pash":{"tag":"@dj_pash_dnb","category":"DJ"},"Peacemaker":{"tag":"@dj_peacemaker_","category":"DJ"},"Persistence":{"tag":"@payton_persistence","category":"DJ"},"Peter G":{"tag":"@petergphangan","category":"DJ"},"Playin' Blind":{"tag":"@playinblind","category":"DJ"},"Poe":{"tag":"@dj_poe","category":"DJ"},"Porat":{"tag":"@poratmusic","category":"DJ"},"Porsche":{"tag":"@Porsche_DJ","category":"DJ"},"Pou":{"tag":"@pou_music_ofc","category":"DJ"},"Presti":{"tag":"@presti.__","category":"DJ"},"Prismatic":{"tag":"@PrismaticDJ","category":"DJ"},"Pyramid":{"tag":"@pyramidkohphangan","category":"Venue"},"Qwent Chang":{"tag":"@qwentchang","category":"DJ"},"R3WIRE":{"tag":"@r3wire","category":"DJ"},"Rasta Home":{"tag":"@RastaHomeKoh","category":"Venue"},"Retro Mountain":{"tag":"@retromountainclubphangan","category":"Venue"},"Retro Mountain Phangan":{"tag":"@retromountainphangan","category":"Venue"},"Ring Of Chain":{"tag":"@_____ringofchain.wav","category":"DJ"},"Rizlablu":{"tag":"@Rizlablu.dnb","category":"DJ"},"Rob Gritton":{"tag":"@robgritton","category":"DJ"},"Roma Dawkins":{"tag":"@roma_dawkins","category":"DJ"},"Ronir":{"tag":"@RonirDJ","category":"DJ"},"Room Service":{"tag":"@room_service_events","category":"Presenter"},"Roymor":{"tag":"@roymor7","category":"DJ"},"Sabaii Bay Beach Club":{"tag":"@sabaiibaybeachclub","category":"Venue"},"Sabrina":{"tag":"@sabrinamadonnacamparifantasie","category":"DJ"},"Sacred Beat":{"tag":"@sacredbeat","category":"DJ"},"Saily":{"tag":"@SailyDJ","category":"DJ"},"Sam Supplier":{"tag":"@samsupplier","category":"DJ"},"Sarina":{"tag":"@sharon_shirr","category":"DJ"},"Sasha Barley":{"tag":"@sasha.barley","category":"DJ"},"Saturn Pub":{"tag":"@saturnpub","category":"Venue"},"Sea Love Beach":{"tag":"@sealovekohphangan","category":"Venue"},"Sean Brauer":{"tag":"@seanbrauerr","category":"DJ"},"SEASIDE Sunset Bar, Koh Phangan":{"tag":"@seaside_sunsetbar_kohphangan","category":"Venue"},"Seebeat":{"tag":"@djseebeat","category":"DJ"},"Selecta G":{"tag":"@selecta_g_aka_damdam","category":"DJ"},"Selecta Snoop":{"tag":"@selecta_snoop","category":"DJ"},"SHALØS":{"tag":"@shalos__","category":"DJ"},"Sharnea":{"tag":"@sharnea_xo","category":"DJ"},"Shayman":{"tag":"@shayman.official","category":"DJ"},"Sho Sho":{"tag":"@shoshojp","category":"DJ"},"Simon Kruger":{"tag":"@SimonKrugerDJ","category":"DJ"},"Slacky":{"tag":"@___slacky","category":"DJ"},"SNGI":{"tag":"@sngi_alex","category":"DJ"},"Sola":{"tag":"@SolaDJ","category":"DJ"},"Solar Conexion":{"tag":"@solar_conexion","category":"Presenter"},"Somatic Cell":{"tag":"@somatic_cell","category":"DJ"},"Sophie States":{"tag":"@sophiestates_","category":"DJ"},"Space Club Haad Rin":{"tag":"@spaceclub_haadrin","category":"Venue"},"Sphera":{"tag":"@_sphera","category":"DJ"},"Sramanora Bar":{"tag":"@sramanorabar","category":"Venue"},"Stay Gold":{"tag":"@staygold.phangan","category":"DJ"},"Stevie Keys":{"tag":"@djsteviekeys","category":"DJ"},"Sun Diary":{"tag":"@sun_diary_music","category":"DJ"},"Sunset Hill Resort":{"tag":"@sunsethillresort","category":"Venue"},"Suzy Lynx":{"tag":"@SuzyLynx","category":"DJ"},"Swarup":{"tag":"@juarezpetrillo","category":"DJ"},"Syd Gris":{"tag":"@syd_gris","category":"DJ"},"T-Gecko":{"tag":"@t_gecko_music","category":"DJ"},"Talamasca":{"tag":"@talamasca_official","category":"DJ"},"Taz Jacks":{"tag":"@taz_jacks","category":"DJ"},"TEE-O":{"tag":"@theocid_","category":"DJ"},"Telomancer":{"tag":"@telomancer_music","category":"DJ"},"Tezla":{"tag":"@tezla_music","category":"DJ"},"The Element":{"tag":"@theelement____","category":"DJ"},"The Grounds at Siam Cookies Koh Phangan":{"tag":"@thegroundsxsiamcookies","category":"Venue"},"The Wave​ Sunset​":{"tag":"@thewave_sunset","category":"Venue"},"The Wild Side":{"tag":"@thewildside_kohphangan","category":"Venue"},"Timo":{"tag":"@dj.timo.official","category":"DJ"},"Tino Moreno":{"tag":"@tinomoreno77","category":"DJ"},"Tintun":{"tag":"@tintun.tunes","category":"DJ"},"Traumgeist":{"tag":"@traumgeist_dnb","category":"DJ"},"Tripical Note":{"tag":"@tripicalnote_ofc","category":"DJ"},"Tutu":{"tag":"@tom_barnea","category":"DJ"},"Tzvi Sharf":{"tag":"@tzvi.sharf","category":"DJ"},"Unclave":{"tag":"@unclave.phangan","category":"Venue"},"Up to J":{"tag":"@UpToJDJ","category":"DJ"},"UTOPIA Festival":{"tag":"@utopia.events.pro","category":"Venue"},"Vakabular":{"tag":"@djvakabular","category":"DJ"},"Vegas":{"tag":"@vegaslive","category":"DJ"},"Victor Oneoff":{"tag":"@victor_kohphangan","category":"DJ"},"Violyricals":{"tag":"@Violyricals","category":"Artist"},"Waqt":{"tag":"@djchinx_cluster_waqt","category":"DJ"},"Waterfall Festival":{"tag":"@waterfall_festival_official","category":"Venue"},"Waterfall Festival Phangan":{"tag":"@waterfallfestivalphangan","category":"Venue"},"WET Hostel":{"tag":"@wethostel","category":"Venue"},"WET Pool Party":{"tag":"@WETPoolParty","category":"Venue"},"Woodsy":{"tag":"@woodsy.dnb","category":"DJ"},"Yam":{"tag":"@yam.freedom.dj","category":"DJ"},"Yam (Violyricals)":{"tag":"@djy.a.m","category":"DJ"},"Yekumi":{"tag":"@yekumi","category":"DJ"},"YEP Listening Bar":{"tag":"@yep_listening_bar","category":"Venue"},"Yo Logo":{"tag":"@johann.ilpide","category":"DJ"},"Yodafestedelik":{"tag":"@yodafestedelik","category":"DJ"},"Yolozen":{"tag":"@_yolozen","category":"DJ"},"Yugo":{"tag":"@yugo_the_dj","category":"DJ"},"Zeeqar":{"tag":"@zeeqar_","category":"DJ"},"Zero 1 Music":{"tag":"@zero1music","category":"Label"},"Zifr":{"tag":"@zifrmusic","category":"DJ"},"Zig":{"tag":"@d.j.zig","category":"DJ"},"Zoe Azad":{"tag":"@zoeazad","category":"DJ"},"Machet":{"tag":"@nadavmachet","category":"DJ"},"Kudo":{"tag":"@kudo__official","category":"DJ"},"Dano":{"tag":"@DanoYashar","category":"DJ"},"Yashar":{"tag":"@YasharVahid","category":"DJ"},"Vahid":{"tag":"@vahidsadeghzadeh","category":"DJ"},"Ban Sabaii":{"tag":"@ban.sabaii","category":"Venue"},"Jascio":{"tag":"@jascio888","category":"DJ"},"Vincent Vino":{"tag":"@doodleswithvino","category":"Artist"},"Carlton":{"tag":"@carltonthomas90","category":"DJ"},"Matthew":{"tag":"@MatthewMagnus","category":"DJ"},"Magnus":{"tag":"@MagnusFactor50","category":"DJ"},"Factor 50":{"tag":"@Factor50Basner","category":"DJ"},"Basner":{"tag":"@BasnerMae","category":"DJ"},"Mae":{"tag":"@MaeGrooveOne","category":"DJ"},"GrooveOne Agency":{"tag":"@grooveoneagency","category":"Presenter"},"Hole Station":{"tag":"@holestation","category":"Venue"},"Dagda":{"tag":"@djdagda","category":"DJ"},"thenotsofamous":{"tag":"@thenotsofamous","category":"DJ"},"Ankytrixx":{"tag":"@ankytrixx","category":"DJ"},"Damien Nëmad":{"tag":"@damiennemad","category":"DJ"},"Ayavi":{"tag":"@ayavi.kandoo","category":"DJ"}}
-        }
-
-        async function authenticateUser() {
-            return new Promise(async (resolve) => {
-                const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                
-                if (initialToken) {
-                    await firebase.signInWithCustomToken(auth, initialToken);
-                } else {
-                    await firebase.signInAnonymously(auth);
-                }
-
-                firebase.onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        resolve(true);
-                    } else {
-                        userId = crypto.randomUUID();
-                        resolve(false);
-                    }
-                });
-            });
-        }
-
-        function getDocRef(collectionName, docId) {
-            if (!db || !userId) throw new Error("Firebase or User not initialized.");
-            return firebase.doc(db, `/artifacts/${appId}/users/${userId}/${collectionName}/${docId}`);
-        }
+        // --- PROMPT MODAL (New - for text input/renaming/template saving) ---
         
-        function mapToData(map) {
-            return { data: map, lastUpdated: new Date().toISOString() };
-        }
-        function dataToMap(data) {
-            return data.data || {};
-        }
-
-        async function saveDataToFirestore(collectionName, data) {
-            if (!db || !userId) {
-                console.error("Database not ready. Saving failed.");
-                return;
-            }
-
-            try {
-                const docRef = getDocRef(collectionName, 'main'); 
-                
-                if (collectionName === DB_CONFIG.SCHEDULE_DB_KEY) {
-                    await firebase.setDoc(docRef, { events: data, lastUpdated: new Date().toISOString() });
-                } else if (collectionName === DB_CONFIG.MEDIA_LINK_KEY) {
-                    await firebase.setDoc(docRef, { link: data });
-                } else if (collectionName === DB_CONFIG.GLOBAL_TAGS_KEY) {
-                    await firebase.setDoc(docRef, { tags: data, lastUpdated: new Date().toISOString() });
-                } else {
-                    await firebase.setDoc(docRef, mapToData(data));
-                }
-                
-            } catch (e) {
-                console.error(`Error saving ${collectionName} to Firestore:`, e);
-            }
-        }
-
-        async function loadInitialDataAndListen() {
-            if (!db || !userId) return;
-
-            const collections = [
-                { name: DB_CONFIG.INSTA_DB_KEY, render: renderNameMap, default: getInitialInstaMap(), globalVar: nameTagDatabase, type: 'map' },
-                { name: DB_CONFIG.EVENT_DB_KEY, render: renderEventTemplateSelect, default: {}, globalVar: eventDatabase, type: 'map' },
-                { name: DB_CONFIG.SNIPPETS_KEY, render: renderSnippetSelect, default: {}, globalVar: textSnippets, type: 'map' },
-                { name: DB_CONFIG.SCHEDULE_DB_KEY, render: renderScheduleList, default: [], globalVar: eventSchedule, type: 'array' },
-                { name: DB_CONFIG.MEDIA_LINK_KEY, render: renderMediaLink, default: '', globalVar: mediaFolderLink, type: 'link' },
-                { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: renderGlobalTags, default: globalTagsString, globalVar: window.globalTagsString, type: 'string' }
-            ];
-
-            for (const { name, render, default: defaultData, globalVar, type } of collections) {
-                const docRef = getDocRef(name, 'main');
-                
-                const docSnap = await firebase.getDoc(docRef);
-                if (!docSnap.exists() && Object.keys(defaultData).length > 0) {
-                    await saveDataToFirestore(name, defaultData);
-                }
-
-                firebase.onSnapshot(docRef, (snap) => {
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        
-                        if (type === 'array') {
-                            globalVar.splice(0, globalVar.length, ...(data.events || []));
-                            // FIX: Ensure schedule is always sorted by date immediately after load
-                            globalVar.sort((a, b) => new Date(a.date) - new Date(b.date));
-                        } else if (type === 'link') {
-                            window.mediaFolderLink = data.link || '';
-                        } else if (type === 'string') {
-                             window.globalTagsString = data.tags || defaultData;
-                        } else if (type === 'map') {
-                            const loadedMap = dataToMap(data); 
-                            for (const prop in globalVar) { delete globalVar[prop]; }
-                            Object.assign(globalVar, loadedMap);
-                        }
-                    } 
-                    render();
-                }, (error) => {
-                    console.error(`Error listening to ${name}:`, error);
-                });
-            }
-        }
-
-
-        // --- UTILITY FUNCTIONS ---
-        // FIX: Moved all utility functions here for immediate hoisting and accessibility
-        
-        function getTodayIsoString() {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        function copyToClipboard(text) {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(text).catch(err => {
-                    console.error('Could not copy text: ', err);
-                });
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            }
-        }
-        
-        function formatDateFriendly(isoDate) {
-            if (!isoDate) return 'TBD Date';
-            try {
-                const date = new Date(isoDate + 'T00:00:00'); // Append time to prevent timezone issues
-                return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            } catch (e) {
-                return isoDate;
-            }
-        }
-        
-        function dateDifference(date1, date2) {
-            // Calculates difference in full days, crucial for sequential numbering
-            const date1Time = date1.getTime();
-            const date2Time = date2.getTime();
-            const diffTime = Math.abs(date2Time - date1Time);
-            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        }
-
-        function generateFileName() {
-            const date = document.getElementById('inputIsoDate').value.trim();
-            const location = document.getElementById('inputLocation').value.trim();
-
-            if (!date || !location) {
-                document.getElementById('fileNameOutput').textContent = "Enter Date and Location to generate filename.";
-                return 'N/A';
-            }
-
-            const d = new Date(date + 'T00:00:00');
-            const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-            const day = String(d.getDate()).padStart(2, '0');
+        function openPromptModal(title, defaultValue = '') {
+            document.getElementById('promptModalTitle').textContent = title;
+            const inputEl = document.getElementById('promptModalInput');
+            inputEl.value = defaultValue;
+            inputEl.placeholder = title; 
+            document.getElementById('promptModal').classList.add('active');
             
-            const cleanLocation = location
-                .replace(/[^a-zA-Z0-9\s]/g, '')
-                .trim()
-                .replace(/\s+/g, '_')
-                .toUpperCase();
+            // Focus the input when the modal is opened
+            setTimeout(() => inputEl.focus(), 100);
 
-            const filename = `${day}${month}-${cleanLocation}`;
-            
-            document.getElementById('fileNameOutput').textContent = `${filename}.jpg/mp4 (Copy Manually)`;
-            return filename;
-        }
-
-        function updateTextOutput(id) { /* Placeholder */ }
-        
-        // --- MODAL CONFIRMATION (for reliable deletion) ---
-
-        function openModal(message) {
-            document.getElementById('modalMessage').textContent = message;
-            document.getElementById('deleteModal').classList.add('active');
             return new Promise(resolve => {
-                resolveModalPromise = resolve;
+                resolvePromptPromise = resolve;
             });
         }
 
-        function closeModal(confirmed) {
-            document.getElementById('deleteModal').classList.remove('active');
-            if (resolveModalPromise) {
-                resolveModalPromise(confirmed);
-                resolveModalPromise = null;
+        function closePromptModal(value) {
+            document.getElementById('promptModal').classList.remove('active');
+            if (resolvePromptPromise) {
+                resolvePromptPromise(value);
+                resolvePromptPromise = null;
             }
+        }
+
+        function submitPromptModal() {
+            const value = document.getElementById('promptModalInput').value.trim();
+            closePromptModal(value);
         }
         
         // --- DATA STRUCTURES ---
@@ -932,110 +804,6 @@
         function getInitialInstaMap() {
              return {"2nd Floor Sunset Bar":{"tag":"@2ndfloor.sunsetbar","category":"Venue"},"3MAN":{"tag":"@3man_uk","category":"DJ"},"Aaron Suiss":{"tag":"@aaronsuissofficial","category":"DJ"},"Aatma":{"tag":"@aatmawithin","category":"DJ"},"Abro":{"tag":"@abro.ofc","category":"DJ"},"Acker":{"tag":"@acker_phangan","category":"DJ"},"Acrobat":{"tag":"@acrobat.music","category":"DJ"},"Adi Oren":{"tag":"@_adioren_","category":"DJ"},"Adi Shabat":{"tag":"@adishabat_","category":"DJ"},"AFTERLIFE label":{"tag":"@afterlife_ofc","category":"Label"},"Akshit Shetty":{"tag":"@akshit_shetty","category":"DJ"},"Alan Koh":{"tag":"@alan.island_","category":"DJ"},"Alviker":{"tag":"@alviker","category":"DJ"},"Amiram":{"tag":"@ami_rising_dust","category":"DJ"},"Angelika":{"tag":"@djangelikaofficial","category":"DJ"},"Anna Panilli":{"tag":"@annapanilli","category":"DJ"},"Annabelle":{"tag":"@djparty_kohphangan","category":"DJ"},"Anuyut":{"tag":"@living_things_studio","category":"DJ"},"Apnea":{"tag":"@apneanarchy","category":"DJ"},"Apple Bar, Haad Yao":{"tag":"@applebarhaadyao","category":"Venue"},"Aracil":{"tag":"@aracil_official","category":"DJ"},"Armi":{"tag":"@djarmikp","category":"DJ"},"ArtCore":{"tag":"@ron_levanon_artcore","category":"Artist"},"Artur Snake":{"tag":"@artursnakefilm","category":"DJ"},"Assaf Almog":{"tag":"@dj_assaf_almog","category":"DJ"},"Astrida":{"tag":"@astrida_astridakini","category":"DJ"},"Atman Ananda":{"tag":"@atmanananda_dj","category":"DJ"},"AUM Sound Healing Center":{"tag":"@aumsoundhealing","category":"Venue"},"B.E.M.E.T":{"tag":"@b_e_m_e_t","category":"DJ"},"B14CKPE4R1S":{"tag":"@_b14ckpe4r1s_","category":"DJ"},"B4gle":{"tag":"@b4gle","category":"DJ"},"Back to Donnie":{"tag":"@donniemusic","category":"DJ"},"Bambu":{"tag":"@bambuhuts","category":"Venue"},"Bank Waterfall":{"tag":"@Bank_Waterfall","category":"DJ"},"Barak White":{"tag":"@barakwhite","category":"DJ"},"Bata":{"tag":"@batasamuilover","category":"Artist"},"Bello":{"tag":"@BelloDJ","category":"Category"},"Berry Linn":{"tag":"@Berry_Linn","category":"DJ"},"Big Splash":{"tag":"@Big_Splash_DnBPresenter","category":"Presenter"},"Black Barrel":{"tag":"@blackbarrel_leocap","category":"DJ"},"Black Venus":{"tag":"@blackvenus__","category":"DJ"},"Bluerama":{"tag":"@bluerama_official","category":"Venue"},"Boyonic":{"tag":"@boyonic7","category":"DJ"},"Brahma":{"tag":"@brahma_music","category":"DJ"},"Bushwacka!":{"tag":"@bushwacka","category":"DJ"},"Cafe 13 Koh Phangan":{"tag":"@cafe13_kohphangan","category":"Venue"},"Cartel De Los Amigos":{"tag":"@carteldelosamigos","category":"Presenter"},"Chill Up":{"tag":"@chill_up_phangan","category":"Venue"},"Chupis":{"tag":"@mr_chupis","category":"DJ"},"Cleo P":{"tag":"@djcleop","category":"DJ"},"Cocoyard":{"tag":"@cocoyard.th","category":"Venue"},"Cosimo Scimo":{"tag":"@cosimoscimo33_45","category":"DJ"},"Cosmic Vibes":{"tag":"@djcosmicvibes","category":"DJ"},"Cosmosis":{"tag":"@cosmosis1","category":"DJ"},"Crealab108":{"tag":"@crealab108_uv_artwork","category":"Artist"},"Culture Club":{"tag":"@cultureclub.kpg","category":"Venue"},"D-Unity":{"tag":"@d_unity","category":"DJ"},"Dalah":{"tag":"@dalahfr","category":"DJ"},"Dani V":{"tag":"@ddjdaniv","category":"DJ"},"Darco":{"tag":"@____darco____","category":"DJ"},"Darin Epsilon":{"tag":"@darinepsilon","category":"DJ"},"Darragh Casey":{"tag":"@darraghcasey","category":"DJ"},"Darwish":{"tag":"@djdarwish","category":"DJ"},"Dava Di Toma":{"tag":"@davaditoma","category":"DJ"},"David Chong":{"tag":"@dj_david_chong","category":"DJ"},"Deborah De Luca":{"tag":"@deborahdeluca","category":"DJ"},"Denium":{"tag":"@hill","category":"DJ"},"Denoit has been changed to Denium, this is to ensure that the code is correct, and will not cause an error.":{"tag":"@denishorvat","category":"DJ"},"Dennis Lee":{"tag":"@djdennislee","category":"DJ"},"Dennyck":{"tag":"@davidenicolucci","category":"DJ"},"Densoner":{"tag":"@dens_oner","category":"DJ"},"Desert Sail":{"tag":"@desert_sail_music","category":"DJ"},"Dima Odivo":{"tag":"@dima_odivo","category":"DJ"},"Disco Boi":{"tag":"@yigital_","category":"DJ"},"DJ Bishh":{"tag":"@dj.bishh","category":"DJ"},"DJ Danny Dan":{"tag":"@danny_trunprodigital","category":"DJ"},"DJ Darkus":{"tag":"@djdarkus12","category":"DJ"},"DJ Flim":{"tag":"@djflimofficial","category":"DJ"},"DJ Noize":{"tag":"@noizefmp","category":"DJ"},"DJ NOT":{"tag":"@djjj_not","category":"DJ"},"DJ NowAnanda":{"tag":"@nowananda.music","category":"DJ"},"DJ Profile":{"tag":"@djprofileuk","category":"DJ"},"DJ Sith":{"tag":"@djsith555","category":"DJ"},"DJ Yam":{"tag":"@djy.a.m.","category":"DJ"},"DJ Yamagushi":{"tag":"@dj.yamagushi","category":"DJ"},"DJ​xMC Paekingboom":{"tag":"@pae_kingboom","category":"DJ"},"Doc":{"tag":"@doc.moh77","category":"DJ"},"Dovetail":{"tag":"@dovetail.sounds","category":"DJ"},"Dr. Knows":{"tag":"@mr.andidressler","category":"DJ"},"Dragos":{"tag":"@dragos_kpg","category":"DJ"},"Dust":{"tag":"@dustlooneymoon","category":"DJ"},"Dusty Kid":{"tag":"@dustykid_official","category":"DJ"},"Dyslex":{"tag":"@dyslex_phangan","category":"DJ"},"E-Mook":{"tag":"@dj_e.mook","category":"DJ"},"Echo Beach":{"tag":"@echo_beach_hostel","category":"Venue"},"Eden Party":{"tag":"@edengarden_kohphangan","category":"Venue"},"El Gluck":{"tag":"@el.gluck","category":"DJ"},"Electrom":{"tag":"@electromdj","category":"DJ"},"Eli Cicada":{"tag":"@eli.cicada","category":"DJ"},"Erkin Ekici":{"tag":"@erkinekicii","category":"DJ"},"Esterlis":{"tag":"@alex_esterlis","category":"DJ"},"eva180":{"tag":"@eva_brabus_180","category":"DJ"},"Evgeny Sviridov":{"tag":"@evgeny.sviridov_ofc","category":"DJ"},"𝔽𝔸𝔽𝔸 (People on Top)":{"tag":"@fafa.peopleontop","category":"DJ"},"Farid":{"tag":"@farid__ofc","category":"DJ"},"Felon MC":{"tag":"@felonmc","category":"DJ"},"Fred Canal":{"tag":"@fredcanal","category":"DJ"},"Freestylers":{"tag":"@thefreestylersofficial","category":"DJ"},"Funkintao":{"tag":"@vroom.music","category":"DJ"},"Fuziger":{"tag":"@FuzigerDJ","category":"DJ"},"Gadi Schneider":{"tag":"@gadi__schneider","category":"DJ"},"Gana Eden":{"tag":"@gana_eden","category":"DJ"},"Gayatree":{"tag":"@dj_osman_gayatree","category":"DJ"},"Genetica":{"tag":"@genetica_music","category":"DJ"},"Gera Dzhio":{"tag":"@gera_dzhio","category":"DJ"},"Ghost Rider":{"tag":"@ghostrider.music","category":"DJ"},"Gily":{"tag":"@iamgily","category":"DJ"},"Global Flaming":{"tag":"@global_flaming","category":"Artist"},"Golo":{"tag":"@omergolo","category":"DJ"},"Goodman":{"tag":"@GoodmanDJ","category":"DJ"},"Gorovich":{"tag":"@gorovich_official","category":"DJ"},"Graham Gold":{"tag":"@djgrahamgold","category":"DJ"},"Grasshopper Bar":{"tag":"@grasshopperbeachbar","category":"Venue"},"Greg Hilight Tribe":{"tag":"@greghilight","category":"DJ"},"Groovy Tunes":{"tag":"@groovytunes__","category":"Presenter"},"Gunnar Stiller":{"tag":"@gunnarstiller","category":"DJ"},"Guy’s Bar":{"tag":"@guysbarthailand","category":"Venue"},"Guybro":{"tag":"@guyboyangu","category":"DJ"},"Half Moon Festival":{"tag":"@halfmoon.festival","category":"Venue"},"Happy People":{"tag":"@_happy_people_events_","category":"Presenter"},"Harmony Beach Club":{"tag":"@harmonybeachclub","category":"Venue"},"Hioko":{"tag":"@hioko_yo","category":"DJ"},"Hippapa":{"tag":"@real_hippapa","category":"DJ"},"Holice":{"tag":"@holice___","category":"DJ"},"Hollystone":{"tag":"@hollystonephangan","category":"Venue"},"Hooligan":{"tag":"@hooligan_koh_phangan","category":"Venue"},"Hot Stuff":{"tag":"@hot_stuff_phangan","category":"Presenter"},"Hujaboy":{"tag":"@hujaboy","category":"DJ"},"Hybrid UV":{"tag":"@hybriduv","category":"Artist"},"Imagine Mars":{"tag":"@imaginemarsmusic","category":"DJ"},"Infinity Beach Club":{"tag":"@infinitykohphangan","category":"Venue"},"Insomnia Bar":{"tag":"@insomnia_koh_phangan","category":"Venue"},"Islandboy":{"tag":"@islandboy_og","category":"DJ"},"Istina":{"tag":"@djistina_vlubvi","category":"DJ"},"Ivan Croz":{"tag":"@ivancroz","category":"Artist"},"Jaybee":{"tag":"@dnbjaybee","category":"DJ"},"Jo Moontribe":{"tag":"@jomoontribe","category":"DJ"},"Joe Rickard":{"tag":"@joe.rickard.547","category":"DJ"},"Jonny T Fusion":{"tag":"@jonnytribalfusion","category":"DJ"},"Jordan Love":{"tag":"@dj.jordanlove","category":"DJ"},"Juan Verdera":{"tag":"@juanverderafernandez","category":"DJ"},"Julia Kosjakova":{"tag":"@kosjakova","category":"Artist"},"Jungle Experience Festival":{"tag":"@jungleexperiencekohphangan","category":"Venue"},"Kai Vice":{"tag":"@kaivice_music","category":"DJ"},"Kaliko Flow":{"tag":"@kalikoflow","category":"DJ"},"Kasat Ka":{"tag":"@kasatka_dj","category":"DJ"},"Kat":{"tag":"@djkat.music","category":"DJ"},"Kia Goa":{"tag":"@djkia_goa","category":"DJ"},"KIKKAT":{"tag":"@kikkat.music","category":"DJ"},"KINGS CVSTLE":{"tag":"@KingsCvstle","category":"DJ"},"Klang Therapie":{"tag":"@klangtherapie_","category":"DJ"},"Konos":{"tag":"@konosmusic","category":"DJ"},"Konstantin Sibold":{"tag":"@konstantinsibold","category":"DJ"},"Kreis":{"tag":"@thibaut_kreis","category":"DJ"},"Kris Nami":{"tag":"@kris.nami","category":"DJ"},"Kuma":{"tag":"@kuma.musique","category":"DJ"},"Kyzersan":{"tag":"@kyzersan","category":"DJ"},"L'il Chai":{"tag":"@lilchai_16","category":"DJ"},"Laroz":{"tag":"@larozmusic","category":"DJ"},"Lazykay":{"tag":"@l.a.z.y.k.a.y","category":"DJ"},"Le Club Koh Phangan":{"tag":"@leclubkohphangan","category":"Venue"},"Lee Doron":{"tag":"@leedoron15","category":"DJ"},"Leon Mester":{"tag":"@leon_phangan","category":"DJ"},"Libra Libur":{"tag":"@libralibur","category":"DJ"},"Lighthouse Koh Phangan":{"tag":"@lighthousekohphangan","category":"Venue"},"Lirixx":{"tag":"@liriezra5","category":"DJ"},"Los Amigos":{"tag":"@LosAmigosDJ","category":"DJ"},"Lugasi":{"tag":"@_lugasi_","category":"DJ"},"Magic Island":{"tag":"@magicisland_bar","category":"Venue"},"Magit Cacoon":{"tag":"@magitcacoon","category":"DJ"},"Marchelo":{"tag":"@djmarchelo","category":"DJ"},"Marco Loco":{"tag":"@marcolocomusic","category":"DJ"},"Marietty":{"tag":"@MariettyDJ","category":"DJ"},"Mark Bale":{"tag":"@markbale","category":"DJ"},"Markuuz":{"tag":"@markuuz_markuuz","category":"DJ"},"Master Mario":{"tag":"@djmastermario","category":"DJ"},"Matan Rivivi":{"tag":"@matanrevivi","category":"DJ"},"Matt-E":{"tag":"@ergotjames","category":"DJ"},"Medussa Music":{"tag":"@medussamusicth","category":"DJ"},"Merkaba Beach Club, Koh Phangan":{"tag":"@merkabasunset","category":"Venue"},"Mesto":{"tag":"@nashemesto.kohphangan","category":"Venue"},"Minty":{"tag":"@mintybelle","category":"DJ"},"MOBIT":{"tag":"@Mobit.Phangan","category":"DJ"},"Moksha Lane":{"tag":"@moksha_lane","category":"DJ"},"Monkey Space":{"tag":"@monkeyspace_ofc","category":"DJ"},"Mono & the Ocean":{"tag":"@mono_and_the_ocean","category":"DJ"},"Monsteras":{"tag":"@djmonsteras","category":"DJ"},"Moon House":{"tag":"@moon.house.beachbar","category":"Venue"},"Moonrise Beach, Koh Phangan":{"tag":"@moonrisebeach_kohphangan","category":"Venue"},"Mr Z":{"tag":"@zifrmusic","category":"DJ"},"Muhla":{"tag":"@therealmuhla","category":"DJ"},"N1RVAAN":{"tag":"@nirvaanmusic_","category":"DJ"},"Nakadia":{"tag":"@nakadia_music","category":"DJ"},"Nastia":{"tag":"@nastia.dj","category":"DJ"},"Nata":{"tag":"@natarusakovsky","category":"DJ"},"Natralist":{"tag":"@jaynatralist","category":"DJ"},"Nebila Deussal":{"tag":"@nebila_deussal","category":"DJ"},"Nicare":{"tag":"@nicaremusic","category":"DJ"},"Nico Pauly":{"tag":"@nico_pauly","category":"DJ"},"Nicola Calbi":{"tag":"@nicola.calbi","category":"DJ"},"Niiya":{"tag":"@niiyamusica","category":"DJ"},"Nilopeech":{"tag":"@nilopeech_meditation","category":"DJ"},"Nima":{"tag":"@nima_shamarli_","category":"DJ"},"Nisa Brown":{"tag":"@nisa_brown","category":"DJ"},"NO:MAD":{"tag":"@nomad_liveset","category":"DJ"},"Omer Bar":{"tag":"@omerbar_official","category":"DJ"},"OMKA":{"tag":"@omri.m.hay","category":"DJ"},"ØNIZΛL":{"tag":"@onizalart","category":"Artist"},"Oscar L":{"tag":"@oscarldj","category":"DJ"},"Out of Orbit":{"tag":"@outoforbitofficial","category":"DJ"},"Outsiders":{"tag":"@outsiders_music","category":"DJ"},"OXA Beach":{"tag":"@oxapartykohphangan","category":"Venue"},"OXA Party":{"tag":"@oxapartyphangan","category":"Venue"},"P.H.B.":{"tag":"@fabrice.dj.phb","category":"DJ"},"Pash":{"tag":"@dj_pash_dnb","category":"DJ"},"Peacemaker":{"tag":"@dj_peacemaker_","category":"DJ"},"Persistence":{"tag":"@payton_persistence","category":"DJ"},"Peter G":{"tag":"@petergphangan","category":"DJ"},"Playin' Blind":{"tag":"@playinblind","category":"DJ"},"Poe":{"tag":"@dj_poe","category":"DJ"},"Porat":{"tag":"@poratmusic","category":"DJ"},"Porsche":{"tag":"@Porsche_DJ","category":"DJ"},"Pou":{"tag":"@pou_music_ofc","category":"DJ"},"Presti":{"tag":"@presti.__","category":"DJ"},"Prismatic":{"tag":"@PrismaticDJ","category":"DJ"},"Pyramid":{"tag":"@pyramidkohphangan","category":"Venue"},"Qwent Chang":{"tag":"@qwentchang","category":"DJ"},"R3WIRE":{"tag":"@r3wire","category":"DJ"},"Rasta Home":{"tag":"@RastaHomeKoh","category":"Venue"},"Retro Mountain":{"tag":"@retromountainclubphangan","category":"Venue"},"Retro Mountain Phangan":{"tag":"@retromountainphangan","category":"Venue"},"Ring Of Chain":{"tag":"@_____ringofchain.wav","category":"DJ"},"Rizlablu":{"tag":"@Rizlablu.dnb","category":"DJ"},"Rob Gritton":{"tag":"@robgritton","category":"DJ"},"Roma Dawkins":{"tag":"@roma_dawkins","category":"DJ"},"Ronir":{"tag":"@RonirDJ","category":"DJ"},"Room Service":{"tag":"@room_service_events","category":"Presenter"},"Roymor":{"tag":"@roymor7","category":"DJ"},"Sabaii Bay Beach Club":{"tag":"@sabaiibaybeachclub","category":"Venue"},"Sabrina":{"tag":"@sabrinamadonnacamparifantasie","category":"DJ"},"Sacred Beat":{"tag":"@sacredbeat","category":"DJ"},"Saily":{"tag":"@SailyDJ","category":"DJ"},"Sam Supplier":{"tag":"@samsupplier","category":"DJ"},"Sarina":{"tag":"@sharon_shirr","category":"DJ"},"Sasha Barley":{"tag":"@sasha.barley","category":"DJ"},"Saturn Pub":{"tag":"@saturnpub","category":"Venue"},"Sea Love Beach":{"tag":"@sealovekohphangan","category":"Venue"},"Sean Brauer":{"tag":"@seanbrauerr","category":"DJ"},"SEASIDE Sunset Bar, Koh Phangan":{"tag":"@seaside_sunsetbar_kohphangan","category":"Venue"},"Seebeat":{"tag":"@djseebeat","category":"DJ"},"Selecta G":{"tag":"@selecta_g_aka_damdam","category":"DJ"},"Selecta Snoop":{"tag":"@selecta_snoop","category":"DJ"},"SHALØS":{"tag":"@shalos__","category":"DJ"},"Sharnea":{"tag":"@sharnea_xo","category":"DJ"},"Shayman":{"tag":"@shayman.official","category":"DJ"},"Sho Sho":{"tag":"@shoshojp","category":"DJ"},"Simon Kruger":{"tag":"@SimonKrugerDJ","category":"DJ"},"Slacky":{"tag":"@___slacky","category":"DJ"},"SNGI":{"tag":"@sngi_alex","category":"DJ"},"Sola":{"tag":"@SolaDJ","category":"DJ"},"Solar Conexion":{"tag":"@solar_conexion","category":"Presenter"},"Somatic Cell":{"tag":"@somatic_cell","category":"DJ"},"Sophie States":{"tag":"@sophiestates_","category":"DJ"},"Space Club Haad Rin":{"tag":"@spaceclub_haadrin","category":"Venue"},"Sphera":{"tag":"@_sphera","category":"DJ"},"Sramanora Bar":{"tag":"@sramanorabar","category":"Venue"},"Stay Gold":{"tag":"@staygold.phangan","category":"DJ"},"Stevie Keys":{"tag":"@djsteviekeys","category":"DJ"},"Sun Diary":{"tag":"@sun_diary_music","category":"DJ"},"Sunset Hill Resort":{"tag":"@sunsethillresort","category":"Venue"},"Suzy Lynx":{"tag":"@SuzyLynx","category":"DJ"},"Swarup":{"tag":"@juarezpetrillo","category":"DJ"},"Syd Gris":{"tag":"@syd_gris","category":"DJ"},"T-Gecko":{"tag":"@t_gecko_music","category":"DJ"},"Talamasca":{"tag":"@talamasca_official","category":"DJ"},"Taz Jacks":{"tag":"@taz_jacks","category":"DJ"},"TEE-O":{"tag":"@theocid_","category":"DJ"},"Telomancer":{"tag":"@telomancer_music","category":"DJ"},"Tezla":{"tag":"@tezla_music","category":"DJ"},"The Element":{"tag":"@theelement____","category":"DJ"},"The Grounds at Siam Cookies Koh Phangan":{"tag":"@thegroundsxsiamcookies","category":"Venue"},"The Wave​ Sunset​":{"tag":"@thewave_sunset","category":"Venue"},"The Wild Side":{"tag":"@thewildside_kohphangan","category":"Venue"},"Timo":{"tag":"@dj.timo.official","category":"DJ"},"Tino Moreno":{"tag":"@tinomoreno77","category":"DJ"},"Tintun":{"tag":"@tintun.tunes","category":"DJ"},"Traumgeist":{"tag":"@traumgeist_dnb","category":"DJ"},"Tripical Note":{"tag":"@tripicalnote_ofc","category":"DJ"},"Tutu":{"tag":"@tom_barnea","category":"DJ"},"Tzvi Sharf":{"tag":"@tzvi.sharf","category":"DJ"},"Unclave":{"tag":"@unclave.phangan","category":"Venue"},"Up to J":{"tag":"@UpToJDJ","category":"DJ"},"UTOPIA Festival":{"tag":"@utopia.events.pro","category":"Venue"},"Vakabular":{"tag":"@djvakabular","category":"DJ"},"Vegas":{"tag":"@vegaslive","category":"DJ"},"Victor Oneoff":{"tag":"@victor_kohphangan","category":"DJ"},"Violyricals":{"tag":"@Violyricals","category":"Artist"},"Waqt":{"tag":"@djchinx_cluster_waqt","category":"DJ"},"Waterfall Festival":{"tag":"@waterfall_festival_official","category":"Venue"},"Waterfall Festival Phangan":{"tag":"@waterfallfestivalphangan","category":"Venue"},"WET Hostel":{"tag":"@wethostel","category":"Venue"},"WET Pool Party":{"tag":"@WETPoolParty","category":"Venue"},"Woodsy":{"tag":"@woodsy.dnb","category":"DJ"},"Yam":{"tag":"@yam.freedom.dj","category":"DJ"},"Yam (Violyricals)":{"tag":"@djy.a.m","category":"DJ"},"Yekumi":{"tag":"@yekumi","category":"DJ"},"YEP Listening Bar":{"tag":"@yep_listening_bar","category":"Venue"},"Yo Logo":{"tag":"@johann.ilpide","category":"DJ"},"Yodafestedelik":{"tag":"@yodafestedelik","category":"DJ"},"Yolozen":{"tag":"@_yolozen","category":"DJ"},"Yugo":{"tag":"@yugo_the_dj","category":"DJ"},"Zeeqar":{"tag":"@zeeqar_","category":"DJ"},"Zero 1 Music":{"tag":"@zero1music","category":"Label"},"Zifr":{"tag":"@zifrmusic","category":"DJ"},"Zig":{"tag":"@d.j.zig","category":"DJ"},"Zoe Azad":{"tag":"@zoeazad","category":"DJ"},"Machet":{"tag":"@nadavmachet","category":"DJ"},"Kudo":{"tag":"@kudo__official","category":"DJ"},"Dano":{"tag":"@DanoYashar","category":"DJ"},"Yashar":{"tag":"@YasharVahid","category":"DJ"},"Vahid":{"tag":"@vahidsadeghzadeh","category":"DJ"},"Ban Sabaii":{"tag":"@ban.sabaii","category":"Venue"},"Jascio":{"tag":"@jascio888","category":"DJ"},"Vincent Vino":{"tag":"@doodleswithvino","category":"Artist"},"Carlton":{"tag":"@carltonthomas90","category":"DJ"},"Matthew":{"tag":"@MatthewMagnus","category":"DJ"},"Magnus":{"tag":"@MagnusFactor50","category":"DJ"},"Factor 50":{"tag":"@Factor50Basner","category":"DJ"},"Basner":{"tag":"@BasnerMae","category":"DJ"},"Mae":{"tag":"@MaeGrooveOne","category":"DJ"},"GrooveOne Agency":{"tag":"@grooveoneagency","category":"Presenter"},"Hole Station":{"tag":"@holestation","category":"Venue"},"Dagda":{"tag":"@djdagda","category":"DJ"},"thenotsofamous":{"tag":"@thenotsofamous","category":"DJ"},"Ankytrixx":{"tag":"@ankytrixx","category":"DJ"},"Damien Nëmad":{"tag":"@damiennemad","category":"DJ"},"Ayavi":{"tag":"@ayavi.kandoo","category":"DJ"}}
         }
-
-        async function authenticateUser() {
-            return new Promise(async (resolve) => {
-                const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                
-                if (initialToken) {
-                    await firebase.signInWithCustomToken(auth, initialToken);
-                } else {
-                    await firebase.signInAnonymously(auth);
-                }
-
-                firebase.onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        resolve(true);
-                    } else {
-                        userId = crypto.randomUUID();
-                        resolve(false);
-                    }
-                });
-            });
-        }
-
-        function getDocRef(collectionName, docId) {
-            if (!db || !userId) throw new Error("Firebase or User not initialized.");
-            return firebase.doc(db, `/artifacts/${appId}/users/${userId}/${collectionName}/${docId}`);
-        }
-        
-        function mapToData(map) {
-            return { data: map, lastUpdated: new Date().toISOString() };
-        }
-        function dataToMap(data) {
-            return data.data || {};
-        }
-
-        async function saveDataToFirestore(collectionName, data) {
-            if (!db || !userId) {
-                console.error("Database not ready. Saving failed.");
-                return;
-            }
-
-            try {
-                const docRef = getDocRef(collectionName, 'main'); 
-                
-                if (collectionName === DB_CONFIG.SCHEDULE_DB_KEY) {
-                    await firebase.setDoc(docRef, { events: data, lastUpdated: new Date().toISOString() });
-                } else if (collectionName === DB_CONFIG.MEDIA_LINK_KEY) {
-                    await firebase.setDoc(docRef, { link: data });
-                } else if (collectionName === DB_CONFIG.GLOBAL_TAGS_KEY) {
-                    await firebase.setDoc(docRef, { tags: data, lastUpdated: new Date().toISOString() });
-                } else {
-                    await firebase.setDoc(docRef, mapToData(data));
-                }
-                
-            } catch (e) {
-                console.error(`Error saving ${collectionName} to Firestore:`, e);
-            }
-        }
-
-        async function loadInitialDataAndListen() {
-            if (!db || !userId) return;
-
-            const collections = [
-                { name: DB_CONFIG.INSTA_DB_KEY, render: renderNameMap, default: getInitialInstaMap(), globalVar: nameTagDatabase, type: 'map' },
-                { name: DB_CONFIG.EVENT_DB_KEY, render: renderEventTemplateSelect, default: {}, globalVar: eventDatabase, type: 'map' },
-                { name: DB_CONFIG.SNIPPETS_KEY, render: renderSnippetSelect, default: {}, globalVar: textSnippets, type: 'map' },
-                { name: DB_CONFIG.SCHEDULE_DB_KEY, render: renderScheduleList, default: [], globalVar: eventSchedule, type: 'array' },
-                { name: DB_CONFIG.MEDIA_LINK_KEY, render: renderMediaLink, default: '', globalVar: mediaFolderLink, type: 'link' },
-                { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: renderGlobalTags, default: globalTagsString, globalVar: window.globalTagsString, type: 'string' }
-            ];
-
-            for (const { name, render, default: defaultData, globalVar, type } of collections) {
-                const docRef = getDocRef(name, 'main');
-                
-                const docSnap = await firebase.getDoc(docRef);
-                if (!docSnap.exists() && Object.keys(defaultData).length > 0) {
-                    await saveDataToFirestore(name, defaultData);
-                }
-
-                firebase.onSnapshot(docRef, (snap) => {
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        
-                        if (type === 'array') {
-                            globalVar.splice(0, globalVar.length, ...(data.events || []));
-                            // FIX: Ensure schedule is always sorted by date immediately after load
-                            globalVar.sort((a, b) => new Date(a.date) - new Date(b.date));
-                        } else if (type === 'link') {
-                            window.mediaFolderLink = data.link || '';
-                        } else if (type === 'string') {
-                             window.globalTagsString = data.tags || defaultData;
-                        } else if (type === 'map') {
-                            const loadedMap = dataToMap(data); 
-                            for (const prop in globalVar) { delete globalVar[prop]; }
-                            Object.assign(globalVar, loadedMap);
-                        }
-                    } 
-                    render();
-                }, (error) => {
-                    console.error(`Error listening to ${name}:`, error);
-                });
-            }
-        }
-
 
         // --- UI CONTROL ---
         
@@ -1082,32 +850,33 @@
         // Finalized Moon Block Definitions based on user's request (+/- 7 days from peak)
         const FULL_MOON_BLOCKS = [
             // 2025
-            { peak: '2025-02-13', name: 'Feb 2025 Moon Week' },
-            { peak: '2025-03-13', name: 'Mar 2025 Moon Week' },
-            { peak: '2025-04-12', name: 'Apr 2025 Moon Week' },
-            { peak: '2025-05-12', name: 'May 2025 Moon Week' },
-            { peak: '2025-06-10', name: 'Jun 2025 Moon Week' },
-            { peak: '2025-07-12', name: 'Jul 2025 Moon Week' },
-            { peak: '2025-08-09', name: 'Aug 2025 Moon Week' },
-            { peak: '2025-09-07', name: 'Sep 2025 Moon Week' },
-            { peak: '2025-10-08', name: 'Oct 2025 Moon Week' },
-            { peak: '2025-11-05', name: 'Nov 2025 Moon Week' },
-            { peak: '2025-12-05', name: 'Dec 2025 Moon Week' },
+            { peak: '2025-02-13', name: 'Feb 2025' },
+            { peak: '2025-03-13', name: 'Mar 2025' },
+            { peak: '2025-04-12', name: 'Apr 2025' },
+            { peak: '2025-05-12', name: 'May 2025' },
+            { peak: '2025-06-10', name: 'Jun 2025' },
+            { peak: '2025-07-12', name: 'Jul 2025' },
+            { peak: '2025-08-09', name: 'Aug 2025' },
+            { peak: '2025-09-07', name: 'Sep 2025' },
+            { peak: '2025-10-08', name: 'Oct 2025' },
+            { peak: '2025-11-05', name: 'Nov 2025' },
+            { peak: '2025-12-05', name: 'Dec 2025' },
             // Overlapping New Year Block (31 Dec 2025 + 3 Jan 2026) -> Use the first peak for block naming/sorting
-            { peak: '2025-12-31', name: 'New Year Moon Week (Dec 2025/Jan 2026)', endPeak: '2026-01-03' },
+            // Keeping this custom name as it spans two months
+            { peak: '2025-12-31', name: 'New Year (Dec 2025/Jan 2026)', endPeak: '2026-01-03' }, 
             // 2026 (Starts from 2 Feb, avoiding the combined block above)
-            { peak: '2026-02-02', name: 'Feb 2026 Moon Week' },
-            { peak: '2026-03-03', name: 'Mar 2026 Moon Week' },
-            { peak: '2026-04-02', name: 'Apr 2026 Moon Week' },
-            { peak: '2026-05-01', name: 'May 2026 Moon Week' },
-            { peak: '2026-05-31', name: 'May/Jun 2026 Moon Week' },
-            { peak: '2026-06-29', name: 'Jun 2026 Moon Week' },
-            { peak: '2026-07-29', name: 'Jul 2026 Moon Week' },
-            { peak: '2026-08-28', name: 'Aug 2026 Moon Week' },
-            { peak: '2026-09-26', name: 'Sep 2026 Moon Week' },
-            { peak: '2026-10-26', name: 'Oct 2026 Moon Week' },
-            { peak: '2026-11-24', name: 'Nov 2026 Moon Week' },
-            { peak: '2026-12-24', name: 'Dec 2026 Moon Week' },
+            { peak: '2026-02-02', name: 'Feb 2026' },
+            { peak: '2026-03-03', name: 'Mar 2026' },
+            { peak: '2026-04-02', name: 'Apr 2026' },
+            { peak: '2026-05-01', name: 'May 2026' },
+            { peak: '2026-05-31', name: 'May/Jun 2026' },
+            { peak: '2026-06-29', name: 'Jun 2026' },
+            { peak: '2026-07-29', name: 'Jul 2026' },
+            { peak: '2026-08-28', name: 'Aug 2026' },
+            { peak: '2026-09-26', name: 'Sep 2026' },
+            { peak: '2026-10-26', name: 'Oct 2026' },
+            { peak: '2026-11-24', name: 'Nov 2026' },
+            { peak: '2026-12-24', name: 'Dec 2026' },
         ];
 
 
@@ -1124,10 +893,14 @@
                 const endDate = new Date(endPeakDate.getTime() + (7 * 24 * 60 * 60 * 1000));
 
                 if (eventDate >= startDate && eventDate <= endDate) {
+                    
+                    // FIX: Use the simplified name defined in the constant block array
+                    let displayTitle = block.name;
+                    
                     return { 
                         ...event, 
                         blockKey: block.peak, 
-                        blockName: block.name,
+                        blockName: displayTitle,
                         blockStart: startDate.toISOString().split('T')[0],
                         blockEnd: endDate.toISOString().split('T')[0]
                     };
@@ -1148,28 +921,37 @@
             let dayNumber = 0;
             let lastDate = null;
             
-            // We use .map to create a new array with the dayNumber property assigned
-            const eventsWithDay = sortedEvents.map(event => {
+            // CRITICAL FIX: Use a for loop to correctly manage the running dayNumber state
+            const eventsWithDay = [];
+            
+            for (const event of sortedEvents) {
                 const currentDate = new Date(event.date + 'T00:00:00');
+                let newDayNumber = event.dayNumber; // Use existing if available, though it shouldn't be relied upon.
                 
-                // CRITICAL FIX: The logic must ONLY reset if the gap is greater than 7 days.
-                if (!lastDate || dateDifference(lastDate, currentDate) > DAY_RESET_THRESHOLD) {
-                    dayNumber = 1; 
+                if (!lastDate) {
+                    // First event always starts at Day 1
+                    newDayNumber = 1;
                 } else {
-                    const diffDays = dateDifference(lastDate, currentDate); 
+                    const diffDays = dateDifference(lastDate, currentDate);
                     
-                    // Add difference, but ensure minimum 1 day skip if dates are different
-                    // If dates are the same (diffDays == 0), dayNumber remains the same (important for multiple events on the same day)
-                    if (diffDays > 0) {
-                        dayNumber += diffDays; 
-                    } 
-                    // Note: If multiple events are on the same date, they share the same dayNumber.
+                    if (diffDays > DAY_RESET_THRESHOLD) {
+                        // Reset rule: Gap > 7 days starts a new Day 1 cycle
+                        newDayNumber = 1;
+                    } else if (diffDays > 0) {
+                        // Sequential Rule: new day number = last event's number + date difference
+                        const lastEvent = eventsWithDay[eventsWithDay.length - 1];
+                        newDayNumber = lastEvent.dayNumber + diffDays;
+                    } else {
+                        // Same day events: Keep the last assigned day number
+                        const lastEvent = eventsWithDay[eventsWithDay.length - 1];
+                        newDayNumber = lastEvent.dayNumber;
+                    }
                 }
                 
-                const newEvent = { ...event, dayNumber: dayNumber };
+                const newEvent = { ...event, dayNumber: newDayNumber };
+                eventsWithDay.push(newEvent);
                 lastDate = currentDate; 
-                return newEvent;
-            });
+            }
 
             return eventsWithDay;
         }
@@ -1180,6 +962,7 @@
             const messageEl = document.getElementById('emptyCalendarMessage');
             listEl.innerHTML = '';
             
+            // Events must be calculated for day number first
             const allEventsWithDay = calculateSequentialDays(eventSchedule);
             const allEventsWithBlock = allEventsWithDay.map(assignFullMoonBlock);
 
@@ -1196,13 +979,12 @@
                 const year = new Date(event.date + 'T00:00:00').getFullYear();
                 if (!acc[year]) acc[year] = {};
 
-                // Use a combination of blockKey and blockName for sorting/grouping
-                const blockKey = event.blockKey; // e.g. '2025-11-05' or 'Ungrouped'
+                // Use the blockKey (peak ISO) for grouping
+                const blockKey = event.blockKey;
                 
                 if (!acc[year][blockKey]) acc[year][blockKey] = { 
-                    title: event.blockName, 
+                    title: event.blockName, // Uses the simplified name
                     events: [],
-                    isPast: event.date < todayISO
                 };
                 
                 acc[year][blockKey].events.push(event);
@@ -1211,11 +993,14 @@
 
             
             // --- 2. Rendering Logic ---
-            const renderGroup = (title, events, isCollapsed = false, containerId, isPast = false) => {
+            const renderGroup = (title, events, isCollapsed = false, containerId) => {
                 if (events.length === 0) return '';
                 
                 const groupId = `calendar-group-${containerId}`;
                 let html = '';
+                
+                // Determine if block is entirely in the past for coloring/labeling
+                const isPast = events.every(e => e.date < todayISO);
 
                 html += `
                     <button onclick="toggleCollapsible('${groupId}', this)" class="collapsible-btn bg-gray-100 hover:bg-gray-200 mt-4" data-state="${isCollapsed ? 'collapsed' : 'expanded'}">
@@ -1250,12 +1035,14 @@
 
             // Main Render Loop (Year by Year)
             const yearKeys = Object.keys(groupedByYear).sort();
-            let isFirstYear = true;
             
             yearKeys.forEach((yearKey, yearIndex) => {
                 const yearEvents = groupedByYear[yearKey];
-                const isYearCollapsed = yearIndex > 0; // Collapse years older than the current/most recent one
+                
                 const yearId = `year-${yearKey}`;
+                const isCurrentYear = yearKey === new Date().getFullYear().toString();
+                const isYearCollapsed = !isCurrentYear; // Collapse all years except the current one
+
                 
                 // Year Header Button
                 const yearButton = document.createElement('button');
@@ -1274,15 +1061,13 @@
 
                 sortedBlockKeys.forEach(blockKey => {
                     const block = yearEvents[blockKey];
-                    const isPast = block.events.every(e => e.date < todayISO);
                     
-                    // Render block, collapse if it's not the first year
+                    // Render block, collapse if it's not the current year
                     yearContent.innerHTML += renderGroup(
                         block.title, 
                         block.events, 
                         isYearCollapsed, 
-                        `${yearKey}-${blockKey.replace(/[^a-zA-Z0-9]/g, '')}`,
-                        isPast
+                        `${yearKey}-${blockKey.replace(/[^a-zA-Z0-9]/g, '')}`
                     );
                 });
 
@@ -1294,21 +1079,24 @@
 
         // --- DATA MANAGEMENT: NAME-TAG DB ---
 
+        function setStatus(elementId, message, isError = false) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.textContent = message;
+            el.className = `text-xs mt-1 ${isError ? 'text-red-600' : 'text-secondary'}`;
+        }
+
         function copyInitialInstaMap() {
             const mapJson = JSON.stringify(getInitialInstaMap(), null, 2);
             copyToClipboard(mapJson);
-            document.getElementById('bulkStatus').textContent = 'Default map copied to clipboard. Paste into the box above.';
-            document.getElementById('bulkStatus').className = 'text-xs mt-1 text-secondary';
+            setStatus('bulkStatus', 'Default map copied to clipboard. Paste into the box above.');
         }
 
         async function bulkImportTags() {
             const inputStr = document.getElementById('bulkInstaMapInput').value.trim();
-            const statusEl = document.getElementById('bulkStatus');
             
-            statusEl.className = 'text-xs mt-1 text-red-600';
-
             if (!inputStr) {
-                statusEl.textContent = 'Error: Paste data before importing.';
+                setStatus('bulkStatus', 'Error: Paste data before importing.', true);
                 return;
             }
 
@@ -1369,13 +1157,39 @@
                 
                 document.getElementById('bulkInstaMapInput').value = '';
 
-                statusEl.className = 'text-xs mt-1 text-secondary';
-                statusEl.textContent = `Success! Merged ${Object.keys(importedData).length} entries and saved to cloud.`;
+                setStatus('bulkStatus', `Success! Merged ${Object.keys(importedData).length} entries and saved to cloud.`);
                 
             } catch (e) {
-                statusEl.textContent = `Import Error: ${e.message}`;
+                setStatus('bulkStatus', `Import Error: ${e.message}`, true);
             }
         }
+        
+        async function addNameMapEntry() {
+            const name = document.getElementById('newName').value.trim();
+            let tag = document.getElementById('newTag').value.trim();
+            const category = document.getElementById('newCategory').value;
+            const statusEl = document.getElementById('addStatus');
+
+            if (!name || !tag || !category) {
+                setStatus('addStatus', 'Error: All fields are required.', true);
+                return;
+            }
+            if (!tag.startsWith('@') && !tag.startsWith('#')) {
+                tag = '@' + tag;
+            }
+            if (nameTagDatabase[name]) {
+                setStatus('addStatus', `Error: Name "${name}" already exists. Edit it instead.`, true);
+                return;
+            }
+
+            nameTagDatabase[name] = { tag, category };
+            await saveDataToFirestore(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+            
+            document.getElementById('newName').value = '';
+            document.getElementById('newTag').value = '';
+            setStatus('addStatus', `Entry "${name}" saved successfully.`);
+        }
+
 
         function renderNameMap() {
             const listEl = document.getElementById('databaseList');
@@ -1471,9 +1285,10 @@
             const newName = document.getElementById(`editName-${oldName}`).value.trim();
             let newTag = document.getElementById(`editTag-${oldName}`).value.trim();
             const newCategory = document.getElementById(`editCategory-${oldName}`).value;
+            const statusEl = document.getElementById('addStatus'); // Reuse status for feedback
 
             if (!newName || !newTag || !newCategory) {
-                alert("All fields are required.");
+                setStatus('addStatus', "Error: All fields are required.", true);
                 return;
             }
             if (!newTag.startsWith('@') && !newTag.startsWith('#')) {
@@ -1481,7 +1296,7 @@
             }
 
             if (newName !== oldName && nameTagDatabase[newName]) {
-                alert('New name already exists!');
+                setStatus('addStatus', 'Error: New name already exists!', true);
                 return;
             }
 
@@ -1497,6 +1312,7 @@
             
             currentEditingName = null;
             await saveDataToFirestore(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+            setStatus('addStatus', `Entry "${newName}" updated successfully.`);
         }
 
         async function handleDeleteNameMapEntry(button) {
@@ -1515,8 +1331,7 @@
 
             window.globalTagsString = tags;
             await saveDataToFirestore(DB_CONFIG.GLOBAL_TAGS_KEY, tags);
-            document.getElementById('globalTagsStatus').textContent = 'Global tags saved!';
-            document.getElementById('globalTagsStatus').className = 'text-xs mt-1 text-secondary';
+            setStatus('globalTagsStatus', 'Global tags saved!');
             
             document.getElementById('defaultTagsInput').value = globalTagsString;
         }
@@ -1607,6 +1422,7 @@
                 
                 const div = document.createElement('div');
                 div.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3 cursor-grab';
+                div.onclick = () => loadEventForEdit(event); // ADDED: Load event into editor on click
                 
                 // Editable ID setup (index relative to the upcomingEvents array)
                 const postTextId = `schedule-post-text-${index}`;
@@ -1623,9 +1439,10 @@
                         </div>
                         
                         <div class="flex space-x-2 flex-shrink-0 mt-2 sm:mt-0">
-                            <button onclick="copyToClipboard(document.getElementById('${postTextId}').value)" class="text-sm px-3 py-1 bg-primary text-white rounded-full hover:bg-indigo-600 transition">Copy Post</button>
-                            <button onclick="copyToClipboard(document.getElementById('${tagsOnlyId}').value)" class="text-sm px-3 py-1 bg-secondary text-white rounded-full hover:bg-emerald-600 transition">Copy Tags</button>
-                            <button onclick="handleDeleteScheduledEvent(${index})" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete Event">
+                            <button onclick="event.stopPropagation(); saveEventAsTemplate(event)" class="text-sm px-3 py-1 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition">Save as Template</button>
+                            <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${postTextId}').value)" class="text-sm px-3 py-1 bg-primary text-white rounded-full hover:bg-indigo-600 transition">Copy Post</button>
+                            <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${tagsOnlyId}').value)" class="text-sm px-3 py-1 bg-secondary text-white rounded-full hover:bg-emerald-600 transition">Copy Tags</button>
+                            <button onclick="event.stopPropagation(); handleDeleteScheduledEvent(${index})" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete Event">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
@@ -1770,6 +1587,7 @@
                             <div class="flex space-x-2 flex-shrink-0">
                                 <button onclick="toggleCollapsible('${uniqueId}', this)" class="text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 transition" data-state="collapsed">View Details</button>
                                 <button onclick="duplicateToEditor(${JSON.stringify(event).replace(/"/g, '&quot;')})" class="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-indigo-600 transition">Duplicate</button>
+                                <button onclick="event.stopPropagation(); saveEventAsTemplate(event)" class="text-xs px-2 py-1 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition">Save as Template</button>
                                 <button onclick="handleDeleteHistoryEvent(${index}, '${groupKey}')" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete History Event">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
@@ -1810,6 +1628,61 @@
             }
         }
         
+        // ADDED: New function to load scheduled event back to editor
+        function loadEventForEdit(event) {
+             // Load content into the editor tab fields
+            document.getElementById('inputEventName').value = event.eventName;
+            document.getElementById('inputLocation').value = event.location;
+            document.getElementById('inputIsoDate').value = event.date;
+            
+            // Strip structural headers and hashtags from postText before loading to rawDescription
+            const rawDescription = event.postText
+                .replace(/^🗓 DATE:.*\n/, '')
+                .replace(/^🎉 EVENT:.*\n/, '')
+                .replace(/^📍 LOCATION:.*\n/, '')
+                .replace(/#\w+/g, '') // Remove all hashtags
+                .trim();
+
+            document.getElementById('rawDescription').value = rawDescription;
+            // Note: Cannot easily determine original extraHashtags, so clearing it for manual re-entry
+
+            // Switch to editor tab
+            showTab('editor');
+        }
+
+        // ADDED: Function to save content as template from Schedule/History
+        async function saveEventAsTemplate(event) {
+            // FIX: Use custom modal instead of prompt()
+            const templateName = await openPromptModal("Enter a name for this template:");
+            
+            if (!templateName || templateName.trim() === "") return;
+
+            const eventName = event.eventName;
+            const location = event.location;
+            
+            // Strip structural headers and hashtags from postText before saving to description
+            const description = event.postText
+                .replace(/^🗓 DATE:.*\n/, '')
+                .replace(/^🎉 EVENT:.*\n/, '')
+                .replace(/^📍 LOCATION:.*\n/, '')
+                .replace(/#\w+/g, '') // Remove all hashtags
+                .trim();
+
+            eventDatabase[templateName] = {
+                location: location,
+                eventName: eventName,
+                description: description
+            };
+
+            await saveDataToFirestore(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
+            
+            // Provide feedback via console and status bar if open
+            console.log(`Template "${templateName}" saved!`);
+            
+            // Update the settings status if the template management section is visible
+            setStatus('eventTemplateStatus', `Template "${templateName}" saved successfully.`);
+        }
+
         function duplicateToEditor(event) {
             // Load content into the editor tab fields
             document.getElementById('inputEventName').value = event.eventName;
@@ -1902,15 +1775,13 @@
             const statusEl = document.getElementById('snippetStatus');
 
             if (!name || !content) {
-                statusEl.textContent = 'Name and content are required.';
-                statusEl.className = 'text-xs mt-1 text-red-600';
+                setStatus('snippetStatus', 'Name and content are required.', true);
                 return;
             }
 
             textSnippets[name] = content;
             await saveDataToFirestore(DB_CONFIG.SNIPPETS_KEY, textSnippets);
-            statusEl.textContent = `Snippet "${name}" saved!`;
-            statusEl.className = 'text-xs mt-1 text-secondary';
+            setStatus('snippetStatus', `Snippet "${name}" saved!`);
         }
 
         async function removeSnippet(button) {
@@ -1956,9 +1827,10 @@
             const location = document.getElementById('inputLocation').value.trim();
             const eventName = document.getElementById('inputEventName').value.trim();
             const description = document.getElementById('rawDescription').value.trim();
+            const statusEl = document.getElementById('eventTemplateStatus');
 
             if (!name || !location) {
-                alert("Please enter a Template Name and Location to save the template.");
+                setStatus('eventTemplateStatus', "Error: Please enter a Template Name and Location to save the template.", true);
                 return;
             }
 
@@ -1970,7 +1842,7 @@
 
             document.getElementById('eventDbName').value = '';
             await saveDataToFirestore(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
-            alert(`Template "${name}" saved!`);
+            setStatus('eventTemplateStatus', `Template "${name}" saved!`);
         }
 
         function loadEventTemplate() {
@@ -1996,6 +1868,7 @@
             if(confirmed) {
                 delete eventDatabase[nameToRemove];
                 await saveDataToFirestore(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
+                setStatus('eventTemplateStatus', `Template "${nameToRemove}" removed.`);
             }
         }
         
@@ -2011,15 +1884,14 @@
             const statusEl = document.getElementById('mediaLinkStatus');
             
             if (!link || !link.startsWith('http')) {
-                alert("Please enter a valid link.");
+                setStatus('mediaLinkStatus', "Error: Please enter a valid link (must start with http).", true);
                 return;
             }
             
             window.mediaFolderLink = link;
             await saveDataToFirestore(DB_CONFIG.MEDIA_LINK_KEY, link); 
             
-            statusEl.textContent = 'Media folder link saved!';
-            statusEl.className = 'text-xs mt-1 text-secondary';
+            setStatus('mediaLinkStatus', 'Media folder link saved!');
         }
         
         // --- CORE PARSING LOGIC (FINALIZED) ---
@@ -2160,7 +2032,10 @@
                     const savedPostText = document.getElementById('calendarOutput').value.replace(/🌕Full Moon Week - Day X🌕\n?/, '').replace(/🌕Full Moon Week - Day \d+🌕\n?/, ''); 
                     const savedTagsOnly = document.getElementById('tagsOnlyOutput').value;
 
-                    eventSchedule.push({
+                    // FIX: Find if event already exists and update it, instead of pushing a duplicate
+                    const existingIndex = eventSchedule.findIndex(e => e.date === structuredData.isoDate && e.eventName === structuredData.eventName);
+
+                    const newEventData = {
                         eventName: structuredData.eventName,
                         date: structuredData.isoDate,
                         location: structuredData.location, 
@@ -2168,12 +2043,21 @@
                         postText: savedPostText,  
                         tagsOnly: savedTagsOnly,
                         mediaFileName: mediaFileName 
-                    });
+                    };
+
+                    if (existingIndex !== -1) {
+                        // Update existing entry
+                        eventSchedule[existingIndex] = newEventData;
+                        statusMessage.textContent = `Event "${structuredData.eventName}" updated in Scheduler!`;
+                    } else {
+                        // Push new entry
+                        eventSchedule.push(newEventData);
+                        statusMessage.textContent = `Event "${structuredData.eventName}" saved to Scheduler!`;
+                    }
                     
                     await saveDataToFirestore(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
                     
                     statusMessage.className = 'mt-4 sm:mt-0 text-sm text-accent font-bold w-full text-center sm:text-left';
-                    statusMessage.textContent = `Event "${structuredData.eventName}" saved to Scheduler!`;
                     showTab('scheduler');
                 } else {
                     statusMessage.className = 'mt-4 sm:mt-0 text-sm text-secondary font-bold w-full text-center sm:text-left';
@@ -2202,6 +2086,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initializeFirebase();
+            // FIX 3: Default to today's date
+            document.getElementById('inputIsoDate').value = getTodayIsoString();
+
             // Clear inputs on load for fresh start
             document.getElementById('inputEventName').value = "";
             document.getElementById('inputLocation').value = "";
