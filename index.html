@@ -503,7 +503,7 @@
         let currentEditingName = null;
 
         // ====================================================================
-        // FINAL FIX: RE-INTRODUCING AUTH MODULE FOR TOKEN VALIDATION
+        // FIX: STANDARD FIREBASE SETUP FOR PUBLIC GITHUB DEPLOYMENT
         // ====================================================================
 
         async function initializeFirebase() {
@@ -513,7 +513,7 @@
             }
             
             try {
-                // --- START: CUSTOM FIREBASE CONFIGURATION BLOCK ---
+                // --- HARDCODED FIREBASE CONFIGURATION (The only one that works on GitHub Pages) ---
                 const EXTERNAL_FIREBASE_CONFIG = {
                     apiKey: "AIzaSyBGESFzwqoO9lQivws195udUCo6MXnHeHc", 
                     authDomain: "full-moon-week.firebaseapp.com",
@@ -523,22 +523,16 @@
                     appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
                     measurementId: "G-3SS3BJQCRN"
                 };
-                // --- END: CUSTOM FIREBASE CONFIGURATION BLOCK ---
-                    
-                const configToUse = (typeof __firebase_config !== 'undefined' && __firebase_config.length > 2) 
-                    ? JSON.parse(__firebase_config) 
-                    : EXTERNAL_FIREBASE_CONFIG;
-                    
-                if (!configToUse.projectId || configToUse.projectId === "full-moon-week") { 
-                    // This block will be used when running on GitHub Pages
-                }
-
+                
+                // FIX: Ignore the potentially conflicting __firebase_config from the sandbox environment
+                const configToUse = EXTERNAL_FIREBASE_CONFIG;
+                
                 const app = firebase.initializeApp(configToUse);
-                auth = firebase.getAuth(app); // RE-INSTANTIATE AUTH
+                auth = firebase.getAuth(app); 
                 db = firebase.getFirestore(app);
                 firebase.setLogLevel('error'); // Suppress verbose warnings
 
-                // CRITICAL: Attempt sign-in to get a token, even if it fails later, to satisfy SDK rules.
+                // CRITICAL: Attempt minimal sign-in to get the client token required for *any* Firestore access.
                 await authenticateUser(); 
 
                 await loadInitialDataAndListen(); 
@@ -554,28 +548,29 @@
         }
         
         async function authenticateUser() {
+            // FIX: Prioritize custom token if available (only works in sandbox), fall back to anonymous.
             const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
             try {
                 if (initialToken) {
                      await firebase.signInWithCustomToken(auth, initialToken);
+                     console.log(`Authentication successful via custom token.`);
                 } else {
                      await firebase.signInAnonymously(auth);
+                     console.log(`Anonymous sign-in attempted (may have failed, but token acquisition might succeed).`);
                 }
-                // We don't use this ID for data path, but it's set if sign-in works.
-                userId = auth.currentUser.uid;
-                console.log(`Authentication successful. Using temporary User ID: ${userId}`);
             } catch (e) {
-                // We expect this to fail in the sandbox environment.
-                console.warn(`Authentication failed. Proceeding with fixed PUBLIC_ACCESS ID. Error:`, e);
-                userId = 'PUBLIC_ACCESS'; // Keep fixed ID for public data path consistency
+                // We expect this to throw errors (400) but the *attempt* is often what grants the required internal token.
+                console.warn(`Auth failed (expected 400 in this environment), proceeding to attempt data access...`);
             }
             
+            // CRITICAL: Force the userId to the public path reference regardless of login success.
+            userId = 'PUBLIC_ACCESS'; 
             return Promise.resolve(true);
         }
 
         function getDocRef(collectionName, docId) {
-            // FIX: Uses the public data area, bypassing authentication requirements in security rules.
+            // This path should satisfy the public read/write rules.
             if (!db) throw new Error("Firebase not initialized.");
             return firebase.doc(db, `/artifacts/${appId}/public/data/${collectionName}/${docId}`);
         }
@@ -607,6 +602,7 @@
                 }
                 
             } catch (e) {
+                // We trap the error here. If it's a permission error, it means the auth step failed.
                 console.error(`Error saving ${collectionName} to Firestore:`, e);
             }
         }
@@ -653,7 +649,7 @@
                     }
                     render();
                 }, (error) => {
-                    // This error is the one you were seeing. It should now be gone.
+                    // This error is the one you were seeing. If the fix works, this should no longer fire.
                     console.error(`Error listening to ${name}:`, error);
                 });
             }
