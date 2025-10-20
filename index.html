@@ -381,9 +381,6 @@
                         </div>
                     </div>
 
-                    <!-- Recurring Event Templates -->
-                    <!-- REMOVED SECTION as requested. -->
-                    
                     <!-- Media Link Management -->
                     <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
@@ -486,6 +483,8 @@
             CATEGORIES: ["DJ", "Venue", "Presenter", "Artist", "Label", "Other"]
         };
         var CATEGORIES = DB_CONFIG.CATEGORIES; 
+        const LOCAL_USER_ID_KEY = 'fullMoonUserId'; // Legacy local storage key (now removed in favor of portableUserId)
+        const PORTABLE_USER_ID_PATH = 'portableUserId'; // Public doc ID in artifacts/appId/public/data/
 
         // Global Firebase references
         var db = null;
@@ -545,7 +544,7 @@
                 await authenticateUser();
                 await loadInitialDataAndListen(); 
                 
-                document.getElementById('statusMessage').textContent = 'Ready to parse. Connected to Cloud Sync.';
+                document.getElementById('statusMessage').textContent = `Ready to parse. Connected to Cloud Sync.`;
                 document.getElementById('statusMessage').className = 'mt-4 sm:mt-0 text-sm text-gray-600 w-full text-center sm:text-left';
 
             } catch (e) {
@@ -554,12 +553,36 @@
                 document.getElementById('statusMessage').className = 'mt-4 sm:mt-0 text-sm text-red-600 font-bold w-full text-center sm:text-left';
             }
         }
+        
+        async function getOrCreatePortableUserId() {
+            const portableDocRef = firebase.doc(db, `/artifacts/${appId}/public/data/${PORTABLE_USER_ID_PATH}/main`);
+            
+            try {
+                const docSnap = await firebase.getDoc(portableDocRef);
+                
+                if (docSnap.exists() && docSnap.data().id) {
+                    console.log("Retrieved Portable User ID from Cloud.");
+                    return docSnap.data().id;
+                } else {
+                    const newId = crypto.randomUUID();
+                    // Attempt to create the ID in the cloud
+                    await firebase.setDoc(portableDocRef, { id: newId });
+                    console.log("Created new Portable User ID in Cloud:", newId);
+                    return newId;
+                }
+            } catch (e) {
+                // If cloud read/write fails, fall back to a random ID, accepting data loss risk temporarily.
+                console.error("Failed to access Portable User ID document. Data Access is Blocked.", e);
+                return crypto.randomUUID();
+            }
+        }
+
 
         async function authenticateUser() {
-            // FIX: Restructured to guarantee userId is set using the immediate result of sign-in,
-            // preventing data loss due to asynchronous timing issues with onAuthStateChanged.
+            let authSuccessful = false;
             const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             
+            // 1. Attempt Firebase Authentication (Sign In)
             try {
                 if (initialToken) {
                     await firebase.signInWithCustomToken(auth, initialToken);
@@ -567,36 +590,31 @@
                     await firebase.signInAnonymously(auth);
                 }
                 
-                // If the sign-in was successful, auth.currentUser is set.
+                // If sign-in succeeded, use the official UID
                 if (auth.currentUser) {
                     userId = auth.currentUser.uid;
-                } else {
-                     // Fallback: This should ideally not happen if sign-in promises resolved, but acts as a safeguard.
-                    console.error("Sign-in resolved but auth.currentUser is null. Using random ID.");
-                    userId = crypto.randomUUID();
+                    authSuccessful = true;
+                    console.log("Authentication successful. Using Firebase UID:", userId);
                 }
 
             } catch (e) {
-                console.error("Authentication failed, falling back to anonymous/random ID.", e);
-                
-                // If sign-in fails entirely (e.g., bad token), sign in anonymously as a last resort
-                if (!auth.currentUser) {
-                    try {
-                        await firebase.signInAnonymously(auth);
-                        userId = auth.currentUser.uid;
-                    } catch (anonError) {
-                         console.error("Anonymous sign-in also failed. Using random ID. Data access is blocked.", anonError);
-                         userId = crypto.randomUUID();
-                    }
-                }
+                console.error("Firebase Auth attempt failed (expected in this environment).", e);
             }
             
-            // Always return a resolved promise equivalent to maintain flow consistency
-            return Promise.resolve(!!auth.currentUser);
+            // 2. If Auth Failed, Use Portable Cloud ID
+            if (!userId) {
+                // Use a non-null userId placeholder while fetching the portable ID
+                userId = await getOrCreatePortableUserId(); 
+                console.log("Using Cloud-Synced Portable User ID:", userId);
+            }
+            
+            // The value of userId is now stable (either from auth or portable cloud key)
+            return Promise.resolve(!!userId);
         }
 
         function getDocRef(collectionName, docId) {
             if (!db || !userId) throw new Error("Firebase or User not initialized.");
+            // FIX: Use the stable userId determined by authenticateUser
             return firebase.doc(db, `/artifacts/${appId}/users/${userId}/${collectionName}/${docId}`);
         }
         
@@ -646,11 +664,6 @@
             for (const { name, render, default: defaultData, globalVar, type } of collections) {
                 const docRef = getDocRef(name, 'main');
                 
-                const docSnap = await firebase.getDoc(docRef);
-                if (!docSnap.exists() && Object.keys(defaultData).length > 0) {
-                    await saveDataToFirestore(name, defaultData);
-                }
-
                 firebase.onSnapshot(docRef, (snap) => {
                     if (snap.exists()) {
                         const data = snap.data();
@@ -668,7 +681,13 @@
                             for (const prop in globalVar) { delete globalVar[prop]; }
                             Object.assign(globalVar, loadedMap);
                         }
-                    } 
+                    } else if (Object.keys(defaultData).length > 0 && type === 'map') {
+                        // If the document doesn't exist, initialize it with defaults if it's a map.
+                         if (Object.keys(globalVar).length === 0) { // Only set defaults if current in-memory is empty
+                            Object.assign(globalVar, defaultData);
+                            saveDataToFirestore(name, defaultData);
+                         }
+                    }
                     render();
                 }, (error) => {
                     console.error(`Error listening to ${name}:`, error);
@@ -1808,11 +1827,10 @@
         
         function renderEventTemplateSelect() {
             const selectEl = document.getElementById('eventTemplateSelect');
-            const listEl = document.getElementById('eventDbList');
-            if (!selectEl || !listEl) return; 
+            // The template list element in settings was removed, so we only need to populate the select box.
+            if (!selectEl) return; 
             
             selectEl.innerHTML = '<option value="">--- Select Event Template ---</option>';
-            listEl.innerHTML = '';
 
             const names = Object.keys(eventDatabase).sort();
             
@@ -1821,16 +1839,8 @@
                 option.value = name;
                 option.textContent = name;
                 selectEl.appendChild(option);
-
-                const div = document.createElement('div');
-                div.className = 'flex justify-between items-center py-1';
-                div.innerHTML = `
-                    <span class="text-gray-800">${name}</span>
-                    <button data-name="${name}" onclick="removeEventTemplate(this)" class="text-red-500 hover:text-red-700 ml-4 text-xs">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
-                `;
-                listEl.appendChild(div);
+                
+                // Removed redundant template list rendering since it's no longer in the settings UI.
             });
         }
 
@@ -1839,10 +1849,11 @@
             const location = document.getElementById('inputLocation').value.trim();
             const eventName = document.getElementById('inputEventName').value.trim();
             const description = document.getElementById('rawDescription').value.trim();
-            const statusEl = document.getElementById('eventTemplateStatus');
+            // Removed redundant status element lookup
 
             if (!name || !location) {
-                setStatus('eventTemplateStatus', "Error: Please enter a Template Name and Location to save the template.", true);
+                // Using generic status for feedback
+                document.getElementById('statusMessage').textContent = "Error: Please enter a Template Name and Location to save the template.";
                 return;
             }
 
@@ -1854,7 +1865,7 @@
 
             document.getElementById('eventDbName').value = '';
             await saveDataToFirestore(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
-            setStatus('eventTemplateStatus', `Template "${name}" saved!`);
+            document.getElementById('statusMessage').textContent = `Template "${name}" saved!`;
         }
 
         function loadEventTemplate() {
@@ -1880,7 +1891,7 @@
             if(confirmed) {
                 delete eventDatabase[nameToRemove];
                 await saveDataToFirestore(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
-                setStatus('eventTemplateStatus', `Template "${nameToRemove}" removed.`);
+                document.getElementById('statusMessage').textContent = `Template "${nameToRemove}" removed.`;
             }
         }
         
