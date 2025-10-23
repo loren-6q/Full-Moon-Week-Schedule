@@ -121,6 +121,15 @@
             border-radius: 0.5rem;
             transition: background-color 0.2s;
         }
+
+        /* Grouping style for reordering events */
+        .event-group {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body class="bg-background min-h-screen p-4 sm:p-8 font-sans">
@@ -188,7 +197,7 @@
                                 <input type="date" id="inputIsoDate" class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
                             </div>
                             
-                            <input type="text" id="inputEventName" placeholder="🎉 EVENT: " class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
+                            <input type="text" id="inputEventName" placeholder="🎉 EVENT: " class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150" onblur="loadEventExtraTags()">
                             <input type="text" id="inputLocation" placeholder="📍 LOCATION: " class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
                         </div>
                         
@@ -216,15 +225,15 @@
                         <label for="extraHashtagsInput" class="block text-sm font-medium text-gray-700 mt-4 mb-2">
                             Extra Hashtags (Comma-separated)
                         </label>
-                        <input type="text" id="extraHashtagsInput" placeholder="" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
+                        <input type="text" id="extraHashtagsInput" placeholder="Suggested tags for this event type will appear here." class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
                     </div>
                     
-                    <!-- File Mockup -->
+                    <!-- File Mockup (Purpose Clarified) -->
                     <div class="bg-white p-6 rounded-xl shadow-lg">
                            <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                                Images/Videos
+                                Image/Video File Naming
                             </h2>
-                        <input type="file" id="mediaUpload" class="w-full text-sm text-gray-500 border border-gray-300 rounded-lg p-2">
+                        <!-- REMOVED FILE INPUT AND EXPLANATION -->
                         <button onclick="generateFileName()" class="mt-3 w-full py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-sm">
                             Generate Suggested Filename
                         </button>
@@ -347,23 +356,12 @@
                 <!-- Column 2: Global Settings, Snippets, Templates (70% width) -->
                 <div class="space-y-6 flex flex-col">
                     
-                    <!-- Global Default Hashtags (Moved to the top of the second column) -->
-                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            Global Default Hashtags
-                        </h2>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tags added to all events. (Comma-separated)</label>
-                        <textarea id="defaultTagsInput" onblur="saveGlobalHashtags()" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-accent focus:border-accent transition duration-150" placeholder=""></textarea>
-                         <p id="globalTagsStatus" class="text-xs mt-1"></p>
-                    </div>
-
                     <!-- Reusable Text Snippets -->
                     <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                             <svg class="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             Reusable Text Snippets
-                        </h2 >
+                        </h2>
                          <div class="space-y-3">
                             <select id="snippetSelect" onchange="loadSnippet()" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
                                 <option value="">--- Load Snippet ---</option>
@@ -377,20 +375,15 @@
                         </div>
                     </div>
 
-                    <!-- Media Link Management -->
+                    <!-- Global Default Hashtags (Moved to the bottom of the second column) -->
                     <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            Media Source Folder
+                            <svg class="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            Global Default Hashtags
                         </h2>
-                        <label for="mediaFolderLink" class="block text-sm font-medium text-gray-700 mb-2">
-                            Google Drive/Cloud Link (Access point for files)
-                        </label>
-                        <input type="url" id="mediaFolderLink" placeholder="https://drive.google.com/..." onblur="saveMediaFolderLink()" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-secondary focus:border-secondary">
-                        <button onclick="saveMediaFolderLink()" class="mt-3 w-full py-2 bg-secondary text-white rounded-lg hover:bg-emerald-600 transition text-sm">
-                            Save Folder Link
-                        </button>
-                        <p id="mediaLinkStatus" class="text-xs mt-1"></p>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tags added to all events. (Comma-separated)</label>
+                        <textarea id="defaultTagsInput" onblur="saveGlobalHashtags()" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-accent focus:border-accent transition duration-150" placeholder=""></textarea>
+                         <p id="globalTagsStatus" class="text-xs mt-1"></p>
                     </div>
 
                 </div>
@@ -405,8 +398,8 @@
                     <svg class="w-7 h-7 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Upcoming Post Schedule
                 </h2 >
-                <div id="scheduledEventsList" class="space-y-4 cursor-grab">
-                    <!-- Scheduled events populated here -->
+                <div id="scheduledEventsContainer" class="space-y-4">
+                    <!-- Events grouped by date for Sortable lists -->
                 </div>
                 <p id="emptyScheduleMessage" class="text-center text-gray-500 italic mt-8 hidden">No events currently scheduled.</p>
             </div>
@@ -432,7 +425,7 @@
                 <h2 class="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
                     <svg class="w-7 h-7 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2l-1.5 1.5M12 6l1.5 1.5M4 18h16M4 6h16M12 10a2 2 0 00-2 2v3a2 2 0 002 2h3m0-6h-3a2 2 0 00-2 2v3m-6-6h.01M18 12h.01M6 18h.01"></path></svg>
                     Posting History (Past Events)
-                </h2 >
+                </h2>
                 <div id="historyEventsList" class="space-y-4">
                     <!-- Historical events populated here -->
                 </div>
@@ -470,12 +463,13 @@
         
         // --- GLOBAL CONFIGURATION AND SUPABASE SETUP ---
         var DB_CONFIG = {
-            INSTA_DB_KEY: 'name_tag_database', // New Supabase Table Name
-            EVENT_DB_KEY: 'event_templates',     // New Supabase Table Name
-            SNIPPETS_KEY: 'text_snippets',       // New Supabase Table Name
-            SCHEDULE_DB_KEY: 'event_schedule',   // New Supabase Table Name
-            MEDIA_LINK_KEY: 'media_link',        // New Supabase Table Name
-            GLOBAL_TAGS_KEY: 'global_tags',      // New Supabase Table Name
+            INSTA_DB_KEY: 'name_tag_database', 
+            EVENT_DB_KEY: 'event_templates',     
+            SNIPPETS_KEY: 'text_snippets',       
+            SCHEDULE_DB_KEY: 'event_schedule',   
+            // REMOVED: MEDIA_LINK_KEY: 'media_link', 
+            GLOBAL_TAGS_KEY: 'global_tags',      
+            EXTRA_TAGS_KEY: 'event_extra_tags', 
             CATEGORIES: ["DJ", "Venue", "Presenter", "Artist", "Label", "Other"]
         };
         var CATEGORIES = DB_CONFIG.CATEGORIES; 
@@ -484,6 +478,7 @@
         var supabase = null;
         
         // --- SUPABASE CREDENTIALS (NOW CORRECTLY SET) ---
+        // NOTE: These keys are for public access and should be replaced with your own Supabase project keys.
         const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
         
@@ -492,8 +487,8 @@
         var eventDatabase = {};    
         var textSnippets = {};     
         var eventSchedule = [];    
-        var mediaFolderLink = ''; 
-        var globalTagsString = "fullmoonweek, fullmoonparty, kohphangan, thailand, parties, fullmoonpartykohphangan"; // Initial value
+        var globalTagsString = "fullmoonweek, fullmoonparty, kohphangan, thailand, parties, fullmoonpartykohphangan"; 
+        var eventExtraTags = {}; 
         
         let resolveModalPromise = null;
         let resolvePromptPromise = null; 
@@ -508,7 +503,6 @@
             }
             
             try {
-                // Removed placeholder check as keys are now set.
                 supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
                 
                 await loadInitialDataAndListen(); 
@@ -524,7 +518,6 @@
         }
         
         // --- SUPABASE DATA ACCESS LAYER ---
-        // We use ID=1 for all tables to keep the single-document/single-record model, avoiding massive code changes.
         const PRIMARY_RECORD_ID = 1;
         
         async function loadInitialDataAndListen() {
@@ -535,8 +528,9 @@
                 { name: DB_CONFIG.EVENT_DB_KEY, render: debouncedRenderEventTemplateSelect, default: {}, globalVar: eventDatabase, type: 'map' },
                 { name: DB_CONFIG.SNIPPETS_KEY, render: debouncedRenderSnippetSelect, default: {}, globalVar: textSnippets, type: 'map' },
                 { name: DB_CONFIG.SCHEDULE_DB_KEY, render: debouncedRenderScheduleList, default: [], globalVar: eventSchedule, type: 'array' },
-                { name: DB_CONFIG.MEDIA_LINK_KEY, render: debouncedRenderMediaLink, default: '', globalVar: mediaFolderLink, type: 'link' },
-                { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: debouncedRenderGlobalTags, default: globalTagsString, globalVar: window.globalTagsString, type: 'string' }
+                // REMOVED: { name: DB_CONFIG.MEDIA_LINK_KEY, render: debouncedRenderMediaLink, default: '', globalVar: mediaFolderLink, type: 'link' },
+                { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: debouncedRenderGlobalTags, default: globalTagsString, globalVar: window.globalTagsString, type: 'string' },
+                { name: DB_CONFIG.EXTRA_TAGS_KEY, render: loadEventExtraTags, default: {}, globalVar: eventExtraTags, type: 'map' } 
             ];
 
             for (const { name, render, default: defaultData, globalVar, type } of collections) {
@@ -548,16 +542,15 @@
                     .eq('id', PRIMARY_RECORD_ID)
                     .single();
 
-                if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = No rows returned (Expected for new project)
+                if (fetchError && fetchError.code !== 'PGRST116') { 
                      console.error(`Supabase Fetch Error for ${name}:`, fetchError);
                 }
                 
                 let loadedData = null;
 
                 if (data) {
-                    // Extract data based on type (column names determined by saveDataToSupabase)
                     if (type === 'array') loadedData = data.events;
-                    else if (type === 'link') loadedData = data.link;
+                    // REMOVED: else if (type === 'link') loadedData = data.link;
                     else if (type === 'string') loadedData = data.tags;
                     else if (type === 'map') loadedData = data.data;
                 }
@@ -567,8 +560,8 @@
                     if (type === 'array') {
                         globalVar.splice(0, globalVar.length, ...(loadedData || []));
                         globalVar.sort((a, b) => new Date(a.date) - new Date(b.date));
-                    } else if (type === 'link') {
-                        window.mediaFolderLink = loadedData;
+                    // REMOVED: } else if (type === 'link') {
+                    // REMOVED:     window.mediaFolderLink = loadedData;
                     } else if (type === 'string') {
                         window.globalTagsString = loadedData;
                     } else if (type === 'map') {
@@ -576,7 +569,6 @@
                         Object.assign(globalVar, loadedData);
                     }
                 } else if (Object.keys(defaultData).length > 0 && type === 'map') {
-                    // If no data exists, initialize with defaults and save
                     if (Object.keys(globalVar).length === 0) {
                         Object.assign(globalVar, defaultData);
                         await saveDataToSupabase(name, defaultData);
@@ -592,7 +584,7 @@
                             if (newData) {
                                 let updatedValue = null;
                                 if (type === 'array') updatedValue = newData.events;
-                                else if (type === 'link') updatedValue = newData.link;
+                                // REMOVED: else if (type === 'link') updatedValue = newData.link;
                                 else if (type === 'string') updatedValue = newData.tags;
                                 else if (type === 'map') updatedValue = newData.data;
                                 
@@ -600,8 +592,8 @@
                                     if (type === 'array') {
                                         globalVar.splice(0, globalVar.length, ...(updatedValue || []));
                                         globalVar.sort((a, b) => new Date(a.date) - new Date(b.date));
-                                    } else if (type === 'link') {
-                                        window.mediaFolderLink = updatedValue;
+                                    // REMOVED: } else if (type === 'link') {
+                                    // REMOVED:     window.mediaFolderLink = updatedValue;
                                     } else if (type === 'string') {
                                         window.globalTagsString = updatedValue;
                                     } else if (type === 'map') {
@@ -615,7 +607,6 @@
                     )
                     .subscribe((status) => {
                         if (status === 'SUBSCRIBED') {
-                             // Initial render after connection is established
                              render(); 
                         }
                         if (status === 'CHANNEL_ERROR') {
@@ -623,7 +614,6 @@
                         }
                     });
 
-                // Initial render for elements that don't rely on the subscription status.
                 render(); 
             }
         }
@@ -631,7 +621,7 @@
         async function saveDataToSupabase(tableName, data) {
             if (!supabase) { 
                 console.error("Supabase client not initialized. Saving failed.");
-                return;
+                return false;
             }
 
             try {
@@ -639,15 +629,14 @@
 
                 if (tableName === DB_CONFIG.SCHEDULE_DB_KEY) {
                     payload.events = data; 
-                } else if (tableName === DB_CONFIG.MEDIA_LINK_KEY) {
-                    payload.link = data;
+                // REMOVED: } else if (tableName === DB_CONFIG.MEDIA_LINK_KEY) {
+                // REMOVED:    payload.link = data;
                 } else if (tableName === DB_CONFIG.GLOBAL_TAGS_KEY) {
                     payload.tags = data;
                 } else {
-                    payload.data = data; // For map types: tags, templates, snippets
+                    payload.data = data; 
                 }
                 
-                // Use upsert to either insert the first row (ID=1) or update the existing row.
                 const { error } = await supabase
                     .from(tableName)
                     .upsert(payload, { onConflict: 'id' });
@@ -677,7 +666,6 @@
         function copyToClipboard(text) {
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text).catch(err => {
-                    console.error('Could not copy text using navigator.clipboard (using fallback): ', err);
                     const textarea = document.createElement('textarea');
                     textarea.value = text;
                     textarea.style.position = 'fixed'; 
@@ -685,7 +673,6 @@
                     textarea.select();
                     try {
                         document.execCommand('copy');
-                        console.log('Text copied using execCommand.');
                     } catch (e) {
                         console.error('Fallback copy method failed too:', e);
                     }
@@ -713,7 +700,6 @@
         }
         
         function dateDifference(date1, date2) {
-            // Calculates difference in full days, crucial for sequential numbering
             const date1Time = date1.getTime();
             const date2Time = date2.getTime();
             const diffTime = Math.abs(date2Time - date1Time);
@@ -774,7 +760,6 @@
             inputEl.placeholder = title; 
             document.getElementById('promptModal').classList.add('active');
             
-            // Focus the input when the modal is opened
             setTimeout(() => inputEl.focus(), 100);
 
             return new Promise(resolve => {
@@ -785,7 +770,6 @@
         function closePromptModal(value) {
             document.getElementById('promptModal').classList.remove('active');
             if (resolvePromptPromise) {
-                // FIX: Added value argument here
                 resolvePromptPromise(value);
                 resolvePromptPromise = null;
             }
@@ -818,7 +802,6 @@
             } else if (tabName === 'calendar') {
                  renderCalendarSummary();
             } else if (tabName === 'settings') {
-                document.getElementById('mediaFolderLink').value = mediaFolderLink;
                 document.getElementById('defaultTagsInput').value = globalTagsString;
                 renderEditorSnippetSelect();
             } else if (tabName === 'editor') {
@@ -1071,7 +1054,6 @@
         const debouncedRenderSnippetSelect = debounce(renderSnippetSelect, 100);
         const debouncedRenderEventTemplateSelect = debounce(renderEventTemplateSelect, 100);
         const debouncedRenderGlobalTags = debounce(renderGlobalTags, 100);
-        const debouncedRenderMediaLink = debounce(renderMediaLink, 100);
         const debouncedRenderScheduleList = debounce(renderScheduleList, 100);
         const debouncedRenderCalendarSummary = debounce(renderCalendarSummary, 100);
 
@@ -1347,142 +1329,252 @@
             }
         }
 
+        // NEW: Load existing extra tags when event name input changes
+        function loadEventExtraTags() {
+            const eventName = document.getElementById('inputEventName').value.trim();
+            const extraTagsInput = document.getElementById('extraHashtagsInput');
+            
+            if (eventExtraTags[eventName]) {
+                extraTagsInput.value = eventExtraTags[eventName];
+                extraTagsInput.placeholder = `Suggested tags for this event type: ${eventExtraTags[eventName]}`;
+            } else {
+                extraTagsInput.value = '';
+                extraTagsInput.placeholder = "Suggested tags for this event type will appear here.";
+            }
+        }
 
         // --- DATA MANAGEMENT: SCHEDULER & HISTORY ---
 
         function initializeSortable() {
-            const list = document.getElementById('scheduledEventsList');
-            if (Sortable.get(list)) {
-                Sortable.get(list).destroy();
-            }
-            if (!list) return; 
+            const dateGroups = document.querySelectorAll('.event-group');
+            
+            dateGroups.forEach(group => {
+                const list = group.querySelector('.scheduled-list');
+                
+                if (Sortable.get(list)) {
+                    Sortable.get(list).destroy();
+                }
+                if (!list) return;
 
-            new Sortable(list, {
-                animation: 150,
-                ghostClass: 'sortable-drag',
-                onEnd: async function (evt) {
-                    const oldIndex = evt.oldIndex;
-                    const newIndex = evt.newIndex;
-                    
-                    const today = getTodayIsoString();
-                    const upcomingEvents = eventSchedule.filter(event => event.date > today);
-                    
-                    const [movedItem] = upcomingEvents.splice(oldIndex, 1);
-                    upcomingEvents.splice(newIndex, 0, movedItem);
-                    
-                    const pastEvents = eventSchedule.filter(event => event.date <= today);
-                    const newSchedule = [...pastEvents, ...upcomingEvents];
+                new Sortable(list, {
+                    animation: 150,
+                    ghostClass: 'sortable-drag',
+                    // Dragging is now local to the date group
+                    onEnd: async function (evt) {
+                        const dateKey = group.dataset.date;
+                        
+                        // Filter and sort the current events for this day to match the DOM order
+                        const originalSchedule = eventSchedule.filter(e => e.date === dateKey).sort((a, b) => a.order - b.order);
+                        
+                        if (evt.oldIndex === evt.newIndex) return;
 
-                    eventSchedule.splice(0, eventSchedule.length, ...newSchedule.sort((a, b) => new Date(a.date) - new Date(b.date)));
-                    
-                    await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-                },
+                        const movedItem = originalSchedule[evt.oldIndex];
+                        originalSchedule.splice(evt.oldIndex, 1);
+                        originalSchedule.splice(evt.newIndex, 0, movedItem);
+
+                        // Update the 'order' property for all items in the group
+                        const updatedSchedule = eventSchedule.map(e => {
+                            if (e.date === dateKey) {
+                                // Find the new order index from the manipulated array
+                                const newOrder = originalSchedule.findIndex(item => item.eventName === e.eventName && item.date === e.date);
+                                // Only update if the item was found
+                                if (newOrder !== -1) {
+                                    e.order = newOrder;
+                                }
+                            }
+                            return e;
+                        });
+                        
+                        // Update the global list and save
+                        eventSchedule.splice(0, eventSchedule.length, ...updatedSchedule.sort((a, b) => new Date(a.date) - new Date(b.date) || a.order - b.order));
+                        
+                        await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                    },
+                });
             });
         }
         
         function renderScheduleList() {
-            const listEl = document.getElementById('scheduledEventsList');
+            const containerEl = document.getElementById('scheduledEventsContainer'); 
             const historyListEl = document.getElementById('historyEventsList');
             const messageEl = document.getElementById('emptyScheduleMessage');
             const today = getTodayIsoString();
             
-            if (!listEl || !historyListEl || !messageEl) return;
+            if (!containerEl || !historyListEl || !messageEl) return;
             
-            listEl.innerHTML = '';
+            containerEl.innerHTML = '';
             historyListEl.innerHTML = '';
             
-            // Only calculate sequential days when the list is actually rendered (optimization)
             const allEventsWithDay = calculateSequentialDays(eventSchedule);
 
             const upcomingEvents = [];
             const pastEvents = [];
 
             allEventsWithDay.forEach(event => {
-                if (event.date < today) { 
+                // Initialize status fields if missing (for legacy data)
+                if (event.postStatus === undefined) event.postStatus = 'pending';
+                if (event.storyStatus === undefined) event.storyStatus = 'pending';
+                if (event.order === undefined) event.order = eventSchedule.filter(e => e.date === event.date).length;
+
+                // Move to history only if both are 'done'
+                if (event.postStatus === 'done' && event.storyStatus === 'done') {
                     pastEvents.push(event);
                 } else { 
                     upcomingEvents.push(event);
                 }
             });
+
+            // Sort upcoming events: date primary, custom order secondary
+            upcomingEvents.sort((a, b) => new Date(a.date) - new Date(b.date) || a.order - b.order);
+
+            // --- Render Schedule Tab (Grouped by Date for reordering) ---
             
-            // --- Render Schedule Tab ---
+            const groupedByDate = upcomingEvents.reduce((acc, event) => {
+                const dateKey = event.date;
+                if (!acc[dateKey]) acc[dateKey] = [];
+                acc[dateKey].push(event);
+                return acc;
+            }, {});
+
             if (upcomingEvents.length === 0) {
                 messageEl.classList.remove('hidden');
             } else {
                 messageEl.classList.add('hidden');
             }
 
-            upcomingEvents.forEach((event, index) => {
+            for (const dateKey in groupedByDate) {
+                const group = groupedByDate[dateKey];
                 
-                const dayPrefix = `🌕Full Moon Week - Day ${event.dayNumber}🌕\n`;
-                const finalPostText = dayPrefix + event.postText; 
-                
-                const div = document.createElement('div');
-                div.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3 cursor-grab';
-                div.onclick = () => loadEventForEdit(event); 
-                
-                const postTextId = `schedule-post-text-${index}`;
-                const tagsOnlyId = `schedule-tags-only-${index}`;
-
-                div.innerHTML = `
-                    <div class="flex justify-between items-start flex-wrap">
-                        <div class="flex-grow min-w-0 pr-4 flex flex-col sm:flex-row sm:items-center sm:space-x-4">
-                            <h3 class="text-lg font-bold text-primary inline">${event.eventName} <span class="text-gray-500 font-medium ml-2 text-sm">| Day ${event.dayNumber}</span></h3>
-                            <p class="text-xs text-gray-700 inline-block mt-1 sm:mt-0 flex-wrap flex">
-                                🗓 Date: ${event.inputDateFriendly}
-                                ${window.mediaFolderLink ? `<a href="${window.mediaFolderLink}" target="_blank" class="text-blue-600 underline hover:text-blue-800 ml-2">Open Media Folder</a>` : ''}
-                            </p>
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'event-group';
+                groupDiv.dataset.date = dateKey;
+                groupDiv.innerHTML = `
+                    <h3 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2 flex justify-between items-center">
+                        <div>🗓 Day ${group[0].dayNumber} - ${group[0].inputDateFriendly}</div>
+                        <div class="text-sm font-normal text-gray-500 flex space-x-2">
+                             <span>(Drag to reorder)</span>
+                             <button onclick="copyDayEventNames('${dateKey}')" class="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition">Copy Day Event List</button>
                         </div>
-                        
-                        <div class="flex space-x-2 flex-shrink-0 mt-2 sm:mt-0">
-                            <button onclick="event.stopPropagation(); saveEventAsTemplate(event)" class="text-sm px-3 py-1 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition">Save as Template</button>
-                            <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${postTextId}').value)" class="text-sm px-3 py-1 bg-primary text-white rounded-full hover:bg-indigo-600 transition">Copy Post</button>
-                            <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${tagsOnlyId}').value)" class="text-sm px-3 py-1 bg-secondary text-white rounded-full hover:bg-emerald-600 transition">Copy Tags</button>
-                            <button onclick="event.stopPropagation(); handleDeleteScheduledEvent(${index})" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete Event">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-4 gap-2">
-                        <div class="col-span-3">
-                            <label class="block text-sm font-medium text-gray-700">Post/Reel Text:</label>
-                            <textarea 
-                                id="${postTextId}" 
-                                onblur="updateScheduledEventText(${index}, this.value, 'postText', 'upcoming')" 
-                                class="w-full border rounded-lg p-2 text-sm bg-white focus:ring-primary focus:border-primary" rows="6"
-                            >${finalPostText}</textarea>
-                        </div>
-                        <div class="col-span-1">
-                            <label class="block text-sm font-medium text-gray-700">Story Tags:</label>
-                            <textarea 
-                                id="${tagsOnlyId}" 
-                                onblur="updateScheduledEventText(${index}, this.value, 'tagsOnly', 'upcoming')" 
-                                class="w-full border rounded-lg p-2 text-sm bg-white focus:ring-primary focus:border-primary" rows="6"
-                            >${event.tagsOnly}</textarea>
-                        </div>
+                    </h3>
+                    <div class="scheduled-list space-y-4">
                     </div>
                 `;
-                listEl.appendChild(div);
-            });
+                const listEl = groupDiv.querySelector('.scheduled-list');
+                
+                group.forEach((event) => {
+                    const postTextId = `schedule-post-text-${event.date}-${event.eventName}`;
+                    const tagsOnlyId = `schedule-tags-only-${event.date}-${event.eventName}`;
+                    const dayPrefix = `🌕Full Moon Week - Day ${event.dayNumber}🌕\n`;
+                    const finalPostText = dayPrefix + event.postText; 
+                    
+                    const postDone = event.postStatus === 'done';
+                    const storyDone = event.storyStatus === 'done';
+
+                    const div = document.createElement('div');
+                    div.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3 cursor-grab';
+                    div.onclick = () => loadEventForEdit(event); 
+                    
+                    div.innerHTML = `
+                        <div class="flex justify-between items-start flex-wrap">
+                            <div class="flex-grow min-w-0 pr-4 flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+                                <h3 class="text-lg font-bold text-primary inline">${event.eventName} <span class="text-gray-500 font-medium ml-2 text-sm">| Order: ${event.order}</span></h3>
+                                <p class="text-xs text-gray-700 inline-block mt-1 sm:mt-0 flex-wrap flex">
+                                    📍 Location: ${event.location}
+                                </p>
+                            </div>
+                            
+                            <div class="flex space-x-2 flex-shrink-0 mt-2 sm:mt-0 items-center">
+                                <!-- NEW: Status Toggles -->
+                                <button 
+                                    onclick="event.stopPropagation(); togglePostStatus('${event.date}', '${event.eventName}')" 
+                                    class="text-xs px-3 py-1 rounded-full transition ${postDone ? 'bg-secondary text-white' : 'bg-gray-200 text-gray-600 hover:bg-secondary hover:text-white'}"
+                                >
+                                    ${postDone ? '✅ Post Done' : 'Post'}
+                                </button>
+                                <button 
+                                    onclick="event.stopPropagation(); toggleStoryStatus('${event.date}', '${event.eventName}')" 
+                                    class="text-xs px-3 py-1 rounded-full transition ${storyDone ? 'bg-secondary text-white' : 'bg-gray-200 text-gray-600 hover:bg-secondary hover:text-white'}"
+                                >
+                                    ${storyDone ? '✅ Story Done' : 'Story'}
+                                </button>
+                                
+                                <button onclick="event.stopPropagation(); saveEventAsTemplate(event)" class="text-sm px-3 py-1 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition">Save as Template</button>
+                                <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${postTextId}').value)" class="text-sm px-3 py-1 bg-primary text-white rounded-full hover:bg-indigo-600 transition">Copy Post</button>
+                                <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${tagsOnlyId}').value)" class="text-sm px-3 py-1 bg-secondary text-white rounded-full hover:bg-emerald-600 transition">Copy Tags</button>
+                                <button onclick="event.stopPropagation(); handleDeleteScheduledEvent('${event.date}', '${event.eventName}')" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete Event">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-4 gap-2">
+                            <div class="col-span-3">
+                                <label class="block text-sm font-medium text-gray-700">Post/Reel Text:</label>
+                                <textarea 
+                                    id="${postTextId}" 
+                                    onblur="updateScheduledEventText('${event.date}', '${event.eventName}', this.value, 'postText')" 
+                                    class="w-full border rounded-lg p-2 text-sm bg-white focus:ring-primary focus:border-primary" rows="6"
+                                >${finalPostText}</textarea>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-sm font-medium text-gray-700">Story Tags:</label>
+                                <textarea 
+                                    id="${tagsOnlyId}" 
+                                    onblur="updateScheduledEventText('${event.date}', '${event.eventName}', this.value, 'tagsOnly')" 
+                                    class="w-full border rounded-lg p-2 text-sm bg-white focus:ring-primary focus:border-primary" rows="6"
+                                >${event.tagsOnly}</textarea>
+                            </div>
+                        </div>
+                    `;
+                    listEl.appendChild(div);
+                });
+                
+                containerEl.appendChild(groupDiv);
+            }
             
             // --- Render History Tab ---
             renderHistoryList(pastEvents);
         }
+
+        async function togglePostStatus(date, eventName) {
+            const globalIndex = eventSchedule.findIndex(e => e.date === date && e.eventName === eventName);
+            if (globalIndex === -1) return;
+            
+            const currentStatus = eventSchedule[globalIndex].postStatus;
+            eventSchedule[globalIndex].postStatus = currentStatus === 'done' ? 'pending' : 'done';
+            
+            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        }
+
+        async function toggleStoryStatus(date, eventName) {
+            const globalIndex = eventSchedule.findIndex(e => e.date === date && e.eventName === eventName);
+            if (globalIndex === -1) return;
+            
+            const currentStatus = eventSchedule[globalIndex].storyStatus;
+            eventSchedule[globalIndex].storyStatus = currentStatus === 'done' ? 'pending' : 'done';
+            
+            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        }
+
+        function copyDayEventNames(dateKey) {
+            const eventsForDay = eventSchedule
+                .filter(e => e.date === dateKey)
+                .sort((a, b) => a.order - b.order)
+                .map(e => e.eventName);
+            
+            const listToCopy = eventsForDay.join('\n');
+            copyToClipboard(listToCopy);
+
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = `Copied ${eventsForDay.length} event names for ${formatDateFriendly(dateKey)}.`;
+            statusMessage.className = 'mt-4 sm:mt-0 text-sm text-primary font-bold w-full text-center sm:text-left';
+        }
+
         
-        async function updateScheduledEventText(index, value, field, type) {
+        // NEW: Updated signature to use unique identifiers instead of index
+        async function updateScheduledEventText(date, eventName, value, field) {
             
-            const today = getTodayIsoString();
-            
-            const targetArray = type === 'upcoming' 
-                ? eventSchedule.filter(event => event.date >= today) 
-                : eventSchedule.filter(event => event.date < today);
-
-            if (index < 0 || index >= targetArray.length) return;
-            
-            const itemToUpdate = targetArray[index];
-            const globalIndex = eventSchedule.findIndex(e => e.date === itemToUpdate.date && e.eventName === itemToUpdate.eventName);
-
+            const globalIndex = eventSchedule.findIndex(e => e.date === date && e.eventName === eventName);
 
             if (globalIndex === -1) {
                 console.error("Critical: Could not find event in global list to update.");
@@ -1500,17 +1592,15 @@
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         }
 
-        async function handleDeleteScheduledEvent(index) {
-            const today = getTodayIsoString();
-            const upcomingEvents = eventSchedule.filter(event => event.date >= today); 
+        // NEW: Updated signature to use unique identifiers instead of index
+        async function handleDeleteScheduledEvent(date, eventName) {
+            const eventToDelete = eventSchedule.find(e => e.date === date && e.eventName === eventName);
+            if (!eventToDelete) return;
             
-            if (index < 0 || index >= upcomingEvents.length) return;
-
-            const eventToDelete = upcomingEvents[index];
             const confirmed = await openModal(`Delete scheduled event: "${eventToDelete.eventName}"?`);
 
             if (confirmed) {
-                const globalIndex = eventSchedule.findIndex(e => e.date === eventToDelete.date && e.eventName === eventToDelete.eventName);
+                const globalIndex = eventSchedule.findIndex(e => e.date === date && e.eventName === eventName);
                 if (globalIndex > -1) {
                     eventSchedule.splice(globalIndex, 1); 
                     await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
@@ -1532,6 +1622,7 @@
             }
             messageEl.classList.add('hidden');
 
+            // History is always sorted by newest first
             pastEvents.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             const groupedHistory = pastEvents.reduce((acc, event) => {
@@ -1580,7 +1671,7 @@
                                 <button onclick="toggleCollapsible('${uniqueId}', this)" class="text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 transition" data-state="collapsed">View Details</button>
                                 <button onclick="duplicateToEditor(${JSON.stringify(event).replace(/"/g, '&quot;')})" class="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-indigo-600 transition">Duplicate</button>
                                 <button onclick="event.stopPropagation(); saveEventAsTemplate(event)" class="text-xs px-2 py-1 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition">Save as Template</button>
-                                <button onclick="handleDeleteHistoryEvent(${index}, '${groupKey}')" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete History Event">
+                                <button onclick="handleDeleteHistoryEvent('${event.date}', '${event.eventName}')" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete History Event">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
                             </div>
@@ -1600,14 +1691,12 @@
             listEl.dataset.pastEvents = JSON.stringify(pastEvents);
         }
         
-        async function handleDeleteHistoryEvent(index, groupKey) {
-            const pastEventsJson = document.getElementById('historyEventsList').dataset.pastEvents;
-            const fullHistory = JSON.parse(pastEventsJson);
+        // NEW: Updated signature to use unique identifiers instead of index
+        async function handleDeleteHistoryEvent(date, eventName) {
+            const eventToRemove = eventSchedule.find(e => e.date === date && e.eventName === eventName);
 
-            if (index >= fullHistory.length) return;
-
-            const eventToRemove = fullHistory[index];
-            const confirmed = await openModal(`Delete historical event: "${eventToRemove.eventName}" from ${groupKey}?`);
+            if (!eventToRemove) return;
+            const confirmed = await openModal(`Delete historical event: "${eventToRemove.eventName}"?`);
 
             if (confirmed) {
                 const globalIndex = eventSchedule.findIndex(e => e.date === eventToRemove.date && e.eventName === eventToRemove.eventName);
@@ -1632,6 +1721,11 @@
                 .trim();
 
             document.getElementById('rawDescription').value = rawDescription;
+            
+            // Trigger extra tags load for this event
+            const extraTagsInput = document.getElementById('extraHashtagsInput');
+            extraTagsInput.value = eventExtraTags[event.eventName] || '';
+
             showTab('editor');
         }
 
@@ -1681,7 +1775,7 @@
 
             document.getElementById('rawDescription').value = rawDescription;
             document.getElementById('inputIsoDate').value = ""; 
-            document.getElementById('extraHashtagsInput').value = ""; 
+            document.getElementById('extraHashtagsInput').value = eventExtraTags[event.eventName] || ""; 
 
             showTab('editor');
         }
@@ -1806,35 +1900,13 @@
                 document.getElementById('inputEventName').value = template.eventName || name;
                 document.getElementById('inputLocation').value = template.location;
                 document.getElementById('rawDescription').value = template.description;
+                
+                // Load recurring extra tags if they exist for this event name
+                const eventName = template.eventName || name;
+                document.getElementById('extraHashtagsInput').value = eventExtraTags[eventName] || '';
 
                 statusMessage.textContent = `Template "${name}" loaded.`;
                 statusMessage.className = 'mt-4 sm:mt-0 text-sm text-primary font-bold w-full text-center sm:text-left';
-            }
-        }
-
-        function renderMediaLink() {
-            const linkEl = document.getElementById('mediaFolderLink');
-            if (linkEl) { 
-                linkEl.value = mediaFolderLink;
-            }
-        }
-        
-        async function saveMediaFolderLink() {
-            const link = document.getElementById('mediaFolderLink').value.trim();
-            const statusEl = document.getElementById('mediaLinkStatus');
-            
-            if (!link || !link.startsWith('http')) {
-                setStatus('mediaLinkStatus', "Error: Please enter a valid link (must start with http).", true);
-                return;
-            }
-            
-            window.mediaFolderLink = link;
-            const saveSuccess = await saveDataToSupabase(DB_CONFIG.MEDIA_LINK_KEY, link); 
-            
-            if (saveSuccess) {
-                setStatus('mediaLinkStatus', 'Media folder link saved!');
-            } else {
-                setStatus('mediaLinkStatus', 'Error: Failed to save to Supabase.', true);
             }
         }
         
@@ -1939,8 +2011,10 @@
             const rawDescriptionInput = document.getElementById('rawDescription');
             const description = rawDescriptionInput.value;
             
+            const extraHashtagsInput = document.getElementById('extraHashtagsInput');
+            const extraHashtags = extraHashtagsInput.value;
+            
             const defaultTagsStr = globalTagsString; 
-            const extraHashtags = document.getElementById('extraHashtagsInput').value;
             const statusMessage = document.getElementById('statusMessage');
 
             statusMessage.textContent = 'Processing...';
@@ -1965,10 +2039,21 @@
                 document.getElementById('tagsOnlyOutput').value = result.tagsOnly;
 
                 if (saveToSchedule) {
+                    // 1. Save recurring extra hashtags keyed by eventName
+                    const currentExtraTags = extraHashtags.trim();
+                    if (currentExtraTags.length > 0) {
+                        eventExtraTags[structuredData.eventName] = currentExtraTags;
+                        await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags);
+                    } else if (eventExtraTags[structuredData.eventName]) {
+                        delete eventExtraTags[structuredData.eventName];
+                        await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags);
+                    }
+                    
+                    // 2. Save event data
                     const savedPostText = document.getElementById('calendarOutput').value.replace(/🌕Full Moon Week - Day X🌕\n?/, '').replace(/🌕Full Moon Week - Day \d+🌕\n?/, ''); 
                     const savedTagsOnly = document.getElementById('tagsOnlyOutput').value;
 
-                    const existingIndex = eventSchedule.findIndex(e => e.date === structuredData.isoDate && e.eventName === structuredData.eventName);
+                    const existingEvent = eventSchedule.find(e => e.date === structuredData.isoDate && e.eventName === structuredData.eventName);
 
                     const newEventData = {
                         eventName: structuredData.eventName,
@@ -1977,11 +2062,16 @@
                         inputDateFriendly: dateFriendly,
                         postText: savedPostText,  
                         tagsOnly: savedTagsOnly,
-                        mediaFileName: mediaFileName 
+                        mediaFileName: mediaFileName,
+                        order: existingEvent ? existingEvent.order : (eventSchedule.filter(e => e.date === structuredData.isoDate).length), 
+                        extraTags: currentExtraTags,
+                        postStatus: existingEvent ? existingEvent.postStatus : 'pending', // Retain or set default
+                        storyStatus: existingEvent ? existingEvent.storyStatus : 'pending' // Retain or set default
                     };
 
-                    if (existingIndex !== -1) {
-                        eventSchedule[existingIndex] = newEventData;
+                    if (existingEvent) {
+                        const globalIndex = eventSchedule.findIndex(e => e.date === existingEvent.date && e.eventName === existingEvent.eventName);
+                        eventSchedule[globalIndex] = newEventData;
                         statusMessage.textContent = `Event "${structuredData.eventName}" updated in Scheduler!`;
                     } else {
                         eventSchedule.push(newEventData);
@@ -2012,13 +2102,12 @@
 
         // --- INITIALIZATION ---
         
-        // This unified render function will be called by the Supabase subscription listener
         function render() {
              debouncedRenderNameMap();
              debouncedRenderEventTemplateSelect();
              debouncedRenderSnippetSelect();
              debouncedRenderGlobalTags();
-             debouncedRenderMediaLink();
+             // debouncedRenderMediaLink(); // REMOVED
              debouncedRenderScheduleList();
              debouncedRenderCalendarSummary();
         }
