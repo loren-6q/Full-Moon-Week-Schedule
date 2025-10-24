@@ -130,6 +130,47 @@
             background-color: #fff;
             border-radius: 8px;
         }
+        
+        /* === NEW: SCHEDULE COMPACTION STYLES === */
+        /* Tighter padding on event cards */
+        .scheduled-event-card {
+            padding: 0.75rem !important; /* py-3 instead of py-4 */
+            font-size: 0.8rem; /* text-sm reduced */
+        }
+        /* Smaller font for event header */
+        .scheduled-event-card h3 {
+            font-size: 1rem; /* text-base instead of lg */
+        }
+        .scheduled-event-card p {
+            font-size: 0.75rem; /* text-xs */
+        }
+        /* Smaller textarea font and row padding */
+        .scheduled-event-card textarea {
+            font-size: 0.75rem; /* text-xs */
+            padding: 0.3rem;
+            line-height: 1.25;
+        }
+        /* Tighter button layout */
+        .scheduled-event-card .flex-shrink-0 button {
+            font-size: 0.7rem; /* text-xs */
+            padding: 0.15rem 0.5rem;
+        }
+        .scheduled-event-card .text-sm {
+            font-size: 0.75rem !important;
+        }
+        /* Tighter grid spacing */
+        .scheduled-event-card .gap-2 {
+            gap: 0.5rem;
+        }
+        /* Tighter padding for status buttons */
+        .scheduled-event-card .flex-shrink-0 button {
+            padding: 0.2rem 0.6rem;
+            height: 24px;
+        }
+        /* Ensure event group header is still readable */
+        .event-group h3 {
+            font-size: 1.125rem; /* text-xl */
+        }
     </style>
 </head>
 <body class="bg-background min-h-screen p-4 sm:p-8 font-sans">
@@ -1471,57 +1512,58 @@
                     const storyDone = event.storyStatus === 'done';
 
                     const div = document.createElement('div');
-                    div.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3 cursor-grab';
+                    // ADDED CLASS: scheduled-event-card for styling hook
+                    div.className = 'scheduled-event-card p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3 cursor-grab';
                     div.onclick = () => loadEventForEdit(event); 
                     
                     div.innerHTML = `
                         <div class="flex justify-between items-start flex-wrap">
                             <div class="flex-grow min-w-0 pr-4 flex flex-col sm:flex-row sm:items-center sm:space-x-4">
-                                <h3 class="text-lg font-bold text-primary inline">${event.eventName} <span class="text-gray-500 font-medium ml-2 text-sm">| Order: ${event.order}</span></h3>
-                                <p class="text-xs text-gray-700 inline-block mt-1 sm:mt-0 flex-wrap flex">
+                                <h3 class="font-bold text-primary inline">${event.eventName} <span class="text-gray-500 font-medium ml-2 text-sm">| Order: ${event.order}</span></h3>
+                                <p class="text-gray-700 inline-block mt-1 sm:mt-0 flex-wrap flex">
                                     📍 Location: ${event.location}
                                 </p>
                             </div>
                             
-                            <div class="flex space-x-2 flex-shrink-0 mt-2 sm:mt-0 items-center">
-                                <!-- NEW: Status Toggles -->
+                            <div class="flex space-x-1 flex-shrink-0 mt-2 sm:mt-0 items-center">
+                                <!-- Status Toggles -->
                                 <button 
                                     onclick="event.stopPropagation(); togglePostStatus('${event.date}', '${event.eventName}')" 
-                                    class="text-xs px-3 py-1 rounded-full transition ${postDone ? 'bg-secondary text-white' : 'bg-gray-200 text-gray-600 hover:bg-secondary hover:text-white'}"
+                                    class="px-2 py-1 rounded-full transition ${postDone ? 'bg-secondary text-white' : 'bg-gray-200 text-gray-600 hover:bg-secondary hover:text-white'}"
                                 >
                                     ${postDone ? '✅ Post Done' : 'Post'}
                                 </button>
                                 <button 
                                     onclick="event.stopPropagation(); toggleStoryStatus('${event.date}', '${event.eventName}')" 
-                                    class="text-xs px-3 py-1 rounded-full transition ${storyDone ? 'bg-secondary text-white' : 'bg-gray-200 text-gray-600 hover:bg-secondary hover:text-white'}"
+                                    class="px-2 py-1 rounded-full transition ${storyDone ? 'bg-secondary text-white' : 'bg-gray-200 text-gray-600 hover:bg-secondary hover:text-white'}"
                                 >
                                     ${storyDone ? '✅ Story Done' : 'Story'}
                                 </button>
                                 
-                                <button onclick="event.stopPropagation(); saveEventAsTemplate(event)" class="text-sm px-3 py-1 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition">Save as Template</button>
-                                <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${postTextId}').value)" class="text-sm px-3 py-1 bg-primary text-white rounded-full hover:bg-indigo-600 transition">Copy Post</button>
-                                <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${tagsOnlyId}').value)" class="text-sm px-3 py-1 bg-secondary text-white rounded-full hover:bg-emerald-600 transition">Copy Tags</button>
+                                <button onclick="event.stopPropagation(); saveEventAsTemplate(event)" class="px-2 py-1 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition">Template</button>
+                                <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${postTextId}').value)" class="px-2 py-1 bg-primary text-white rounded-full hover:bg-indigo-600 transition">Copy Post</button>
+                                <button onclick="event.stopPropagation(); copyToClipboard(document.getElementById('${tagsOnlyId}').value)" class="px-2 py-1 bg-secondary text-white rounded-full hover:bg-emerald-600 transition">Copy Tags</button>
                                 <button onclick="event.stopPropagation(); handleDeleteScheduledEvent('${event.date}', '${event.eventName}')" class="text-red-500 hover:text-red-700 p-1 transition" title="Delete Event">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
                             </div>
                         </div>
                         
                         <div class="grid grid-cols-4 gap-2">
                             <div class="col-span-3">
-                                <label class="block text-sm font-medium text-gray-700">Post/Reel Text:</label>
+                                <label class="block font-medium text-gray-700">Post/Reel Text:</label>
                                 <textarea 
                                     id="${postTextId}" 
                                     onblur="updateScheduledEventText('${event.date}', '${event.eventName}', this.value, 'postText')" 
-                                    class="w-full border rounded-lg p-2 text-sm bg-white focus:ring-primary focus:border-primary" rows="6"
+                                    class="w-full border rounded-lg bg-white focus:ring-primary focus:border-primary" rows="5"
                                 >${finalPostText}</textarea>
                             </div>
                             <div class="col-span-1">
-                                <label class="block text-sm font-medium text-gray-700">Story Tags:</label>
+                                <label class="block font-medium text-gray-700">Story Tags:</label>
                                 <textarea 
                                     id="${tagsOnlyId}" 
                                     onblur="updateScheduledEventText('${event.date}', '${event.eventName}', this.value, 'tagsOnly')" 
-                                    class="w-full border rounded-lg p-2 text-sm bg-white focus:ring-primary focus:border-primary" rows="6"
+                                    class="w-full border rounded-lg bg-white focus:ring-primary focus:border-primary" rows="5"
                                 >${event.tagsOnly}</textarea>
                             </div>
                         </div>
