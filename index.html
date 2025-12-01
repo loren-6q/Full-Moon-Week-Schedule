@@ -131,7 +131,7 @@
             border-radius: 8px;
         }
         
-        /* === NEW: SCHEDULE COMPACTION STYLES === */
+        /* === SCHEDULE COMPACTION STYLES === */
         /* Tighter padding on event cards */
         .scheduled-event-card {
             padding: 0.75rem !important; /* py-3 instead of py-4 */
@@ -535,6 +535,8 @@
         let resolvePromptPromise = null; 
         let currentEditingName = null;
         
+        let saveScheduleTimeout = null; // Timeout reference for the 3.5 second delay
+
         // --- SUPABASE CLIENT INITIALIZATION ---
         
         async function initializeSupabase() {
@@ -701,6 +703,16 @@
             const year = today.getFullYear();
             const month = String(today.getMonth() + 1).padStart(2, '0');
             const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        // Helper to get yesterday's date string for history auto-move logic
+        function getYesterdayIsoString() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const year = yesterday.getFullYear();
+            const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+            const day = String(yesterday.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         }
 
@@ -1385,6 +1397,19 @@
         }
 
         // --- DATA MANAGEMENT: SCHEDULER & HISTORY ---
+        
+        // Helper function to manage the delayed saving
+        const saveScheduleWithDelay = () => {
+            if (saveScheduleTimeout) {
+                clearTimeout(saveScheduleTimeout);
+            }
+            saveScheduleTimeout = setTimeout(async () => {
+                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                // Clear the timeout reference after saving
+                saveScheduleTimeout = null;
+            }, 3500); // 3.5 second delay
+        };
+
 
         function initializeSortable() {
             const dateGroups = document.querySelectorAll('.event-group');
@@ -1429,7 +1454,7 @@
                         // Update the global list and save
                         eventSchedule.splice(0, eventSchedule.length, ...updatedSchedule.sort((a, b) => new Date(a.date) - new Date(b.date) || a.order - b.order));
                         
-                        await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                        await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); // Save instantly for drag/drop
                     },
                 });
             });
@@ -1440,6 +1465,7 @@
             const historyListEl = document.getElementById('historyEventsList');
             const messageEl = document.getElementById('emptyScheduleMessage');
             const today = getTodayIsoString();
+            const yesterday = getYesterdayIsoString();
             
             if (!containerEl || !historyListEl || !messageEl) return;
             
@@ -1457,10 +1483,16 @@
                 if (event.storyStatus === undefined) event.storyStatus = 'pending';
                 if (event.order === undefined) event.order = eventSchedule.filter(e => e.date === event.date).length;
 
-                // Move to history only if both are 'done'
-                if (event.postStatus === 'done' && event.storyStatus === 'done') {
+                // RULE 1: Auto-move to history if the event date is strictly in the past (yesterday or earlier)
+                if (event.date <= yesterday) {
                     pastEvents.push(event);
-                } else { 
+                } 
+                // RULE 2: Manual move to history if post/story are both done (regardless of date, in case of early completion)
+                else if (event.postStatus === 'done' && event.storyStatus === 'done') {
+                    pastEvents.push(event);
+                }
+                // OTHERWISE: Keep in the upcoming schedule list
+                else { 
                     upcomingEvents.push(event);
                 }
             });
@@ -1585,7 +1617,8 @@
             const currentStatus = eventSchedule[globalIndex].postStatus;
             eventSchedule[globalIndex].postStatus = currentStatus === 'done' ? 'pending' : 'done';
             
-            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            saveScheduleWithDelay();
+            debouncedRenderScheduleList(); // Immediate local render for visual feedback
         }
 
         async function toggleStoryStatus(date, eventName) {
@@ -1595,7 +1628,8 @@
             const currentStatus = eventSchedule[globalIndex].storyStatus;
             eventSchedule[globalIndex].storyStatus = currentStatus === 'done' ? 'pending' : 'done';
             
-            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            saveScheduleWithDelay();
+            debouncedRenderScheduleList(); // Immediate local render for visual feedback
         }
 
         function copyDayEventNames(dateKey) {
@@ -1631,7 +1665,7 @@
                 eventSchedule[globalIndex][field] = value;
             }
             
-            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); // Save instantly for text edits
         }
 
         // NEW: Updated signature to use unique identifiers instead of index
