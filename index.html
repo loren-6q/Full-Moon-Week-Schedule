@@ -35,6 +35,7 @@
             background-color: #f1f5f9 !important;
         }
         .compact-list-item { padding: 0.2rem 0; font-size: 0.75rem; }
+        .sortable-drag { opacity: 0.6; background-color: #f1f5f9; }
         .settings-grid-container-custom { display: grid; grid-template-columns: 35% 65%; gap: 2rem; }
         @media (max-width: 768px) { .settings-grid-container-custom { grid-template-columns: 1fr; } }
         
@@ -86,12 +87,15 @@
             font-size: 10px;
             line-height: 1.2;
             border: 1px solid #e2e8f0;
+            width: 20px;
+            text-align: center;
         }
         .order-btn:hover { background: #e2e8f0; color: #1e293b; }
     </style>
 </head>
 <body class="bg-background min-h-screen p-4 sm:p-8 font-sans">
     
+    <!-- Supabase Library Loader -->
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         window.supabaseClient = { createClient };
@@ -102,6 +106,7 @@
             <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Full Moon Posting Scheduler</h1>
         </header>
         
+        <!-- Navigation Tabs -->
         <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-sm overflow-hidden">
             <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-4 text-center transition hover:bg-gray-50">Event</button>
             <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">Settings</button>
@@ -146,7 +151,6 @@
                             <!-- SUGGESTED TAGS CONTAINER -->
                             <div id="suggestedTagsContainer" class="flex flex-wrap items-center min-h-[40px] bg-gray-50 p-2 rounded border border-dashed border-gray-200">
                                 <span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions Based on History:</span>
-                                <!-- Pills populated by JS -->
                             </div>
                         </div>
                     </div>
@@ -205,7 +209,9 @@
                             <select id="newCategory" class="w-full p-2 border rounded text-sm bg-white">
                                 <option value="DJ">DJ</option>
                                 <option value="Venue">Venue</option>
+                                <option value="Presenter">Presenter</option>
                                 <option value="Artist">Artist</option>
+                                <option value="Label">Label</option>
                                 <option value="Other">Other</option>
                             </select>
                             <div class="flex space-x-2">
@@ -346,7 +352,8 @@
         let eventDatabase = {};    
         let textSnippets = {};     
         let eventSchedule = [];    
-        let globalTagsString = ""; 
+        // SETTING DEFAULTS HERE
+        let globalTagsString = "#FullMoonWeek #FullMoonParty #KohPhangan #Thailand #Party"; 
         let eventExtraTags = {}; 
         let saveScheduleTimeout = null;
         let resolveModalPromise = null;
@@ -428,30 +435,25 @@
         /** ORDER MANAGEMENT **/
 
         window.moveEvent = async function(date, name, direction) {
-            // Get events for this specific date, sorted by current order
             const dayEvents = eventSchedule
                 .filter(e => e.date === date)
                 .sort((a, b) => (a.order || 0) - (b.order || 0));
             
-            // Re-index to ensure sequential logic
             dayEvents.forEach((e, i) => e.order = i);
 
             const idx = dayEvents.findIndex(e => e.eventName === name);
             if (idx === -1) return;
 
             if (direction === 'up' && idx > 0) {
-                // Swap
                 dayEvents[idx].order = idx - 1;
                 dayEvents[idx - 1].order = idx;
             } else if (direction === 'down' && idx < dayEvents.length - 1) {
-                // Swap
                 dayEvents[idx].order = idx + 1;
                 dayEvents[idx + 1].order = idx;
             } else {
                 return;
             }
 
-            // Save and rerender locally
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
             window.renderScheduleList();
         };
@@ -577,14 +579,14 @@
                     }
                     if (val !== null) {
                         if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
-                        else if (c.type === 'string') { window.globalTagsString = val; }
+                        else if (c.type === 'string') { globalTagsString = val; } // CORRECTED ASSIGNMENT
                         else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, val); }
                     }
                     supabase.channel(`public_${c.name}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: c.name, filter: 'id=eq.1' }, (payload) => {
                         let updated = c.type === 'array' ? payload.new.events : (c.type === 'string' ? payload.new.tags : payload.new.data);
                         if (updated !== null) {
                             if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...updated); }
-                            else if (c.type === 'string') { window.globalTagsString = updated; }
+                            else if (c.type === 'string') { globalTagsString = updated; } // CORRECTED ASSIGNMENT
                             else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, updated); }
                             c.render();
                         }
@@ -645,7 +647,6 @@
 
                     card.innerHTML = `
                         <div class="flex items-start">
-                            <!-- Order Arrows -->
                             <div class="flex flex-col space-y-1 mr-3 flex-shrink-0">
                                 <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${e.eventName}','up')" class="order-btn">▲</button>
                                 <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${e.eventName}','down')" class="order-btn">▼</button>
@@ -1005,6 +1006,8 @@
                 window.renderScheduleList();
             }
         };
+
+        window.copyDayEventNames = (date) => { const names = eventSchedule.filter(e => e.date === date).map(e => e.eventName).join('\n'); window.copyToClipboard(names); };
 
         window.closeModal = function(confirmed) {
             document.getElementById('deleteModal').classList.remove('active');
