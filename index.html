@@ -18,7 +18,7 @@
                         'accent': '#f59e0b',
                         'danger': '#ef4444',
                     },
-                    screens: { 'sm': '640px', 'md': '768px', 'lg': '992px', 'xl': '1280px' },
+                    screens: { 'sm': '640px', 'md': '768px', 'lg':992px', 'xl': '1280px' },
                 }
             }
         }
@@ -177,7 +177,9 @@
                                 <option value="">All Categories</option>
                                 <option value="DJ">DJ</option>
                                 <option value="Venue">Venue</option>
+                                <option value="Presenter">Presenter</option>
                                 <option value="Artist">Artist</option>
+                                <option value="Label">Label</option>
                                 <option value="Other">Other</option>
                             </select>
                         </div>
@@ -193,7 +195,9 @@
                             <select id="newCategory" class="w-full p-2 border rounded text-sm bg-white">
                                 <option value="DJ">DJ</option>
                                 <option value="Venue">Venue</option>
+                                <option value="Presenter">Presenter</option>
                                 <option value="Artist">Artist</option>
+                                <option value="Label">Label</option>
                                 <option value="Other">Other</option>
                             </select>
                             <div class="flex space-x-2">
@@ -305,7 +309,7 @@
             SCHEDULE_DB_KEY: 'event_schedule',   
             GLOBAL_TAGS_KEY: 'global_tags',      
             EXTRA_TAGS_KEY: 'event_extra_tags', 
-            CATEGORIES: ["DJ", "Venue", "Artist", "Other"]
+            CATEGORIES: ["DJ", "Venue", "Presenter", "Artist", "Label", "Other"]
         };
 
         const PEAK_DATES = [
@@ -532,14 +536,14 @@
                     }
                     if (val !== null) {
                         if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
-                        else if (c.type === 'string') { globalTagsString = val; }
+                        else if (c.type === 'string') { window.globalTagsString = val; }
                         else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, val); }
                     }
                     supabase.channel(`public_${c.name}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: c.name, filter: 'id=eq.1' }, (payload) => {
                         let updated = c.type === 'array' ? payload.new.events : (c.type === 'string' ? payload.new.tags : payload.new.data);
                         if (updated !== null) {
                             if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...updated); }
-                            else if (c.type === 'string') { globalTagsString = updated; }
+                            else if (c.type === 'string') { window.globalTagsString = updated; }
                             else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, updated); }
                             c.render();
                         }
