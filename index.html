@@ -60,6 +60,23 @@
             width: 100%; padding: 0.75rem 1rem; font-weight: 600; border-radius: 0.5rem; transition: background-color 0.2s;
         }
         .event-group { border: 1px solid #cbd5e1; padding: 1rem; margin-bottom: 1.5rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        /* Suggestion Pill Styles */
+        .tag-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+        }
+        .tag-pill:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .tag-pill.active { background: #4f46e5; color: white; border-color: #4f46e5; }
     </style>
 </head>
 <body class="bg-background min-h-screen p-4 sm:p-8 font-sans">
@@ -100,8 +117,8 @@
                                 <label class="text-sm font-medium text-gray-700">🗓 Date:</label>
                                 <input type="date" id="inputIsoDate" class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20">
                             </div>
-                            <input type="text" id="inputEventName" placeholder="🎉 EVENT NAME" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20" onblur="loadEventExtraTags()">
-                            <input type="text" id="inputLocation" placeholder="📍 LOCATION" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20" onblur="loadEventExtraTags()">
+                            <input type="text" id="inputEventName" placeholder="🎉 EVENT NAME" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20" oninput="updateSuggestedTags()">
+                            <input type="text" id="inputLocation" placeholder="📍 LOCATION" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20" oninput="updateSuggestedTags()">
                         </div>
                         <div class="mt-6">
                              <div class="flex justify-between items-center mb-2">
@@ -114,7 +131,13 @@
                         </div>
                         <div class="mt-4">
                             <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Extra Hashtags</label>
-                            <input type="text" id="extraHashtagsInput" placeholder="tag1, tag2..." class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                            <input type="text" id="extraHashtagsInput" oninput="refreshTagPillStates()" placeholder="Type or click suggestions below..." class="w-full border border-gray-300 rounded-lg p-2 text-sm mb-2">
+                            
+                            <!-- SUGGESTED TAGS CONTAINER -->
+                            <div id="suggestedTagsContainer" class="flex flex-wrap items-center min-h-[40px] bg-gray-50 p-2 rounded border border-dashed border-gray-200">
+                                <span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions Based on History:</span>
+                                <!-- Pills populated by JS -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -159,7 +182,7 @@
                             </select>
                         </div>
                         <div class="max-h-80 overflow-y-auto pr-2">
-                            <ul id="databaseList" class="divide-y divide-gray-200"></ul>
+                            <ul id="databaseList" class="divide-y divide-gray-100"></ul>
                         </div>
                     </div>
                     <div class="bg-emerald-100 p-6 rounded-xl border border-emerald-200 add-entry-bg">
@@ -319,7 +342,7 @@
 
         /** UTILITIES **/
         
-        window.copyToClipboard = (txt) => { 
+        window.copyToClipboard = function(txt) { 
             const el = document.createElement('textarea'); 
             el.value = txt; 
             document.body.appendChild(el); 
@@ -328,13 +351,13 @@
             document.body.removeChild(el); 
         };
 
-        window.formatDateFriendly = (isoDate) => { 
+        window.formatDateFriendly = function(isoDate) { 
             if (!isoDate) return 'TBD Date'; 
             const date = new Date(isoDate + 'T00:00:00'); 
             return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); 
         };
 
-        window.calculateSequentialDays = (events) => { 
+        window.calculateSequentialDays = function(events) { 
             const sorted = [...events].sort((a,b) => new Date(a.date) - new Date(b.date));
             let day = 1, last = null;
             return sorted.map(e => {
@@ -347,8 +370,7 @@
             });
         };
 
-        /** HELPER: Extract Description from older post data **/
-        window.getEventDescription = (e) => {
+        window.getEventDescription = function(e) {
             if (e.description) return e.description;
             if (!e.postText) return "";
             const blocks = e.postText.split('\n\n');
@@ -377,6 +399,9 @@
                 window.renderGlobalTags(); 
                 window.renderEventTemplateSelect(); 
             }
+            else if (tabName === 'editor') {
+                window.updateSuggestedTags();
+            }
         };
 
         window.loadEventForEdit = function(e) {
@@ -388,7 +413,155 @@
             window.showTab('editor');
         };
 
-        /** RENDERERS **/
+        window.updateSuggestedTags = function() {
+            const container = document.getElementById('suggestedTagsContainer');
+            if (!container) return;
+
+            const eventName = document.getElementById('inputEventName').value.trim().toLowerCase();
+            const location = document.getElementById('inputLocation').value.trim().toLowerCase();
+            
+            const candidates = new Set();
+            if (eventName && eventExtraTags[eventName]) eventExtraTags[eventName].split(/[, ]+/).forEach(t => candidates.add(t));
+            if (location && eventExtraTags[location]) eventExtraTags[location].split(/[, ]+/).forEach(t => candidates.add(t));
+
+            eventSchedule.forEach(e => {
+                if ((eventName && e.eventName?.toLowerCase() === eventName) || 
+                    (location && e.location?.toLowerCase() === location)) {
+                    if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => candidates.add(t));
+                }
+            });
+
+            const cleanCandidates = Array.from(candidates)
+                .map(t => t.trim())
+                .filter(t => t.length > 1)
+                .map(t => t.startsWith('#') ? t : '#' + t);
+
+            const unique = [...new Set(cleanCandidates.map(t => t.toLowerCase()))];
+            const existingHeader = container.querySelector('span');
+            container.innerHTML = '';
+            if (existingHeader) container.appendChild(existingHeader);
+
+            if (unique.length === 0) {
+                container.innerHTML += `<span class="text-[9px] text-gray-300 italic py-1">No matches found...</span>`;
+                return;
+            }
+
+            unique.forEach(tag => {
+                const pill = document.createElement('div');
+                pill.className = 'tag-pill';
+                pill.textContent = tag;
+                pill.onclick = () => window.toggleHashtag(tag);
+                container.appendChild(pill);
+            });
+
+            window.refreshTagPillStates();
+        };
+
+        window.toggleHashtag = function(tag) {
+            const input = document.getElementById('extraHashtagsInput');
+            const currentVal = input.value.toLowerCase();
+            const tagsInInput = currentVal.match(/#\w+/g) || [];
+            
+            if (tagsInInput.includes(tag.toLowerCase())) {
+                const regex = new RegExp(tag, 'gi');
+                input.value = input.value.replace(regex, '').replace(/  +/g, ' ').trim();
+            } else {
+                input.value = (input.value.trim() + " " + tag).trim();
+            }
+            window.refreshTagPillStates();
+        };
+
+        window.refreshTagPillStates = function() {
+            const inputVal = document.getElementById('extraHashtagsInput').value.toLowerCase();
+            const tagsInInput = inputVal.match(/#\w+/g) || [];
+            document.querySelectorAll('.tag-pill').forEach(pill => {
+                if (tagsInInput.includes(pill.textContent.toLowerCase())) {
+                    pill.classList.add('active');
+                } else {
+                    pill.classList.remove('active');
+                }
+            });
+        };
+
+        /** DATABASE & DATA HANDLERS **/
+
+        async function initializeSupabase() {
+            const statusEl = document.getElementById('statusMessage');
+            if (typeof window.supabaseClient === 'undefined') {
+                statusEl.textContent = "Loading library...";
+                setTimeout(initializeSupabase, 500);
+                return;
+            }
+            try {
+                supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                });
+                await loadInitialDataAndListen(); 
+                statusEl.textContent = "Supabase Live";
+                statusEl.className = "text-xs font-bold text-green-600";
+            } catch (e) {
+                statusEl.textContent = "Supabase Error";
+                statusEl.className = "text-xs font-bold text-red-600";
+            }
+        }
+
+        async function loadInitialDataAndListen() {
+            if (!supabase) return;
+            const collections = [
+                { name: DB_CONFIG.INSTA_DB_KEY, render: window.renderNameMap, globalVar: nameTagDatabase, type: 'map' },
+                { name: DB_CONFIG.EVENT_DB_KEY, render: window.renderEventTemplateSelect, globalVar: eventDatabase, type: 'map' },
+                { name: DB_CONFIG.SNIPPETS_KEY, render: window.renderSnippetSelect, globalVar: textSnippets, type: 'map' },
+                { name: DB_CONFIG.SCHEDULE_DB_KEY, render: window.renderScheduleList, globalVar: eventSchedule, type: 'array' },
+                { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: window.renderGlobalTags, globalVar: null, type: 'string' },
+                { name: DB_CONFIG.EXTRA_TAGS_KEY, render: () => {}, globalVar: eventExtraTags, type: 'map' }
+            ];
+
+            for (const c of collections) {
+                try {
+                    const { data, error } = await supabase.from(c.name).select('*').eq('id', 1).single();
+                    if (error && error.code !== 'PGRST116') {
+                        console.warn(`Error connecting to ${c.name}:`, error.message);
+                        continue;
+                    }
+
+                    let val = null;
+                    if (data) {
+                        if (c.type === 'array') val = data.events;
+                        else if (c.type === 'string') val = data.tags;
+                        else val = data.data;
+                    }
+                    if (val !== null) {
+                        if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
+                        else if (c.type === 'string') { globalTagsString = val; }
+                        else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, val); }
+                    }
+                    supabase.channel(`public_${c.name}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: c.name, filter: 'id=eq.1' }, (payload) => {
+                        let updated = c.type === 'array' ? payload.new.events : (c.type === 'string' ? payload.new.tags : payload.new.data);
+                        if (updated !== null) {
+                            if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...updated); }
+                            else if (c.type === 'string') { globalTagsString = updated; }
+                            else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, updated); }
+                            c.render();
+                        }
+                    }).subscribe();
+                    c.render();
+                } catch (err) {
+                    console.error(`Fatal error loading table "${c.name}":`, err);
+                }
+            }
+        }
+
+        async function saveDataToSupabase(table, data) {
+            if (!supabase) return false;
+            const payload = { id: 1 };
+            if (table === DB_CONFIG.SCHEDULE_DB_KEY) payload.events = data;
+            else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) payload.tags = data;
+            else payload.data = data;
+            const { error } = await supabase.from(table).upsert(payload);
+            return !error;
+        }
+
+        /** RENDERING LOGIC **/
 
         window.renderScheduleList = function() {
             const containerEl = document.getElementById('scheduledEventsContainer');
@@ -529,69 +702,42 @@
             });
         };
 
-        /** DATABASE & DATA HANDLERS **/
+        window.renderNameMap = function() {
+            const list = document.getElementById('databaseList');
+            const search = document.getElementById('nameSearch').value.toLowerCase();
+            const filter = document.getElementById('categoryFilter').value;
+            list.innerHTML = '';
+            Object.entries(nameTagDatabase).filter(([n, d]) => (n.toLowerCase().includes(search) || d.tag.toLowerCase().includes(search)) && (!filter || d.category === filter))
+            .sort().forEach(([n, d]) => {
+                const li = document.createElement('li'); li.className = 'compact-list-item flex justify-between items-center';
+                li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span>
+                <div class="flex space-x-2">
+                    <button onclick="window.editTag('${n}')" class="text-indigo-500">Edit</button>
+                    <button onclick="window.deleteTag('${n}')" class="text-red-500">✕</button>
+                </div>`;
+                list.appendChild(li);
+            });
+        };
 
-        async function initializeSupabase() {
-            const statusEl = document.getElementById('statusMessage');
-            try {
-                supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY, {
-                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-                });
-                await loadInitialDataAndListen(); 
-                statusEl.textContent = "Supabase Live";
-                statusEl.className = "text-xs font-bold text-green-600";
-            } catch (e) {
-                statusEl.textContent = "Supabase Error";
-                statusEl.className = "text-xs font-bold text-red-600";
-            }
-        }
+        window.renderSnippetSelect = function() { 
+            const select = document.getElementById('snippetSelect'); 
+            const edSelect = document.getElementById('editorSnippetSelect'); 
+            const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); 
+            select.innerHTML = html; edSelect.innerHTML = html; 
+        };
 
-        async function loadInitialDataAndListen() {
-            if (!supabase) return;
-            const collections = [
-                { name: DB_CONFIG.INSTA_DB_KEY, render: window.renderNameMap, globalVar: nameTagDatabase, type: 'map' },
-                { name: DB_CONFIG.EVENT_DB_KEY, render: window.renderEventTemplateSelect, globalVar: eventDatabase, type: 'map' },
-                { name: DB_CONFIG.SNIPPETS_KEY, render: window.renderSnippetSelect, globalVar: textSnippets, type: 'map' },
-                { name: DB_CONFIG.SCHEDULE_DB_KEY, render: window.renderScheduleList, globalVar: eventSchedule, type: 'array' },
-                { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: window.renderGlobalTags, globalVar: null, type: 'string' },
-                { name: DB_CONFIG.EXTRA_TAGS_KEY, render: () => {}, globalVar: eventExtraTags, type: 'map' }
-            ];
+        window.renderGlobalTags = function() { 
+            const el = document.getElementById('defaultTagsInput');
+            if (el) el.value = globalTagsString; 
+        };
 
-            for (const c of collections) {
-                const { data } = await supabase.from(c.name).select('*').eq('id', 1).single();
-                let val = null;
-                if (data) {
-                    if (c.type === 'array') val = data.events;
-                    else if (c.type === 'string') val = data.tags;
-                    else val = data.data;
-                }
-                if (val !== null) {
-                    if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
-                    else if (c.type === 'string') { window.globalTagsString = val; }
-                    else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, val); }
-                }
-                supabase.channel(`public_${c.name}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: c.name, filter: 'id=eq.1' }, (payload) => {
-                    let updated = c.type === 'array' ? payload.new.events : (c.type === 'string' ? payload.new.tags : payload.new.data);
-                    if (updated !== null) {
-                        if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...updated); }
-                        else if (c.type === 'string') { window.globalTagsString = updated; }
-                        else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, updated); }
-                        c.render();
-                    }
-                }).subscribe();
-                c.render();
-            }
-        }
+        window.renderEventTemplateSelect = function() { 
+            const options = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join('');
+            document.getElementById('eventTemplateSelect').innerHTML = options;
+            document.getElementById('templateManageSelect').innerHTML = options;
+        };
 
-        async function saveDataToSupabase(table, data) {
-            if (!supabase) return false;
-            const payload = { id: 1 };
-            if (table === DB_CONFIG.SCHEDULE_DB_KEY) payload.events = data;
-            else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) payload.tags = data;
-            else payload.data = data;
-            const { error } = await supabase.from(table).upsert(payload);
-            return !error;
-        }
+        /** INTERACTION HANDLERS **/
 
         window.toggleStatus = async function(date, name, type) {
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
@@ -657,8 +803,11 @@
 
             injectionQueue.forEach(m => { injectedDesc = injectedDesc.substring(0, m.index + m.length) + " " + m.tag + injectedDesc.substring(m.index + m.length); });
 
-            const hashes = [...new Set(globalTagsString.split(',').concat(xtra.split(',')))]
-                .map(s => s.trim().replace(/^#/,'')).filter(s=>s).map(s=>'#'+s).join(' ');
+            const rawTagsString = (globalTagsString + " " + xtra).replace(/[, \n\t]+/g, " ");
+            const hashtagRegex = /#\w+/g;
+            const allExtractedHashtags = rawTagsString.match(hashtagRegex) || [];
+            const uniqueHashtags = [...new Set(allExtractedHashtags.map(t => t.toLowerCase()))];
+            const hashes = uniqueHashtags.join(' ');
 
             const body = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${injectedDesc}\n\n${hashes}`;
             document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + body;
@@ -685,22 +834,6 @@
             alert(`Template saved.`); window.renderEventTemplateSelect();
         };
 
-        window.renderNameMap = function() {
-            const list = document.getElementById('databaseList');
-            const search = document.getElementById('nameSearch').value.toLowerCase();
-            const filter = document.getElementById('categoryFilter').value;
-            list.innerHTML = '';
-            Object.entries(nameTagDatabase).filter(([n, d]) => (n.toLowerCase().includes(search) || d.tag.toLowerCase().includes(search)) && (!filter || d.category === filter))
-            .sort().forEach(([n, d]) => {
-                const li = document.createElement('li'); li.className = 'compact-list-item flex justify-between items-center';
-                li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span>
-                <div class="flex space-x-2">
-                    <button onclick="window.editTag('${n}')" class="text-indigo-500">Edit</button>
-                    <button onclick="window.deleteTag('${n}')" class="text-red-500">✕</button>
-                </div>`;
-                list.appendChild(li);
-            });
-        };
         window.editTag = (n) => { const d = nameTagDatabase[n]; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; document.getElementById('cancelTagEditBtn').classList.remove('hidden'); };
         window.cancelTagEdit = () => { document.getElementById('newName').value = ''; document.getElementById('newTag').value = ''; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
         window.deleteTag = async (n) => { if(confirm(`Delete tag for ${n}?`)) { delete nameTagDatabase[n]; await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
@@ -730,12 +863,6 @@
             document.getElementById('bulkInstaMapInput').value = ''; window.renderNameMap(); 
         };
 
-        window.renderSnippetSelect = function() { 
-            const select = document.getElementById('snippetSelect'); 
-            const edSelect = document.getElementById('editorSnippetSelect'); 
-            const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); 
-            select.innerHTML = html; edSelect.innerHTML = html; 
-        };
         window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
         window.loadSnippet = () => { const k = document.getElementById('snippetSelect').value; if (textSnippets[k]) { document.getElementById('snippetName').value = k; document.getElementById('snippetContent').value = textSnippets[k]; } };
         window.deleteSnippet = async () => { const k = document.getElementById('snippetSelect').value; if(k && confirm(`Delete snippet ${k}?`)) { delete textSnippets[k]; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); } };
@@ -752,16 +879,9 @@
             }
         };
 
-        window.renderGlobalTags = () => { document.getElementById('defaultTagsInput').value = globalTagsString; };
         window.saveGlobalHashtags = async () => { globalTagsString = document.getElementById('defaultTagsInput').value.trim(); await saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); };
         
-        window.renderEventTemplateSelect = () => { 
-            const options = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join('');
-            document.getElementById('eventTemplateSelect').innerHTML = options;
-            document.getElementById('templateManageSelect').innerHTML = options;
-        };
-        
-        window.loadEventTemplate = () => { const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || ''; document.getElementById('rawDescription').value = e.description || ''; document.getElementById('extraHashtagsInput').value = e.extraTags || ''; window.loadEventExtraTags(); } };
+        window.loadEventTemplate = () => { const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || ''; document.getElementById('rawDescription').value = e.description || ''; document.getElementById('extraHashtagsInput').value = e.extraTags || ''; window.updateSuggestedTags(); } };
         
         window.loadTemplateForManage = () => {
             const k = document.getElementById('templateManageSelect').value;
@@ -799,7 +919,15 @@
             }
         };
 
-        window.loadEventExtraTags = () => { const n = document.getElementById('inputEventName').value.trim(), l = document.getElementById('inputLocation').value.trim(); if (eventExtraTags[n]) document.getElementById('extraHashtagsInput').value = eventExtraTags[n]; else if (eventExtraTags[l]) document.getElementById('extraHashtagsInput').value = eventExtraTags[l]; };
+        window.loadEventExtraTags = () => { 
+            const hashtagsInput = document.getElementById('extraHashtagsInput');
+            if (hashtagsInput.value.trim() !== "") { window.updateSuggestedTags(); return; }
+            const n = document.getElementById('inputEventName').value.trim(); 
+            const l = document.getElementById('inputLocation').value.trim(); 
+            if (eventExtraTags[n]) hashtagsInput.value = eventExtraTags[n]; 
+            else if (eventExtraTags[l]) hashtagsInput.value = eventExtraTags[l]; 
+            window.updateSuggestedTags();
+        };
 
         window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
         
