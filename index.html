@@ -352,7 +352,6 @@
         let eventDatabase = {};    
         let textSnippets = {};     
         let eventSchedule = [];    
-        // SETTING DEFAULTS HERE
         let globalTagsString = "#FullMoonWeek #FullMoonParty #KohPhangan #Thailand #Party"; 
         let eventExtraTags = {}; 
         let saveScheduleTimeout = null;
@@ -389,13 +388,21 @@
             });
         };
 
+        /** HELPER: Robust Description Extraction **/
         window.getEventDescription = function(e) {
+            // Favor the explicitly saved description field
             if (e.description) return e.description;
             if (!e.postText) return "";
+            
+            // Fallback for older data: Standard format is Metadata [NL]NL Body [NL]NL Hashtags
             const blocks = e.postText.split('\n\n');
             if (blocks.length > 1) {
-                if (blocks.length >= 3) return blocks.slice(1, -1).join('\n\n').trim();
-                return blocks[1].trim();
+                // If the last block starts with #, treat it as hashtags and exclude it
+                const lastIsHashtag = blocks[blocks.length - 1].trim().startsWith('#');
+                const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
+                // Exclude the header (blocks[0]) and hashtags
+                const body = blocks.slice(1, endIdx).join('\n\n').trim();
+                return body || e.postText.trim();
             }
             return e.postText.trim();
         };
@@ -579,14 +586,14 @@
                     }
                     if (val !== null) {
                         if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
-                        else if (c.type === 'string') { globalTagsString = val; } // CORRECTED ASSIGNMENT
+                        else if (c.type === 'string') { globalTagsString = val; }
                         else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, val); }
                     }
                     supabase.channel(`public_${c.name}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: c.name, filter: 'id=eq.1' }, (payload) => {
                         let updated = c.type === 'array' ? payload.new.events : (c.type === 'string' ? payload.new.tags : payload.new.data);
                         if (updated !== null) {
                             if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...updated); }
-                            else if (c.type === 'string') { globalTagsString = updated; } // CORRECTED ASSIGNMENT
+                            else if (c.type === 'string') { globalTagsString = updated; }
                             else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, updated); }
                             c.render();
                         }
@@ -810,10 +817,16 @@
             if (idx === -1) return;
             const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, '');
             eventSchedule[idx][field] = cleanVal;
-            if (field === 'postText') {
-                const blocks = cleanVal.split('\n\n');
-                if (blocks.length >= 2) eventSchedule[idx].description = blocks[1].trim();
+            
+            // Sync the change back to the description body for future edits/reuses
+            const blocks = cleanVal.split('\n\n');
+            if (blocks.length >= 2) {
+                // Determine if last block is hashtags
+                const lastIsHashtag = blocks[blocks.length - 1].trim().startsWith('#');
+                const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
+                eventSchedule[idx].description = blocks.slice(1, endIdx).join('\n\n').trim();
             }
+            
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
@@ -826,12 +839,17 @@
 
             if(!date || !name || !desc) return alert("Date, Name, Description required.");
 
+            // Tagging Logic: Identify matches but check for existing tags
             const allMatches = [];
             Object.entries(nameTagDatabase).forEach(([n, d]) => {
                 const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const reg = new RegExp(`(\\b${escaped}\\b)`, 'gi'); 
                 let m;
                 while ((m = reg.exec(desc)) !== null) {
+                    // Peek ahead to see if this is already tagged
+                    const lookAhead = desc.substring(m.index + m.length, m.index + m.length + 30);
+                    if (lookAhead.includes(d.tag)) continue; // Already tagged!
+                    
                     allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length });
                 }
             });
@@ -873,7 +891,8 @@
                 const currentDayEvents = eventSchedule.filter(e => e.date === date);
                 const order = currentDayEvents.length;
                 
-                const obj = { eventName: name, date, location: loc, postText: body, description: desc, tagsOnly: storyTags.join('\n'), postStatus: 'pending', storyStatus: 'pending', extraTags: xtra, order: order };
+                // SAVE THE INJECTED DESC AS THE PERMANENT DESCRIPTION
+                const obj = { eventName: name, date, location: loc, postText: body, description: injectedDesc, tagsOnly: storyTags.join('\n'), postStatus: 'pending', storyStatus: 'pending', extraTags: xtra, order: order };
                 const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
                 if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
                 if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
