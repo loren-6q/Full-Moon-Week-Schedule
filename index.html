@@ -45,6 +45,8 @@
         .template-box-bg { background-color: #fefce8 !important; } 
         .snippet-box-bg { background-color: #fdf2f8 !important; } 
         .history-box-bg { background-color: #f8fafc !important; }
+        .add-entry-bg { background-color: #ecfdf5 !important; }
+        .bulk-import-bg { background-color: #fffbeb !important; }
         
         .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; z-index: 50; }
         .modal.active { pointer-events: auto; opacity: 1; }
@@ -157,10 +159,10 @@
                             </select>
                         </div>
                         <div class="max-h-80 overflow-y-auto pr-2">
-                            <ul id="databaseList" class="divide-y divide-gray-100"></ul>
+                            <ul id="databaseList" class="divide-y divide-gray-200"></ul>
                         </div>
                     </div>
-                    <div class="bg-emerald-100 p-6 rounded-xl border border-emerald-200">
+                    <div class="bg-emerald-100 p-6 rounded-xl border border-emerald-200 add-entry-bg">
                         <h2 class="text-sm font-bold text-emerald-800 uppercase mb-3">Add / Edit Tag</h2>
                         <div class="space-y-2">
                             <input type="text" id="newName" placeholder="Display Name" class="w-full p-2 border rounded text-sm">
@@ -177,7 +179,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm bulk-import-bg">
                         <h2 class="text-sm font-bold uppercase mb-3">Bulk Import Tags</h2>
                         <p class="text-[10px] text-gray-500 mb-2">Format: Name [TAB] @Tag [TAB] Category</p>
                         <textarea id="bulkInstaMapInput" class="w-full border rounded p-2 text-[10px] mb-2 h-24" placeholder="Paste data here..."></textarea>
@@ -345,6 +347,21 @@
             });
         };
 
+        /** HELPER: Extract Description from older post data **/
+        window.getEventDescription = (e) => {
+            if (e.description) return e.description;
+            if (!e.postText) return "";
+            
+            // Standard format: Metadata Block [NL] NL Description Block [NL] NL Hashtags
+            const blocks = e.postText.split('\n\n');
+            if (blocks.length > 1) {
+                // Return middle block if 3 exist, otherwise try to find non-metadata block
+                if (blocks.length >= 3) return blocks.slice(1, -1).join('\n\n').trim();
+                return blocks[1].trim();
+            }
+            return e.postText.trim();
+        };
+
         /** UI ACTIONS **/
 
         window.showTab = function(tabName) {
@@ -369,7 +386,7 @@
             document.getElementById('inputIsoDate').value = e.date || "";
             document.getElementById('inputEventName').value = e.eventName || "";
             document.getElementById('inputLocation').value = e.location || "";
-            document.getElementById('rawDescription').value = e.description || "";
+            document.getElementById('rawDescription').value = window.getEventDescription(e);
             document.getElementById('extraHashtagsInput').value = e.extraTags || eventExtraTags[e.eventName] || '';
             window.showTab('editor');
         };
@@ -592,8 +609,17 @@
         window.updateText = async function(date, name, val, field) {
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
             if (idx === -1) return;
+            
+            // Clean the post text and update description if post text was changed
             const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, '');
             eventSchedule[idx][field] = cleanVal;
+            
+            if (field === 'postText') {
+                // Heuristic: Extract description block to update description field for Edit/Reuse
+                const blocks = cleanVal.split('\n\n');
+                if (blocks.length >= 2) eventSchedule[idx].description = blocks[1].trim();
+            }
+            
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
@@ -751,10 +777,11 @@
         window.loadEventExtraTags = () => { const n = document.getElementById('inputEventName').value.trim(), l = document.getElementById('inputLocation').value.trim(); if (eventExtraTags[n]) document.getElementById('extraHashtagsInput').value = eventExtraTags[n]; else if (eventExtraTags[l]) document.getElementById('extraHashtagsInput').value = eventExtraTags[l]; };
 
         window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
+        
         window.loadEventFromHistory = (e) => {
             document.getElementById('inputEventName').value = e.eventName || "";
             document.getElementById('inputLocation').value = e.location || "";
-            document.getElementById('rawDescription').value = e.description || "";
+            document.getElementById('rawDescription').value = window.getEventDescription(e);
             document.getElementById('extraHashtagsInput').value = e.extraTags || "";
             document.getElementById('inputIsoDate').value = ""; 
             window.showTab('editor');
