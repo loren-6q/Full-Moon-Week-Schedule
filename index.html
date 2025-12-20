@@ -351,11 +351,8 @@
         window.getEventDescription = (e) => {
             if (e.description) return e.description;
             if (!e.postText) return "";
-            
-            // Standard format: Metadata Block [NL] NL Description Block [NL] NL Hashtags
             const blocks = e.postText.split('\n\n');
             if (blocks.length > 1) {
-                // Return middle block if 3 exist, otherwise try to find non-metadata block
                 if (blocks.length >= 3) return blocks.slice(1, -1).join('\n\n').trim();
                 return blocks[1].trim();
             }
@@ -609,17 +606,12 @@
         window.updateText = async function(date, name, val, field) {
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
             if (idx === -1) return;
-            
-            // Clean the post text and update description if post text was changed
             const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, '');
             eventSchedule[idx][field] = cleanVal;
-            
             if (field === 'postText') {
-                // Heuristic: Extract description block to update description field for Edit/Reuse
                 const blocks = cleanVal.split('\n\n');
                 if (blocks.length >= 2) eventSchedule[idx].description = blocks[1].trim();
             }
-            
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
@@ -632,35 +624,51 @@
 
             if(!date || !name || !desc) return alert("Date, Name, Description required.");
 
-            let processedDesc = desc;
-            const foundTags = [];
-            
-            Object.entries(nameTagDatabase).sort((a,b)=>b[0].length - a[0].length).forEach(([n, d]) => {
+            const allMatches = [];
+            Object.entries(nameTagDatabase).forEach(([n, d]) => {
                 const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const reg = new RegExp(`(\\b${escaped}\\b)`, 'i'); 
-                
-                if (reg.test(processedDesc) && !foundTags.includes(d.tag)) {
-                    processedDesc = processedDesc.replace(reg, `$1 ${d.tag}`);
-                    foundTags.push(d.tag);
+                const reg = new RegExp(`(\\b${escaped}\\b)`, 'gi'); 
+                let m;
+                while ((m = reg.exec(desc)) !== null) {
+                    allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length });
                 }
             });
+
+            allMatches.sort((a, b) => b.length - a.length || a.index - b.index);
+            const validMatches = [];
+            const occupied = new Set();
+            allMatches.forEach(m => {
+                let hasOverlap = false;
+                for (let i = m.index; i < m.index + m.length; i++) { if (occupied.has(i)) { hasOverlap = true; break; } }
+                if (!hasOverlap) { validMatches.push(m); for (let i = m.index; i < m.index + m.length; i++) occupied.add(i); }
+            });
+
+            validMatches.sort((a, b) => a.index - b.index);
+            const storyTags = [];
+            validMatches.forEach(m => { if (!storyTags.includes(m.tag)) storyTags.push(m.tag); });
+
+            let injectedDesc = desc;
+            const alreadyTagged = new Set();
+            const injectionQueue = validMatches.filter(m => {
+                if (alreadyTagged.has(m.tag)) return false;
+                alreadyTagged.add(m.tag);
+                return true;
+            }).sort((a, b) => b.index - a.index);
+
+            injectionQueue.forEach(m => { injectedDesc = injectedDesc.substring(0, m.index + m.length) + " " + m.tag + injectedDesc.substring(m.index + m.length); });
 
             const hashes = [...new Set(globalTagsString.split(',').concat(xtra.split(',')))]
                 .map(s => s.trim().replace(/^#/,'')).filter(s=>s).map(s=>'#'+s).join(' ');
 
-            const body = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${processedDesc}\n\n${hashes}`;
+            const body = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${injectedDesc}\n\n${hashes}`;
             document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + body;
-            document.getElementById('tagsOnlyOutput').value = foundTags.join('\n');
+            document.getElementById('tagsOnlyOutput').value = storyTags.join('\n');
 
             if (save) {
-                const obj = { eventName: name, date, location: loc, postText: body, description: desc, tagsOnly: foundTags.join('\n'), postStatus: 'pending', storyStatus: 'pending', extraTags: xtra };
+                const obj = { eventName: name, date, location: loc, postText: body, description: desc, tagsOnly: storyTags.join('\n'), postStatus: 'pending', storyStatus: 'pending', extraTags: xtra };
                 const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
                 if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
-                if (xtra) { 
-                    eventExtraTags[name] = xtra; 
-                    if(loc) eventExtraTags[loc] = xtra; 
-                    await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); 
-                }
+                if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
                 await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
                 window.showTab('scheduler');
             }
@@ -696,8 +704,31 @@
         window.editTag = (n) => { const d = nameTagDatabase[n]; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; document.getElementById('cancelTagEditBtn').classList.remove('hidden'); };
         window.cancelTagEdit = () => { document.getElementById('newName').value = ''; document.getElementById('newTag').value = ''; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
         window.deleteTag = async (n) => { if(confirm(`Delete tag for ${n}?`)) { delete nameTagDatabase[n]; await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
-        window.addNameMapEntry = async () => { const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(), c = document.getElementById('newCategory').value; if (!n || !t) return; if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; nameTagDatabase[n] = { tag: t, category: c }; await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.cancelTagEdit(); window.renderNameMap(); };
-        window.bulkImportTags = async () => { const input = document.getElementById('bulkInstaMapInput').value.trim(); if(!input) return; input.split('\n').forEach(l => { const parts = l.split('\t'); if(parts.length >= 2) nameTagDatabase[parts[0].trim()] = { tag: parts[1].trim(), category: parts[2] ? parts[2].trim() : 'Other' }; }); await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); document.getElementById('bulkInstaMapInput').value = ''; window.renderNameMap(); };
+        window.addNameMapEntry = async () => { 
+            const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(), c = document.getElementById('newCategory').value; 
+            if (!n || !t) return; 
+            let finalTag = t;
+            if (!finalTag.startsWith('@') && !finalTag.startsWith('#')) finalTag = '@' + finalTag;
+            if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; 
+            nameTagDatabase[n] = { tag: finalTag, category: c }; 
+            await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); 
+            window.cancelTagEdit(); window.renderNameMap(); 
+        };
+        window.bulkImportTags = async () => { 
+            const input = document.getElementById('bulkInstaMapInput').value.trim(); 
+            if(!input) return; 
+            input.split('\n').forEach(l => { 
+                const parts = l.split('\t'); 
+                if(parts.length >= 2) {
+                    const name = parts[0].trim();
+                    let tag = parts[1].trim();
+                    if (!tag.startsWith('@') && !tag.startsWith('#')) tag = '@' + tag;
+                    nameTagDatabase[name] = { tag: tag, category: parts[2] ? parts[2].trim() : 'Other' }; 
+                }
+            }); 
+            await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); 
+            document.getElementById('bulkInstaMapInput').value = ''; window.renderNameMap(); 
+        };
 
         window.renderSnippetSelect = function() { 
             const select = document.getElementById('snippetSelect'); 
@@ -754,23 +785,17 @@
             const desc = document.getElementById('manageTemplateDesc').value.trim();
             const hashtags = document.getElementById('manageTemplateTags').value.trim();
             if (!name) return alert("Name required.");
-            
             const originalKey = document.getElementById('templateManageSelect').value;
             if (originalKey && originalKey !== name) delete eventDatabase[originalKey];
-            
             eventDatabase[name] = { eventName: name, location: loc, description: desc, extraTags: hashtags };
             await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
-            alert("Template updated.");
-            window.renderEventTemplateSelect();
+            alert("Template updated."); window.renderEventTemplateSelect();
         };
 
         window.deleteTemplate = async () => {
             const k = document.getElementById('templateManageSelect').value;
             if (k && confirm(`Delete template "${k}"?`)) {
-                delete eventDatabase[k];
-                await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
-                window.renderEventTemplateSelect();
-                window.loadTemplateForManage();
+                delete eventDatabase[k]; await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); window.renderEventTemplateSelect(); window.loadTemplateForManage();
             }
         };
 
@@ -813,6 +838,8 @@
                 window.renderScheduleList();
             }
         };
+
+        window.copyDayEventNames = (date) => { const names = eventSchedule.filter(e => e.date === date).map(e => e.eventName).join('\n'); window.copyToClipboard(names); };
 
         window.closeModal = function(confirmed) {
             document.getElementById('deleteModal').classList.remove('active');
