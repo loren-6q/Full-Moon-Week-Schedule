@@ -10,172 +10,48 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
-                        'primary': '#4f46e5', /* Indigo */
-                        'secondary': '#10b981', /* Emerald */
+                        'primary': '#4f46e5',
+                        'secondary': '#10b981',
                         'background': '#f9fafb',
-                        'accent': '#f59e0b', /* Amber */
-                        'danger': '#ef4444', /* Red */
+                        'accent': '#f59e0b',
+                        'danger': '#ef4444',
                     },
-                      screens: {
-                        'sm': '640px',
-                        'md': '768px',
-                        // CUSTOM BREAKPOINT: Only collapse to 1 column below 768px
-                        'lg': '992px', 
-                        'xl': '1280px',
-                    },
+                    screens: { 'sm': '640px', 'md': '768px', 'lg': '992px', 'xl': '1280px' },
                 }
             }
         }
     </script>
     <style>
-        /* Custom styles for better textarea visibility */
-        textarea {
-            font-size: 0.875rem; /* text-sm */
-            line-height: 1.5;
-            resize: vertical;
-        }
-        #rawDescription {
-            min-height: 200px; /* Adjusted for compactness */
-        }
-        #calendarOutput {
-            min-height: 250px;
-        }
-        #tagsOnlyOutput {
-            min-height: 150px; /* Increased height for 3b */
-        }
-        #defaultTagsInput {
-            font-size: 0.8rem; /* Smaller font for global hashtags */
-        }
-        /* FIX: Active tab highlight with RED text AND explicit BG color */
+        textarea { font-size: 0.875rem; line-height: 1.5; resize: vertical; }
+        #rawDescription { min-height: 200px; }
+        #calendarOutput { min-height: 250px; }
+        #tagsOnlyOutput { min-height: 150px; }
         .tab-button.active {
-            border-bottom: 4px solid #ef4444 !important; /* Red */
-            color: #ef4444 !important; /* Red */
+            border-bottom: 4px solid #ef4444 !important;
+            color: #ef4444 !important;
             font-weight: 600 !important;
-            background-color: #f1f5f9 !important; /* light gray for contrast */
+            background-color: #f1f5f9 !important;
         }
-        /* Aggressively compacting the list items in settings */
-        .compact-list-item {
-            padding-top: 0.15rem; /* Further reduced padding */
-            padding-bottom: 0.15rem;
-            font-size: 0.75rem; /* text-xs for list content */
-        }
-        .compact-list-item span {
-            font-size: 0.75rem;
-        }
-        /* Specific width for date picker */
-        .date-input-container input[type="date"] {
-            width: 150px; 
-            max-width: 150px;
-        }
-        .sortable-drag {
-            opacity: 0.6;
-            background-color: #f1f5f9; /* Blue-gray for drag visual feedback */
-        }
-        /* FIX: Settings column structure - Using fixed grid definition for 30/70 split, only collapsing below 768px */
-        .settings-grid-container-custom {
-            display: grid;
-            grid-template-columns: 30% 70%;
-            gap: 2rem; 
-        }
-        @media (max-width: 768px) {
-            .settings-grid-container-custom {
-                grid-template-columns: 1fr;
-            }
-        }
+        .compact-list-item { padding: 0.25rem 0; font-size: 0.75rem; }
+        .sortable-drag { opacity: 0.6; background-color: #f1f5f9; }
+        .settings-grid-container-custom { display: grid; grid-template-columns: 30% 70%; gap: 2rem; }
+        @media (max-width: 768px) { .settings-grid-container-custom { grid-template-columns: 1fr; } }
+        .schedule-container { background-color: #eef2ff !important; }
         
-        /* FIX: Explicit background colors for visual distinction (using !important to bypass overrides) */
-        .schedule-container { background-color: #eef2ff !important; /* Indigo-50 */ }
-        /* Adjusted background colors */
-        .settings-column-one-bg { background-color: white !important; }
-        .settings-column-two-bg { background-color: white !important; }
-        /* Bulk Upload gets its amber/accent border only */
-        .bulk-upload-bg { background-color: #fffbeb !important; /* Amber-50 */ }
-        .template-bg { background-color: #eef2ff !important; /* Indigo-50 */ }
-        .tag-add-bg { background-color: #f0fff4 !important; /* Emerald-50 */ }
-
-
-        /* Modal Styles */
-        .modal {
-            transition: opacity 0.3s ease-in-out;
-            pointer-events: none;
-            opacity: 0;
-            z-index: 50;
-        }
-        .modal.active {
-            pointer-events: auto;
-            opacity: 1;
-        }
+        .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; z-index: 50; }
+        .modal.active { pointer-events: auto; opacity: 1; }
         
-        /* Collapsible Button Styling */
-        .collapsible-btn {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-            border-radius: 0.5rem;
-            transition: background-color 0.2s;
-        }
-
-        /* Grouping style for reordering events */
-        .event-group {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: #fff;
-            border-radius: 8px;
-        }
-        
-        /* === SCHEDULE COMPACTION STYLES === */
-        /* Tighter padding on event cards */
-        .scheduled-event-card {
-            padding: 0.75rem !important; /* py-3 instead of py-4 */
-            font-size: 0.8rem; /* text-sm reduced */
-        }
-        /* Smaller font for event header */
-        .scheduled-event-card h3 {
-            font-size: 1rem; /* text-base instead of lg */
-        }
-        .scheduled-event-card p {
-            font-size: 0.75rem; /* text-xs */
-        }
-        /* Smaller textarea font and row padding */
-        .scheduled-event-card textarea {
-            font-size: 0.75rem; /* text-xs */
-            padding: 0.3rem;
-            line-height: 1.25;
-        }
-        /* Tighter button layout */
-        .scheduled-event-card .flex-shrink-0 button {
-            font-size: 0.7rem; /* text-xs */
-            padding: 0.15rem 0.5rem;
-        }
-        .scheduled-event-card .text-sm {
-            font-size: 0.75rem !important;
-        }
-        /* Tighter grid spacing */
-        .scheduled-event-card .gap-2 {
-            gap: 0.5rem;
-        }
-        /* Tighter padding for status buttons */
-        .scheduled-event-card .flex-shrink-0 button {
-            padding: 0.2rem 0.6rem;
-            height: 24px;
-        }
-        /* Ensure event group header is still readable */
-        .event-group h3 {
-            font-size: 1.125rem; /* text-xl */
-        }
+        /* Schedule Card Compaction */
+        .scheduled-event-card { padding: 0.6rem !important; font-size: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; margin-bottom: 0.5rem; background: white; }
+        .scheduled-event-card h3 { font-size: 0.95rem; font-weight: 700; color: #4f46e5; }
+        .scheduled-event-card textarea { font-size: 0.75rem; padding: 0.3rem; margin-top: 0.3rem; }
+        .event-group { border: 1px solid #cbd5e1; padding: 0.75rem; margin-bottom: 1rem; background-color: #f8fafc; border-radius: 0.75rem; }
     </style>
 </head>
 <body class="bg-background min-h-screen p-4 sm:p-8 font-sans">
     
-    <!-- SUPABASE AND DRAG-N-DROP IMPORTS -->
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         window.supabaseClient = { createClient };
@@ -183,273 +59,533 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     
     <div class="max-w-7xl mx-auto">
-        <header class="text-center mb-6 p-4 bg-white rounded-xl shadow-lg">
-            <h1 class="text-3xl font-extrabold text-gray-900">Full Moon Week Posting</h1>
+        <header class="text-center mb-6 p-4 bg-white rounded-xl shadow-lg border border-gray-100">
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Full Moon Week Posting</h1>
         </header>
         
-        <!-- Tab Navigation -->
-        <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-md">
-            <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-3 text-center transition duration-150">
-                <svg class="w-5 h-5 inline mr-2 align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"></path></svg>
-                Event
-            </button>
-            <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-3 text-center transition duration-150">
-                <svg class="w-5 h-5 inline mr-2 align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.525.323 1.144.38 1.724.161v-4.04z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Settings
-            </button>
-            <button id="tab-scheduler-btn" onclick="showTab('scheduler')" class="tab-button flex-1 py-3 text-center transition duration-150">
-                <svg class="w-5 h-5 inline mr-2 align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                Schedule
-            </button>
-             <button id="tab-calendar-btn" onclick="showTab('calendar')" class="tab-button flex-1 py-3 text-center transition duration-150">
-                <svg class="w-5 h-5 inline mr-2 align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                Calendar
-            </button>
-            <button id="tab-history-btn" onclick="showTab('history')" class="tab-button flex-1 py-3 text-center transition duration-150">
-                <svg class="w-5 h-5 inline mr-2 align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                History
-            </button>
+        <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-sm overflow-hidden">
+            <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-4 text-center transition hover:bg-gray-50">Event</button>
+            <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">Settings</button>
+            <button id="tab-scheduler-btn" onclick="showTab('scheduler')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">Schedule</button>
+             <button id="tab-calendar-btn" onclick="showTab('calendar')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">Calendar</button>
+            <button id="tab-history-btn" onclick="showTab('history')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">History</button>
         </div>
 
-        <!-- MAIN EDITOR TAB -->
+        <!-- EDITOR TAB -->
         <div id="tab-editor-content" class="tab-content">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                
-                <!-- INPUT COLUMN (LEFT) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div class="space-y-6">
-                    <!-- Structured Event Input -->
-                    <div class="bg-white p-6 rounded-xl shadow-lg">
-                        <label class="block text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            Event Details
-                        </label>
-
-                        <!-- EVENT TEMPLATE LOADER -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">Event Details</h2>
                         <div class="mb-4">
-                            <label for="eventTemplateSelect" class="block text-sm font-medium text-gray-700 mb-1">Load Event Template:</label>
-                            <select id="eventTemplateSelect" onchange="loadEventTemplate()" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
-                                <option value="">--- Select Event Template ---</option>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Load Template</label>
+                            <select id="eventTemplateSelect" onchange="loadEventTemplate()" class="w-full border border-gray-200 rounded-lg p-2 text-sm bg-gray-50">
+                                <option value="">--- Select Template ---</option>
                             </select>
                         </div>
-
-                        <div class="space-y-3">
-                            <!-- DATE INPUT (DATEPICKER ONLY) -->
-                            <div class="flex items-center date-input-container space-x-3">
-                                <label for="inputIsoDate" class="flex-shrink-0 text-sm font-medium text-gray-700">🗓 Event Date:</label>
-                                <input type="date" id="inputIsoDate" class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <label class="text-sm font-medium text-gray-700">🗓 Date:</label>
+                                <input type="date" id="inputIsoDate" class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20">
                             </div>
-                            
-                            <input type="text" id="inputEventName" placeholder="🎉 EVENT: " class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150" onblur="loadEventExtraTags()">
-                            <input type="text" id="inputLocation" placeholder="📍 LOCATION: " class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
+                            <input type="text" id="inputEventName" placeholder="🎉 EVENT NAME" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20" onblur="loadEventExtraTags()">
+                            <input type="text" id="inputLocation" placeholder="📍 LOCATION" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20">
                         </div>
-                        
-                        <div class="flex justify-between items-center mt-6 mb-2">
-                             <label for="rawDescription" class="block text-xl font-semibold text-gray-900 flex items-center">
-                                Full Description
-                            </label>
-                            <!-- INSERT SNIPPET BUTTON/MENU -->
-                            <div class="relative inline-block text-left">
-                                <button type="button" onclick="document.getElementById('snippetMenu').classList.toggle('hidden')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition">
-                                    Insert Snippet
-                                </button>
-                                <div id="snippetMenu" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden z-10">
-                                    <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                                        <select id="editorSnippetSelect" onchange="insertSnippet()" class="w-full p-2 text-sm cursor-pointer hover:bg-gray-100">
-                                            <option value="">--- Select Snippet ---</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="mt-6">
+                             <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-bold text-gray-800">Description</label>
+                                <select id="editorSnippetSelect" onchange="insertSnippet()" class="text-xs border rounded p-1 bg-gray-50">
+                                    <option value="">+ Insert Snippet</option>
+                                </select>
+                             </div>
+                             <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Paste party details here..."></textarea>
                         </div>
-
-                        <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-primary focus:border-primary transition duration-150" placeholder=""></textarea>
-
-                        <label for="extraHashtagsInput" class="block text-sm font-medium text-gray-700 mt-4 mb-2">
-                            Extra Hashtags (Comma-separated)
-                        </label>
-                        <input type="text" id="extraHashtagsInput" placeholder="Suggested tags for this event type will appear here." class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-primary focus:border-primary transition duration-150">
+                        <div class="mt-4">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Extra Hashtags</label>
+                            <input type="text" id="extraHashtagsInput" placeholder="tag1, tag2..." class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                        </div>
                     </div>
-                    
-                    <!-- File Mockup (Purpose Clarified) -->
-                    <div class="bg-white p-6 rounded-xl shadow-lg">
-                           <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                                Image/Video File Naming
-                            </h2>
-                        <!-- REMOVED FILE INPUT AND EXPLANATION -->
-                        <button onclick="generateFileName()" class="mt-3 w-full py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-sm">
-                            Generate Suggested Filename
-                        </button>
-                        <p id="fileNameOutput" class="text-xs text-gray-700 mt-2 break-all"></p>
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-800 mb-2">File Naming</h2>
+                        <button onclick="generateFileName()" class="w-full py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-black transition mb-2">Generate Filename</button>
+                        <p id="fileNameOutput" class="text-center font-mono text-xs bg-gray-100 p-2 rounded border border-dashed border-gray-300 min-h-[30px]"></p>
                     </div>
                 </div>
 
-                <!-- OUTPUT & ACTION COLUMN (RIGHT) -->
                 <div class="space-y-6">
-                    
-                    <!-- FIX: Action (Moved to Top of Output Column & shrunk buttons) -->
-                    <div class="bg-indigo-50/50 p-4 rounded-xl shadow-lg flex flex-col sm:flex-row items-center justify-between">
-                        <div id="statusMessage" class="mt-4 sm:mt-0 text-sm text-gray-600 w-full mb-3 sm:mb-0 text-center sm:text-left">Connecting to Supabase...</div>
-                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 w-full justify-end">
-                            <button id="parseButton" onclick="handleClick(false)" class="w-full sm:w-auto px-4 py-2 bg-primary text-white font-bold rounded-full shadow-md hover:bg-indigo-600 transition duration-300 transform hover:scale-105 text-sm">
-                                PARSE
-                            </button>
-                            <button id="saveScheduleButton" onclick="handleClick(true)" class="w-full sm:w-auto px-4 py-2 bg-accent text-white font-bold rounded-full shadow-md hover:bg-amber-600 transition duration-300 transform hover:scale-105 text-sm">
-                                SAVE TO SCHEDULE
-                            </button>
+                    <div class="bg-indigo-50 p-4 rounded-xl shadow-inner flex flex-col sm:flex-row items-center justify-between border border-indigo-100">
+                        <div id="statusMessage" class="text-xs font-medium text-indigo-600 mb-3 sm:mb-0">Initializing...</div>
+                        <div class="flex space-x-3">
+                            <button onclick="handleClick(false)" class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-full shadow-md hover:bg-indigo-700 transition">PARSE</button>
+                            <button onclick="handleClick(true)" class="px-6 py-2 bg-accent text-white text-sm font-bold rounded-full shadow-md hover:bg-amber-600 transition">SAVE</button>
                         </div>
                     </div>
-
-                    <!-- OUTPUT BOXES (Stacked) -->
                     <div class="space-y-4">
-                        <!-- Post Text -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg">
-                            <label for="calendarOutput" class="block text-xl font-semibold text-gray-900 mb-2 flex items-center">
-                                Post/Reel Text
-                            </label>
-                            <textarea id="calendarOutput" onblur="updateTextOutput('calendarOutput')" class="w-full border border-gray-300 rounded-lg p-3 bg-white min-h-[250px]" placeholder="Formatted post data will appear here."></textarea>
+                        <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Post Text Preview</label>
+                            <textarea id="calendarOutput" class="w-full border-0 p-0 text-sm focus:ring-0" readonly placeholder="Output will appear here..."></textarea>
                         </div>
-                        
-                        <!-- Story Tags -->
-                        <div class="bg-white p-6 rounded-xl shadow-lg">
-                            <label for="tagsOnlyOutput" class="block text-xl font-semibold text-gray-900 mb-2 flex items-center">
-                                Story Tags
-                            </label>
-                            <textarea id="tagsOnlyOutput" onblur="updateTextOutput('tagsOnlyOutput')" class="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 min-h-[150px]" placeholder="Only unique @tags, one per line, will appear here."></textarea>
+                        <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Story Tags</label>
+                            <textarea id="tagsOnlyOutput" class="w-full border-0 p-0 text-sm focus:ring-0" readonly placeholder="@tags..."></textarea>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- SETTINGS TAB (Layout Reverted to Screenshot Look) -->
+        <!-- SETTINGS TAB -->
         <div id="tab-settings-content" class="tab-content hidden">
-            <!-- FIX: Grid with 30%/70% split, only collapsing to 1 column below 768px -->
             <div class="settings-grid-container-custom">
-                
-                <!-- Column 1: Tags, List, New Entry, Bulk Import (30% width) -->
                 <div class="space-y-6">
-                    <div class="settings-column-one-bg p-6 rounded-xl shadow-lg border border-gray-300">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m-4 12v-2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2m-4 8v2m4-10v2"></path></svg>
-                            Tags
-                        </h2>
-                        
-                        <!-- Filter & Search (Top of Tags Box) -->
-                        <div class="space-y-3 mb-4">
-                            <select id="categoryFilter" onchange="renderNameMap()" class="p-2 border border-gray-300 rounded-lg text-sm w-full">
+                    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                        <h2 class="text-lg font-bold mb-4">Tag Database</h2>
+                        <div class="space-y-2 mb-4">
+                            <input type="text" id="nameSearch" oninput="renderNameMap()" placeholder="Search tags..." class="w-full p-2 border rounded-lg text-sm">
+                            <select id="categoryFilter" onchange="renderNameMap()" class="w-full p-2 border rounded-lg text-sm bg-gray-50">
                                 <option value="">All Categories</option>
                                 <option value="DJ">DJ</option>
                                 <option value="Venue">Venue</option>
-                                <option value="Presenter">Presenter</option>
                                 <option value="Artist">Artist</option>
-                                <option value="Label">Label</option>
                                 <option value="Other">Other</option>
                             </select>
-                            <input type="text" id="nameSearch" oninput="renderNameMap()" placeholder="Search by Name or Tag..." class="w-full p-2 border border-gray-300 rounded-lg text-sm">
                         </div>
-
-                        <!-- Current List Display (The visible tags list) -->
-                        <div class="max-h-96 overflow-y-scroll border border-gray-300 rounded-lg p-3 bg-gray-50">
-                            <ul id="databaseList" class="divide-y divide-gray-200">
-                                <!-- List items rendered here -->
-                            </ul>
-                            <p id="emptyListMessage" class="text-center text-gray-500 italic hidden mt-4">No entries found matching your filter/search criteria.</p>
+                        <div class="max-h-80 overflow-y-auto pr-2">
+                            <ul id="databaseList" class="divide-y divide-gray-100"></ul>
                         </div>
-
                     </div>
-                    
-                    <!-- Add New Entry (Matches screenshot look) -->
-                    <div class="tag-add-bg p-6 rounded-xl shadow-lg border border-secondary/50">
-                             <h2 class="text-lg font-semibold text-gray-900 mb-3">Add New Tag:</h2>
-                            <div class="space-y-3">
-                                <input type="text" id="newName" placeholder="Name (e.g., John Smith)" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-secondary focus:border-secondary">
-                                <input type="text" id="newTag" placeholder="Tag (e.g., @JohnSmithOfficial)" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-secondary focus:border-secondary">
-                                <select id="newCategory" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-secondary focus:border-secondary">
-                                    <option value="DJ">DJ</option>
-                                    <option value="Venue">Venue</option>
-                                    <option value="Presenter">Presenter</option>
-                                    <option value="Artist">Artist</option>
-                                    <option value="Label">Label</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                                <button onclick="addNameMapEntry()" class="w-full py-2 bg-secondary text-white font-bold rounded-lg hover:bg-emerald-600 transition duration-200">
-                                    Save
-                                </button>
-                                <p id="addStatus" class="text-xs mt-1"></p>
-                            </div>
-                    </div>
-                        
-                    <!-- Bulk Upload (Matches screenshot look) -->
-                    <!-- FIX: Reverting background color to amber/yellow family for visual distinction and fixing tag -->
-                    <div class="bulk-upload-bg p-6 rounded-xl shadow-lg border border-accent/50">
-                             <h2 class="text-lg font-semibold text-gray-900 mb-3">Bulk Tag Database Import</h2>
-                            <!-- FIX: Reverted description to include Tab-separated values -->
-                            <p class="text-xs text-gray-700">Paste raw spreadsheet data (Name, @Tag, Category) below, or JSON, to merge with the cloud list.</p>
-                            <button onclick="copyInitialInstaMap()" class="mt-3 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-xs">Copy Default Map JSON</button>
-                            <textarea id="bulkInstaMapInput" placeholder='Name	@Tag	Category (Tab-separated)' class="w-full border border-gray-300 rounded-lg p-2 text-xs min-h-[100px]"></textarea>
-                            <button onclick="bulkImportTags()" class="w-full py-2 bg-accent text-white font-bold rounded-lg hover:bg-amber-600 transition duration-200 text-sm">
-                                IMPORT TAGS
-                            </button>
-                            <p id="bulkStatus" class="text-xs mt-1"></p>
-                    </div>
-
-                </div>
-
-                <!-- Column 2: Global Settings, Snippets, Templates (70% width) -->
-                <div class="space-y-6 flex flex-col">
-                    
-                    <!-- Reusable Text Snippets -->
-                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            Reusable Text Snippets
-                        </h2>
-                         <div class="space-y-3">
-                            <select id="snippetSelect" onchange="loadSnippet()" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
-                                <option value="">--- Load Snippet ---</option>
+                    <div class="bg-emerald-50 p-6 rounded-xl border border-emerald-100">
+                        <h2 class="text-sm font-bold text-emerald-800 uppercase mb-3">Add Entry</h2>
+                        <div class="space-y-2">
+                            <input type="text" id="newName" placeholder="Display Name" class="w-full p-2 border rounded text-sm">
+                            <input type="text" id="newTag" placeholder="@instagram_tag" class="w-full p-2 border rounded text-sm">
+                            <select id="newCategory" class="w-full p-2 border rounded text-sm bg-white">
+                                <option value="DJ">DJ</option>
+                                <option value="Venue">Venue</option>
+                                <option value="Artist">Artist</option>
+                                <option value="Other">Other</option>
                             </select>
-                            <textarea id="snippetContent" onblur="saveSnippet()" placeholder="" class="w-full border border-gray-300 rounded-lg p-3 text-sm min-h-[180px]"></textarea>
-                            <div class="flex space-x-2">
-                                <input type="text" id="snippetName" placeholder="Snippet Name" class="flex-1 p-2 border border-gray-300 rounded-lg text-sm">
-                                <button onclick="saveSnippet()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-sm">Save</button>
-                            </div>
-                            <p id="snippetStatus" class="text-xs mt-1"></p>
+                            <button onclick="addNameMapEntry()" class="w-full py-2 bg-secondary text-white rounded font-bold text-sm">Add Tag</button>
                         </div>
                     </div>
-
-                    <!-- Global Default Hashtags (Moved to the bottom of the second column) -->
-                    <div class="settings-column-two-bg p-6 rounded-xl shadow-lg border border-gray-300">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg class="w-6 h-6 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            Global Default Hashtags
-                        </h2>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tags added to all events. (Comma-separated)</label>
-                        <textarea id="defaultTagsInput" onblur="saveGlobalHashtags()" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-accent focus:border-accent transition duration-150" placeholder=""></textarea>
-                         <p id="globalTagsStatus" class="text-xs mt-1"></p>
-                    </div>
-
                 </div>
-
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h2 class="text-lg font-bold mb-4">Snippets & Global</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs font-bold text-gray-400 block mb-1">Snippet Editor</label>
+                                <select id="snippetSelect" onchange="loadSnippet()" class="w-full p-2 border rounded mb-2 text-sm">
+                                    <option value="">--- Load Snippet ---</option>
+                                </select>
+                                <textarea id="snippetContent" placeholder="Snippet content..." class="w-full border rounded p-2 text-sm mb-2" rows="4"></textarea>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="snippetName" placeholder="Snippet Name" class="flex-1 p-2 border rounded text-sm">
+                                    <button onclick="saveSnippet()" class="px-4 py-2 bg-gray-500 text-white rounded text-sm">Save</button>
+                                </div>
+                            </div>
+                            <hr>
+                            <div>
+                                <label class="text-xs font-bold text-gray-400 block mb-1">Global Hashtags</label>
+                                <textarea id="defaultTagsInput" onblur="saveGlobalHashtags()" class="w-full border rounded p-2 text-sm" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-xl border border-gray-300">
+                        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Connection Health</h3>
+                        <div id="healthDisplay" class="text-[10px] font-mono space-y-1 mb-3">Not checked.</div>
+                        <button onclick="runHealthCheck()" class="w-full py-2 bg-gray-700 text-white text-xs rounded hover:bg-black transition">Test All Tables</button>
+                    </div>
+                </div>
             </div>
         </div>
         
-        <!-- SCHEDULER TAB (NEW) -->
+        <!-- SCHEDULER TAB -->
         <div id="tab-scheduler-content" class="tab-content hidden">
-             <div class="schedule-container p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg class="w-7 h-7 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Upcoming Post Schedule
-                </h2 >
-                <div id="scheduledEventsContainer" class="space-y-4">
-                    <!-- Events grouped by date for Sortable lists -->
-                </div>
-                <p id="emptyScheduleMessage" class="text-center text-gray-500 italic mt-8 hidden">No events currently scheduled.</p>
+             <div class="schedule-container p-6 rounded-xl shadow-lg border border-indigo-100">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-6">Upcoming Schedule</h2>
+                <div id="scheduledEventsContainer" class="space-y-6"></div>
+                <p id="emptyScheduleMessage" class="text-center text-gray-400 italic py-12">No events currently scheduled.</p>
             </div>
         </div>
 
-        <!-- CALENDAR SUMMARY TAB (NEW) -->
+        <!-- CALENDAR TAB -->
         <div id="tab-calendar-content" class="tab-content hidden">
-            <div class="bg-white p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg class="w-7 h-7 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Full Moon Calendar View
-                </h
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Full Moon Calendar</h2>
+                <div id="calendarSummaryList" class="divide-y divide-gray-100"></div>
+                <p id="emptyCalendarMessage" class="text-center text-gray-400 italic py-12">No data to display.</p>
+            </div>
+        </div>
+        
+        <!-- HISTORY TAB -->
+        <div id="tab-history-content" class="tab-content hidden">
+             <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                <h2 class="text-2xl font-bold text-gray-500 mb-6">Posting History</h2>
+                <div id="historyEventsList" class="space-y-4"></div>
+                <p id="emptyHistoryMessage" class="text-center text-gray-400 italic py-12">History is empty.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="deleteModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="closeModal()">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-red-600 mb-2">Delete Event?</h3>
+            <p id="modalMessage" class="text-sm text-gray-600 mb-6">This cannot be undone.</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeModal(false)" class="px-4 py-2 text-gray-500 font-medium">Cancel</button>
+                <button onclick="closeModal(true)" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab UI logic defined early to avoid ReferenceErrors
+        window.showTab = function(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            const content = document.getElementById(`tab-${tabName}-content`);
+            const btn = document.getElementById(`tab-${tabName}-btn`);
+            if (content) content.classList.remove('hidden');
+            if (btn) btn.classList.add('active');
+            
+            if (tabName === 'scheduler') { renderScheduleList(); initializeSortable(); }
+            else if (tabName === 'calendar') { renderCalendarSummary(); }
+            else if (tabName === 'settings') { renderNameMap(); renderSnippetSelect(); renderGlobalTags(); }
+        };
+
+        // CONFIG
+        const DB_CONFIG = {
+            INSTA_DB_KEY: 'name_tag_database', 
+            EVENT_DB_KEY: 'event_templates',     
+            SNIPPETS_KEY: 'text_snippets',       
+            SCHEDULE_DB_KEY: 'event_schedule',   
+            GLOBAL_TAGS_KEY: 'global_tags',      
+            EXTRA_TAGS_KEY: 'event_extra_tags', 
+            CATEGORIES: ["DJ", "Venue", "Artist", "Other"]
+        };
+        
+        const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
+        
+        let supabase = null;
+        let nameTagDatabase = {}; 
+        let eventDatabase = {};    
+        let textSnippets = {};     
+        let eventSchedule = [];    
+        let globalTagsString = ""; 
+        let eventExtraTags = {}; 
+        let saveScheduleTimeout = null;
+        let resolveModalPromise = null;
+
+        // INITIALIZATION
+        async function initializeSupabase() {
+            const statusEl = document.getElementById('statusMessage');
+            if (typeof window.supabaseClient === 'undefined') {
+                statusEl.textContent = "Loading library...";
+                setTimeout(initializeSupabase, 500);
+                return;
+            }
+            try {
+                statusEl.textContent = "Connecting...";
+                supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+                });
+                await loadInitialDataAndListen(); 
+                statusEl.textContent = "Connected (Realtime Live)";
+                statusEl.className = "text-xs font-bold text-green-600";
+            } catch (e) {
+                statusEl.textContent = "Supabase Error!";
+                statusEl.className = "text-xs font-bold text-red-600";
+                console.error(e);
+            }
+        }
+
+        async function loadInitialDataAndListen() {
+            if (!supabase) return;
+            const collections = [
+                { name: DB_CONFIG.INSTA_DB_KEY, render: renderNameMap, globalVar: nameTagDatabase, type: 'map' },
+                { name: DB_CONFIG.EVENT_DB_KEY, render: renderEventTemplateSelect, globalVar: eventDatabase, type: 'map' },
+                { name: DB_CONFIG.SNIPPETS_KEY, render: renderSnippetSelect, globalVar: textSnippets, type: 'map' },
+                { name: DB_CONFIG.SCHEDULE_DB_KEY, render: renderScheduleList, globalVar: eventSchedule, type: 'array' },
+                { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: renderGlobalTags, globalVar: null, type: 'string' },
+                { name: DB_CONFIG.EXTRA_TAGS_KEY, render: () => {}, globalVar: eventExtraTags, type: 'map' }
+            ];
+
+            for (const c of collections) {
+                const { data, error } = await supabase.from(c.name).select('*').eq('id', 1).single();
+                if (error && error.code !== 'PGRST116') {
+                    console.warn(`Error connecting to ${c.name}:`, error.message);
+                    continue;
+                }
+
+                let val = null;
+                if (data) {
+                    if (c.type === 'array') val = data.events;
+                    else if (c.type === 'string') val = data.tags;
+                    else val = data.data;
+                }
+
+                if (val !== null) {
+                    if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
+                    else if (c.type === 'string') { globalTagsString = val; }
+                    else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, val); }
+                }
+
+                // Setup Realtime Broadcast Listener
+                supabase.channel(`public_${c.name}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: c.name, filter: 'id=eq.1' }, (payload) => {
+                    let updated = c.type === 'array' ? payload.new.events : (c.type === 'string' ? payload.new.tags : payload.new.data);
+                    if (updated !== null) {
+                        if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...updated); }
+                        else if (c.type === 'string') { globalTagsString = updated; }
+                        else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, updated); }
+                        c.render();
+                    }
+                }).subscribe();
+                c.render();
+            }
+        }
+
+        const debounce = (func, delay) => {
+            let t; return (...args) => { clearTimeout(t); t = setTimeout(() => func.apply(this, args), delay); };
+        };
+
+        const debouncedRenderScheduleList = debounce(renderScheduleList, 100);
+
+        function renderScheduleList() {
+            const containerEl = document.getElementById('scheduledEventsContainer');
+            const historyListEl = document.getElementById('historyEventsList');
+            const todayStr = new Date().toISOString().split('T')[0];
+            const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+            
+            if (!containerEl || !historyListEl) return;
+            containerEl.innerHTML = ''; historyListEl.innerHTML = '';
+            
+            const upcoming = []; const past = [];
+            eventSchedule.forEach(e => {
+                if (e.postStatus === undefined) e.postStatus = 'pending';
+                if (e.storyStatus === undefined) e.storyStatus = 'pending';
+                // Move if date is in the past OR both buttons checked
+                if (e.date <= yesterdayStr || (e.postStatus === 'done' && e.storyStatus === 'done')) past.push(e);
+                else upcoming.push(e);
+            });
+
+            upcoming.sort((a,b) => new Date(a.date) - new Date(b.date) || (a.order || 0) - (b.order || 0));
+            const grouped = upcoming.reduce((acc, e) => { if (!acc[e.date]) acc[e.date] = []; acc[e.date].push(e); return acc; }, {});
+
+            document.getElementById('emptyScheduleMessage').classList.toggle('hidden', upcoming.length > 0);
+
+            for (const dKey in grouped) {
+                const gDiv = document.createElement('div');
+                gDiv.className = 'event-group'; gDiv.dataset.date = dKey;
+                gDiv.innerHTML = `<h3 class="text-sm font-bold text-gray-400 mb-3 border-b pb-1 flex justify-between">🗓 ${dKey} <button onclick="copyDayEventNames('${dKey}')" class="text-[10px] text-indigo-500 uppercase">Copy List</button></h3><div class="scheduled-list"></div>`;
+                const list = gDiv.querySelector('.scheduled-list');
+                grouped[dKey].forEach(e => {
+                    const card = document.createElement('div');
+                    card.className = 'scheduled-event-card';
+                    card.onclick = () => loadEventForEdit(e);
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="pr-2 truncate"><h3>${e.eventName}</h3><p class="truncate opacity-60">${e.location}</p></div>
+                            <div class="flex space-x-1">
+                                <button onclick="event.stopPropagation(); toggleStatus('${e.date}','${e.eventName}','post')" class="px-2 py-0.5 rounded text-[10px] border ${e.postStatus==='done'?'bg-green-500 text-white border-green-600':'bg-white text-gray-400 border-gray-200'}">POST</button>
+                                <button onclick="event.stopPropagation(); toggleStatus('${e.date}','${e.eventName}','story')" class="px-2 py-0.5 rounded text-[10px] border ${e.storyStatus==='done'?'bg-green-500 text-white border-green-600':'bg-white text-gray-400 border-gray-200'}">STORY</button>
+                                <button onclick="event.stopPropagation(); handleDeleteScheduledEvent('${e.date}','${e.eventName}')" class="text-red-300 hover:text-red-500 ml-2">✕</button>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <textarea id="pt-${e.date}-${e.eventName}" onblur="updateText('${e.date}','${e.eventName}',this.value,'postText')" class="flex-1 text-[10px] h-12 border rounded p-1 leading-tight">${e.postText}</textarea>
+                            <textarea id="tg-${e.date}-${e.eventName}" onblur="updateText('${e.date}','${e.eventName}',this.value,'tagsOnly')" class="w-16 text-[10px] h-12 border rounded p-1 leading-tight font-mono">${e.tagsOnly}</textarea>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+                containerEl.appendChild(gDiv);
+            }
+            renderHistory(past);
+        }
+
+        window.toggleStatus = async function(date, name, type) {
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+            if (idx === -1) return;
+            const field = type === 'post' ? 'postStatus' : 'storyStatus';
+            eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done';
+            
+            debouncedRenderScheduleList();
+            
+            if (saveScheduleTimeout) clearTimeout(saveScheduleTimeout);
+            saveScheduleTimeout = setTimeout(async () => {
+                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            }, 3500);
+        };
+
+        window.updateText = async function(date, name, val, field) {
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+            if (idx === -1) return;
+            eventSchedule[idx][field] = val;
+            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        window.handleClick = async function(save) {
+            const date = document.getElementById('inputIsoDate').value;
+            const name = document.getElementById('inputEventName').value.trim();
+            const loc = document.getElementById('inputLocation').value.trim();
+            const desc = document.getElementById('rawDescription').value.trim();
+            const xtra = document.getElementById('extraHashtagsInput').value.trim();
+
+            if(!date || !name || !desc) return alert("Date, Name, Description required.");
+
+            let processedDesc = desc;
+            const foundTags = [];
+            Object.entries(nameTagDatabase).sort((a,b)=>b[0].length - a[0].length).forEach(([n, d]) => {
+                const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi');
+                if (reg.test(processedDesc) && !foundTags.includes(d.tag)) {
+                    processedDesc = processedDesc.replace(reg, `$1 ${d.tag}`);
+                    foundTags.push(d.tag);
+                }
+            });
+
+            const hashes = [...new Set(globalTagsString.split(',').concat(xtra.split(',')))]
+                .map(s => s.trim().replace(/^#/,'')).filter(s=>s).map(s=>'#'+s).join(' ');
+
+            const output = `🗓 DATE: ${date}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${processedDesc}\n\n${hashes}`;
+            document.getElementById('calendarOutput').value = output;
+            document.getElementById('tagsOnlyOutput').value = foundTags.join('\n');
+
+            if (save) {
+                const obj = { eventName: name, date, location: loc, postText: output, tagsOnly: foundTags.join('\n'), postStatus: 'pending', storyStatus: 'pending' };
+                const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+                if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
+                if (xtra) { eventExtraTags[name] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
+                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                showTab('scheduler');
+            }
+        };
+
+        window.loadEventForEdit = function(e) {
+            document.getElementById('inputIsoDate').value = e.date;
+            document.getElementById('inputEventName').value = e.eventName;
+            document.getElementById('inputLocation').value = e.location;
+            document.getElementById('extraHashtagsInput').value = e.extraTags || eventExtraTags[e.eventName] || '';
+            showTab('editor');
+        };
+
+        async function saveDataToSupabase(table, data) {
+            if (!supabase) return false;
+            const payload = { id: 1 };
+            if (table === DB_CONFIG.SCHEDULE_DB_KEY) payload.events = data;
+            else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) payload.tags = data;
+            else payload.data = data;
+            const { error } = await supabase.from(table).upsert(payload);
+            return !error;
+        }
+
+        window.runHealthCheck = async function() {
+            const display = document.getElementById('healthDisplay');
+            display.innerHTML = "Checking...";
+            const tests = Object.values(DB_CONFIG);
+            let res = "";
+            for (const t of tests) {
+                const { error } = await supabase.from(t).select('id').eq('id', 1).single();
+                res += `${error ? '❌' : '✅'} ${t}: ${error ? error.message : 'OK'}<br>`;
+            }
+            display.innerHTML = res;
+        };
+
+        window.copyToClipboard = (txt) => { const el = document.createElement('textarea'); el.value = txt; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); };
+        window.copyDayEventNames = (date) => { const names = eventSchedule.filter(e => e.date === date).map(e => e.eventName).join('\n'); copyToClipboard(names); };
+        window.generateFileName = () => { const val = document.getElementById('inputIsoDate').value; if(!val) return; const d = new Date(val + 'T00:00:00'); const loc = document.getElementById('inputLocation').value.trim().replace(/\s+/g,'_').toUpperCase(); document.getElementById('fileNameOutput').textContent = `${d.getDate()}${d.toLocaleString('en-US',{month:'short'}).toUpperCase()}-${loc}`; };
+        
+        function calculateSequentialDays(events) { 
+            const sorted = [...events].sort((a,b) => new Date(a.date) - new Date(b.date));
+            let day = 1, last = null;
+            return sorted.map(e => {
+                const cur = new Date(e.date + 'T00:00:00');
+                if (last) { 
+                    const diff = Math.ceil(Math.abs(cur - last) / (8.64e7));
+                    if (diff > 7) day = 1; else if (diff > 0) day += diff;
+                }
+                last = cur; return { ...e, dayNumber: day, inputDateFriendly: cur.toDateString() };
+            });
+        }
+
+        function renderNameMap() {
+            const list = document.getElementById('databaseList');
+            const search = document.getElementById('nameSearch').value.toLowerCase();
+            const filter = document.getElementById('categoryFilter').value;
+            list.innerHTML = '';
+            Object.entries(nameTagDatabase).filter(([n, d]) => (n.toLowerCase().includes(search) || d.tag.toLowerCase().includes(search)) && (!filter || d.category === filter))
+            .sort().forEach(([n, d]) => {
+                const li = document.createElement('li'); li.className = 'compact-list-item flex justify-between items-center';
+                li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span><button onclick="copyToClipboard('${d.tag}')" class="text-indigo-500">Copy</button>`;
+                list.appendChild(li);
+            });
+        }
+
+        function renderSnippetSelect() { const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); document.getElementById('snippetSelect').innerHTML = html; document.getElementById('editorSnippetSelect').innerHTML = html; }
+        window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); renderSnippetSelect(); };
+        window.loadSnippet = () => { const k = document.getElementById('snippetSelect').value; if (textSnippets[k]) { document.getElementById('snippetName').value = k; document.getElementById('snippetContent').value = textSnippets[k]; } };
+        window.insertSnippet = () => { const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) document.getElementById('rawDescription').value += (document.getElementById('rawDescription').value ? '\n' : '') + textSnippets[k]; };
+        function renderGlobalTags() { document.getElementById('defaultTagsInput').value = globalTagsString; }
+        window.saveGlobalHashtags = async () => { globalTagsString = document.getElementById('defaultTagsInput').value.trim(); await saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); };
+        function renderEventTemplateSelect() { document.getElementById('eventTemplateSelect').innerHTML = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join(''); }
+        window.loadEventTemplate = () => { const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || ''; document.getElementById('rawDescription').value = e.description || ''; loadEventExtraTags(); } };
+        window.loadEventExtraTags = () => { const n = document.getElementById('inputEventName').value.trim(); if (eventExtraTags[n]) document.getElementById('extraHashtagsInput').value = eventExtraTags[n]; };
+
+        function renderCalendarSummary() {
+            const list = document.getElementById('calendarSummaryList');
+            list.innerHTML = '';
+            calculateSequentialDays(eventSchedule).forEach(e => {
+                const d = document.createElement('div'); d.className = 'py-2 text-sm';
+                d.innerHTML = `<b>Day ${e.dayNumber}</b>: ${e.eventName} @ ${e.location} <span class="text-gray-400">(${e.date})</span>`;
+                list.appendChild(d);
+            });
+        }
+        function renderHistory(past) {
+            const list = document.getElementById('historyEventsList');
+            list.innerHTML = '';
+            past.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(e => {
+                const d = document.createElement('div'); d.className = 'p-3 border rounded mb-2 bg-gray-50 text-xs';
+                d.innerHTML = `<b>${e.date}</b>: ${e.eventName} <button onclick='loadEventForEdit(${JSON.stringify(e).replace(/'/g, "&apos;")})' class="text-indigo-500 ml-2">Reuse</button>`;
+                list.appendChild(d);
+            });
+            document.getElementById('emptyHistoryMessage').classList.toggle('hidden', past.length > 0);
+        }
+
+        window.initializeSortable = function() {
+            document.querySelectorAll('.event-group').forEach(group => {
+                const list = group.querySelector('.scheduled-list');
+                if (Sortable.get(list)) Sortable.get(list).destroy();
+                new Sortable(list, {
+                    animation: 150, handle: 'h3', ghostClass: 'sortable-drag',
+                    onEnd: async () => {
+                        const date = group.dataset.date;
+                        const items = list.querySelectorAll('.scheduled-event-card');
+                        items.forEach((item, idx) => {
+                            const name = item.querySelector('h3').textContent;
+                            const evIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+                            if(evIdx > -1) eventSchedule[evIdx].order = idx;
+                        });
+                        await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                    }
+                });
+            });
+        };
+
+        window.handleDeleteScheduledEvent = async (date, name) => {
+            if (confirm(`Delete ${name}?`)) {
+                eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name));
+                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                renderScheduleList();
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSupabase();
+            document.getElementById('inputIsoDate').value = new Date().toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>
