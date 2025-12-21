@@ -18,7 +18,12 @@
                         'accent': '#f59e0b',
                         'danger': '#ef4444',
                     },
-                    screens: { 'sm': '640px', 'md': '768px', 'lg': 992, 'xl': '1280px' },
+                    screens: { 
+                        'sm': '640px', 
+                        'md': '768px', 
+                        'lg': '1024px', 
+                        'xl': '1280px' 
+                    },
                 }
             }
         }
@@ -117,7 +122,7 @@
 
         <!-- EDITOR TAB -->
         <div id="tab-editor-content" class="tab-content">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="space-y-6">
                     <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 template-box-bg">
                         <h2 class="text-xl font-bold text-gray-800 mb-4">Event Details</h2>
@@ -388,19 +393,13 @@
             });
         };
 
-        /** HELPER: Robust Description Extraction **/
         window.getEventDescription = function(e) {
-            // Favor the explicitly saved description field
             if (e.description) return e.description;
             if (!e.postText) return "";
-            
-            // Fallback for older data: Standard format is Metadata [NL]NL Body [NL]NL Hashtags
             const blocks = e.postText.split('\n\n');
             if (blocks.length > 1) {
-                // If the last block starts with #, treat it as hashtags and exclude it
                 const lastIsHashtag = blocks[blocks.length - 1].trim().startsWith('#');
                 const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
-                // Exclude the header (blocks[0]) and hashtags
                 const body = blocks.slice(1, endIdx).join('\n\n').trim();
                 return body || e.postText.trim();
             }
@@ -821,7 +820,6 @@
             // Sync the change back to the description body for future edits/reuses
             const blocks = cleanVal.split('\n\n');
             if (blocks.length >= 2) {
-                // Determine if last block is hashtags
                 const lastIsHashtag = blocks[blocks.length - 1].trim().startsWith('#');
                 const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
                 eventSchedule[idx].description = blocks.slice(1, endIdx).join('\n\n').trim();
@@ -839,16 +837,14 @@
 
             if(!date || !name || !desc) return alert("Date, Name, Description required.");
 
-            // Tagging Logic: Identify matches but check for existing tags
             const allMatches = [];
             Object.entries(nameTagDatabase).forEach(([n, d]) => {
                 const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const reg = new RegExp(`(\\b${escaped}\\b)`, 'gi'); 
                 let m;
                 while ((m = reg.exec(desc)) !== null) {
-                    // Peek ahead to see if this is already tagged
                     const lookAhead = desc.substring(m.index + m.length, m.index + m.length + 30);
-                    if (lookAhead.includes(d.tag)) continue; // Already tagged!
+                    if (lookAhead.includes(d.tag)) continue; 
                     
                     allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length });
                 }
@@ -891,7 +887,6 @@
                 const currentDayEvents = eventSchedule.filter(e => e.date === date);
                 const order = currentDayEvents.length;
                 
-                // SAVE THE INJECTED DESC AS THE PERMANENT DESCRIPTION
                 const obj = { eventName: name, date, location: loc, postText: body, description: injectedDesc, tagsOnly: storyTags.join('\n'), postStatus: 'pending', storyStatus: 'pending', extraTags: xtra, order: order };
                 const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
                 if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
