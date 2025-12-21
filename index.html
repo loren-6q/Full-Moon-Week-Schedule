@@ -42,6 +42,7 @@
             background-color: #f1f5f9 !important;
         }
         .compact-list-item { padding: 0.2rem 0; font-size: 0.75rem; }
+        .sortable-drag { opacity: 0.6; background-color: #f1f5f9; }
         .settings-grid-container-custom { display: grid; grid-template-columns: 35% 65%; gap: 2rem; }
         @media (max-width: 768px) { .settings-grid-container-custom { grid-template-columns: 1fr; } }
         
@@ -61,7 +62,11 @@
         .scheduled-event-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .scheduled-event-card h3 { font-size: 1rem; font-weight: 700; color: #4f46e5; }
         
-        .event-group { border: 1px solid #cbd5e1; padding: 1rem; margin-bottom: 1.5rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .collapsible-btn {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; padding: 0.75rem 1rem; font-weight: 600; border-radius: 0.5rem; transition: background-color 0.2s;
+        }
+        .event-group { border: 1px solid #cbd5e1; padding: 1rem; margin-bottom: 1rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
         /* Suggestion Pill Styles */
         .tag-pill {
@@ -169,6 +174,8 @@
                         <div class="mt-3">
                             <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Extra Hashtags</label>
                             <input type="text" id="extraHashtagsInput" oninput="refreshTagPillStates()" placeholder="Type or click suggestions below..." class="w-full border border-gray-300 rounded-lg p-2 text-sm mb-2">
+                            
+                            <!-- SUGGESTED TAGS CONTAINER -->
                             <div id="suggestedTagsContainer" class="flex flex-wrap items-center min-h-[30px] bg-gray-50 p-1.5 rounded border border-dashed border-gray-200">
                                 <span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>
                             </div>
@@ -189,6 +196,7 @@
                         <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-xs font-bold text-gray-400 uppercase">Post Text Preview</label>
+                                <!-- TAG TOGGLES -->
                                 <div id="detectedTagsManager" class="flex flex-wrap justify-end"></div>
                             </div>
                             <textarea id="calendarOutput" class="w-full border-0 p-0 text-sm focus:ring-0 min-h-[250px]" readonly placeholder="Output will appear here..."></textarea>
@@ -399,7 +407,12 @@
         };
 
         window.calculateSequentialDays = function(events) { 
-            const sorted = [...events].sort((a,b) => new Date(a.date) - new Date(b.date));
+            const sorted = [...events].sort((a,b) => {
+                const dateDiff = new Date(a.date) - new Date(b.date);
+                if (dateDiff !== 0) return dateDiff;
+                // Preserve user-defined order for events on the same date
+                return (a.order || 0) - (b.order || 0);
+            });
             let day = 1, last = null;
             return sorted.map(e => {
                 const cur = new Date(e.date + 'T00:00:00');
@@ -626,7 +639,7 @@
                 if (e.date <= yesterdayStr || (e.postStatus === 'done' && e.storyStatus === 'done')) past.push(e);
                 else upcoming.push(e);
             });
-            upcoming.sort((a,b) => new Date(a.date) - new Date(b.date) || (a.order || 0) - (b.order || 0));
+            // The list is already pre-sorted by calculateSequentialDays
             const grouped = upcoming.reduce((acc, e) => { if (!acc[e.date]) acc[e.date] = []; acc[e.date].push(e); return acc; }, {});
             document.getElementById('emptyScheduleMessage').classList.toggle('hidden', upcoming.length > 0);
             for (const dKey in grouped) {
@@ -671,7 +684,7 @@
         window.renderHistory = function(past) {
             const list = document.getElementById('historyEventsList');
             list.innerHTML = '';
-            past.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((e, idx) => {
+            past.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach((e, idx) => {
                 const uniqueId = `hist-${idx}`;
                 const d = document.createElement('div'); d.className = 'p-3 border rounded mb-2 bg-white shadow-sm text-xs';
                 d.innerHTML = `
@@ -700,6 +713,7 @@
             if (allEvents.length === 0) { document.getElementById('emptyCalendarMessage').classList.remove('hidden'); return; }
             document.getElementById('emptyCalendarMessage').classList.add('hidden');
             const groupedByPeriod = {}; PEAK_DATES.forEach(p => groupedByPeriod[p.name] = []); groupedByPeriod["Other/Ungrouped"] = [];
+            
             allEvents.forEach(e => {
                 const evDate = new Date(e.date + 'T00:00:00'); let placed = false;
                 for (let p of PEAK_DATES) {
@@ -708,6 +722,7 @@
                 }
                 if (!placed) groupedByPeriod["Other/Ungrouped"].push(e);
             });
+
             Object.keys(groupedByPeriod).reverse().forEach(pName => {
                 const pEvents = groupedByPeriod[pName]; if (pEvents.length === 0) return;
                 const periodId = `p-${pName.replace(/[^a-z0-9]/gi, '')}`;
@@ -717,9 +732,17 @@
                         <span>${pName}</span><span class="text-xs opacity-50">${pEvents.length} events</span>
                     </button><div id="${periodId}" class="hidden p-4 bg-white space-y-4"></div>`;
                 const contentDiv = periodDiv.querySelector(`#${periodId}`);
-                const datesInPeriod = pEvents.reduce((acc, ev) => { if(!acc[ev.date]) acc[ev.date] = []; acc[ev.date].push(ev); return acc; }, {});
+                
+                // Group the events in the period by date
+                const datesInPeriod = pEvents.reduce((acc, ev) => { 
+                    if(!acc[ev.date]) acc[ev.date] = []; 
+                    acc[ev.date].push(ev); 
+                    return acc; 
+                }, {});
+
                 Object.keys(datesInPeriod).sort().forEach(dKey => {
                     const dEvents = datesInPeriod[dKey];
+                    // dEvents is already correctly sorted by "order" because pEvents was derived from sorted allEvents
                     const dateGroup = document.createElement('div');
                     dateGroup.innerHTML = `<h4 class="text-xs font-black uppercase tracking-tighter text-gray-400 mb-1">Day ${dEvents[0].dayNumber} (${dKey}):</h4>`;
                     dEvents.forEach(de => { dateGroup.innerHTML += `<div class="text-sm pl-2 py-0.5 border-l-2 border-gray-100 ml-1"><b>${de.eventName}</b> @ ${de.location}</div>`; });
