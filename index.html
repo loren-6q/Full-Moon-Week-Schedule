@@ -83,6 +83,26 @@
         .tag-pill:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .tag-pill.active { background: #4f46e5; color: white; border-color: #4f46e5; }
 
+        /* Active Tag Pill Styles */
+        .active-tag-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            margin: 2px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            background: #eef2ff;
+            color: #4f46e5;
+            border: 1px solid #c7d2fe;
+        }
+        .active-tag-pill.excluded {
+            background: #f1f5f9;
+            color: #94a3b8;
+            text-decoration: line-through;
+            border-color: #e2e8f0;
+        }
+
         /* Order Button Styles */
         .order-btn {
             padding: 0 4px;
@@ -172,7 +192,11 @@
                     </div>
                     <div class="space-y-4">
                         <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
-                            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Post Text Preview</label>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-bold text-gray-400 uppercase">Post Text Preview</label>
+                                <!-- TAG TOGGLES -->
+                                <div id="detectedTagsManager" class="flex flex-wrap justify-end"></div>
+                            </div>
                             <textarea id="calendarOutput" class="w-full border-0 p-0 text-sm focus:ring-0 min-h-[250px]" readonly placeholder="Output will appear here..."></textarea>
                         </div>
                         <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
@@ -362,6 +386,9 @@
         let saveScheduleTimeout = null;
         let resolveModalPromise = null;
         let currentTagEdit = null;
+        
+        // Tracking exclusions for the current editor session
+        let currentExclusions = [];
 
         /** UTILITIES **/
         
@@ -435,7 +462,14 @@
             document.getElementById('inputLocation').value = e.location || "";
             document.getElementById('rawDescription').value = window.getEventDescription(e);
             document.getElementById('extraHashtagsInput').value = e.extraTags || eventExtraTags[e.eventName] || '';
+            
+            // Restore session exclusions
+            currentExclusions = e.excludedNames || [];
+            
             window.showTab('editor');
+            
+            // Auto-trigger parse to show tag pills
+            window.handleClick(false);
         };
 
         /** ORDER MANAGEMENT **/
@@ -462,6 +496,18 @@
 
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
             window.renderScheduleList();
+        };
+
+        /** TAG EXCLUSION MANAGEMENT **/
+
+        window.toggleTagExclusion = function(name) {
+            if (currentExclusions.includes(name)) {
+                currentExclusions = currentExclusions.filter(n => n !== name);
+            } else {
+                currentExclusions.push(name);
+            }
+            // Re-run parse without saving to update UI instantly
+            window.handleClick(false);
         };
 
         /** HASHTAG SUGGESTION ENGINE **/
@@ -837,6 +883,7 @@
 
             if(!date || !name || !desc) return alert("Date, Name, Description required.");
 
+            // Tagging Logic: Identify all matches
             const allMatches = [];
             Object.entries(nameTagDatabase).forEach(([n, d]) => {
                 const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -850,6 +897,7 @@
                 }
             });
 
+            // Filtering for overlap
             allMatches.sort((a, b) => b.length - a.length || a.index - b.index);
             const validMatches = [];
             const occupied = new Set();
@@ -859,13 +907,29 @@
                 if (!hasOverlap) { validMatches.push(m); for (let i = m.index; i < m.index + m.length; i++) occupied.add(i); }
             });
 
-            validMatches.sort((a, b) => a.index - b.index);
+            // DETECTED TAGS UI (Only for UI purposes)
+            const detectedNames = [...new Set(validMatches.map(m => m.name))];
+            const tagManager = document.getElementById('detectedTagsManager');
+            tagManager.innerHTML = '';
+            detectedNames.forEach(n => {
+                const isExcluded = currentExclusions.includes(n);
+                const pill = document.createElement('div');
+                pill.className = `active-tag-pill cursor-pointer ${isExcluded ? 'excluded' : ''}`;
+                pill.innerHTML = `${n} ${isExcluded ? '+' : '✕'}`;
+                pill.onclick = () => window.toggleTagExclusion(n);
+                tagManager.appendChild(pill);
+            });
+
+            // Filter out exclusions for actual output
+            const finalMatches = validMatches.filter(m => !currentExclusions.includes(m.name));
+
+            finalMatches.sort((a, b) => a.index - b.index);
             const storyTags = [];
-            validMatches.forEach(m => { if (!storyTags.includes(m.tag)) storyTags.push(m.tag); });
+            finalMatches.forEach(m => { if (!storyTags.includes(m.tag)) storyTags.push(m.tag); });
 
             let injectedDesc = desc;
             const alreadyTagged = new Set();
-            const injectionQueue = validMatches.filter(m => {
+            const injectionQueue = finalMatches.filter(m => {
                 if (alreadyTagged.has(m.tag)) return false;
                 alreadyTagged.add(m.tag);
                 return true;
@@ -887,7 +951,19 @@
                 const currentDayEvents = eventSchedule.filter(e => e.date === date);
                 const order = currentDayEvents.length;
                 
-                const obj = { eventName: name, date, location: loc, postText: body, description: injectedDesc, tagsOnly: storyTags.join('\n'), postStatus: 'pending', storyStatus: 'pending', extraTags: xtra, order: order };
+                const obj = { 
+                    eventName: name, 
+                    date, 
+                    location: loc, 
+                    postText: body, 
+                    description: injectedDesc, 
+                    tagsOnly: storyTags.join('\n'), 
+                    postStatus: 'pending', 
+                    storyStatus: 'pending', 
+                    extraTags: xtra, 
+                    order: order,
+                    excludedNames: currentExclusions // SAVE EXCLUSIONS
+                };
                 const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
                 if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
                 if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
@@ -902,7 +978,15 @@
             const desc = document.getElementById('rawDescription').value.trim();
             const hashtags = document.getElementById('extraHashtagsInput').value.trim();
             if (!name) return alert("Enter Event Name to use as title.");
-            eventDatabase[name] = { eventName: name, location: loc, description: desc, extraTags: hashtags };
+            
+            // Save exclusions to template too
+            eventDatabase[name] = { 
+                eventName: name, 
+                location: loc, 
+                description: desc, 
+                extraTags: hashtags,
+                excludedNames: currentExclusions 
+            };
             await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
             alert(`Template saved.`); window.renderEventTemplateSelect();
         };
@@ -954,7 +1038,22 @@
 
         window.saveGlobalHashtags = async () => { globalTagsString = document.getElementById('defaultTagsInput').value.trim(); await saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); };
         
-        window.loadEventTemplate = () => { const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || ''; document.getElementById('rawDescription').value = e.description || ''; document.getElementById('extraHashtagsInput').value = e.extraTags || ''; window.updateSuggestedTags(); } };
+        window.loadEventTemplate = () => { 
+            const k = document.getElementById('eventTemplateSelect').value; 
+            if (eventDatabase[k]) { 
+                const e = eventDatabase[k]; 
+                document.getElementById('inputEventName').value = e.eventName || k; 
+                document.getElementById('inputLocation').value = e.location || ''; 
+                document.getElementById('rawDescription').value = e.description || ''; 
+                document.getElementById('extraHashtagsInput').value = e.extraTags || ''; 
+                
+                // Restore template exclusions
+                currentExclusions = e.excludedNames || [];
+                
+                window.updateSuggestedTags(); 
+                window.handleClick(false); // Parse immediately
+            } 
+        };
         
         window.loadTemplateForManage = () => {
             const k = document.getElementById('templateManageSelect').value;
@@ -1010,7 +1109,16 @@
             document.getElementById('rawDescription').value = window.getEventDescription(e);
             document.getElementById('extraHashtagsInput').value = e.extraTags || "";
             document.getElementById('inputIsoDate').value = ""; 
+            
+            // History reuse also keeps the exclusions
+            currentExclusions = e.excludedNames || [];
+            
             window.showTab('editor');
+            window.handleClick(false);
+        };
+
+        window.initializeSortable = function() {
+            // Reordering logic handled by arrows now
         };
 
         window.handleDeleteScheduledEvent = async (date, name) => {
