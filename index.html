@@ -883,21 +883,28 @@
 
             if(!date || !name || !desc) return alert("Date, Name, Description required.");
 
-            // Tagging Logic: Identify all matches
+            // Tagging Logic Engine - Overhauled for "Edit/Reuse Awareness"
             const allMatches = [];
             Object.entries(nameTagDatabase).forEach(([n, d]) => {
                 const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const reg = new RegExp(`(\\b${escaped}\\b)`, 'gi'); 
                 let m;
                 while ((m = reg.exec(desc)) !== null) {
+                    // Check if strictly followed by the tag already (within 30 chars buffer)
                     const lookAhead = desc.substring(m.index + m.length, m.index + m.length + 30);
-                    if (lookAhead.includes(d.tag)) continue; 
+                    const isPreTagged = lookAhead.includes(d.tag);
                     
-                    allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length });
+                    allMatches.push({ 
+                        name: n, 
+                        tag: d.tag, 
+                        index: m.index, 
+                        length: n.length,
+                        isPreTagged: isPreTagged
+                    });
                 }
             });
 
-            // Filtering for overlap
+            // Filtering for overlap (longer names win)
             allMatches.sort((a, b) => b.length - a.length || a.index - b.index);
             const validMatches = [];
             const occupied = new Set();
@@ -907,7 +914,7 @@
                 if (!hasOverlap) { validMatches.push(m); for (let i = m.index; i < m.index + m.length; i++) occupied.add(i); }
             });
 
-            // DETECTED TAGS UI (Only for UI purposes)
+            // DETECTED TAGS UI pill manager
             const detectedNames = [...new Set(validMatches.map(m => m.name))];
             const tagManager = document.getElementById('detectedTagsManager');
             tagManager.innerHTML = '';
@@ -920,22 +927,41 @@
                 tagManager.appendChild(pill);
             });
 
-            // Filter out exclusions for actual output
-            const finalMatches = validMatches.filter(m => !currentExclusions.includes(m.name));
-
-            finalMatches.sort((a, b) => a.index - b.index);
-            const storyTags = [];
-            finalMatches.forEach(m => { if (!storyTags.includes(m.tag)) storyTags.push(m.tag); });
-
+            // Process matches: Sort back-to-front to maintain indices during injection/removal
             let injectedDesc = desc;
-            const alreadyTagged = new Set();
-            const injectionQueue = finalMatches.filter(m => {
-                if (alreadyTagged.has(m.tag)) return false;
-                alreadyTagged.add(m.tag);
-                return true;
-            }).sort((a, b) => b.index - a.index);
+            const sortedForProcessing = [...validMatches].sort((a, b) => b.index - a.index);
+            const finalIncludedTags = [];
 
-            injectionQueue.forEach(m => { injectedDesc = injectedDesc.substring(0, m.index + m.length) + " " + m.tag + injectedDesc.substring(m.index + m.length); });
+            sortedForProcessing.forEach(m => {
+                const isExcluded = currentExclusions.includes(m.name);
+                
+                if (isExcluded) {
+                    // IF ALREADY TAGGED IN TEXT -> STRIP THE TAG
+                    if (m.isPreTagged) {
+                        const buffer = injectedDesc.substring(m.index + m.length, m.index + m.length + 40);
+                        const tagPos = buffer.indexOf(m.tag);
+                        if (tagPos !== -1) {
+                            const actualStart = m.index + m.length + tagPos;
+                            const actualEnd = actualStart + m.tag.length;
+                            injectedDesc = injectedDesc.substring(0, actualStart) + injectedDesc.substring(actualEnd);
+                            // Cleanup double spaces that might result from stripping
+                            injectedDesc = injectedDesc.replace(/  +/g, ' ');
+                        }
+                    }
+                } else {
+                    // IF NOT TAGGED -> INJECT TAG
+                    if (!m.isPreTagged) {
+                        injectedDesc = injectedDesc.substring(0, m.index + m.length) + " " + m.tag + injectedDesc.substring(m.index + m.length);
+                    }
+                    // ADD TO STORY TAGS LIST (Order list by appearance)
+                    if (!finalIncludedTags.includes(m.tag)) finalIncludedTags.push(m.tag);
+                }
+            });
+
+            // Re-sort the final Story Tags list by original index
+            const tagIndices = {};
+            validMatches.forEach(m => { if(!currentExclusions.includes(m.name) && tagIndices[m.tag] === undefined) tagIndices[m.tag] = m.index; });
+            const orderedStoryTags = finalIncludedTags.sort((a,b) => tagIndices[a] - tagIndices[b]);
 
             const rawTagsString = (globalTagsString + " " + xtra).replace(/[, \n\t]+/g, " ");
             const hashtagRegex = /#\w+/g;
@@ -945,11 +971,17 @@
 
             const body = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${injectedDesc}\n\n${hashes}`;
             document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + body;
-            document.getElementById('tagsOnlyOutput').value = storyTags.join('\n');
+            document.getElementById('tagsOnlyOutput').value = orderedStoryTags.join('\n');
 
             if (save) {
-                const currentDayEvents = eventSchedule.filter(e => e.date === date);
-                const order = currentDayEvents.length;
+                const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+                let order;
+                if (existIdx > -1) {
+                    order = eventSchedule[existIdx].order; // PRESERVE ORDER ON EDIT
+                } else {
+                    const currentDayEvents = eventSchedule.filter(e => e.date === date);
+                    order = currentDayEvents.length; // APPEND TO END ON NEW
+                }
                 
                 const obj = { 
                     eventName: name, 
@@ -957,14 +989,13 @@
                     location: loc, 
                     postText: body, 
                     description: injectedDesc, 
-                    tagsOnly: storyTags.join('\n'), 
+                    tagsOnly: orderedStoryTags.join('\n'), 
                     postStatus: 'pending', 
                     storyStatus: 'pending', 
                     extraTags: xtra, 
                     order: order,
-                    excludedNames: currentExclusions // SAVE EXCLUSIONS
+                    excludedNames: currentExclusions 
                 };
-                const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
                 if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
                 if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
                 await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
@@ -979,7 +1010,6 @@
             const hashtags = document.getElementById('extraHashtagsInput').value.trim();
             if (!name) return alert("Enter Event Name to use as title.");
             
-            // Save exclusions to template too
             eventDatabase[name] = { 
                 eventName: name, 
                 location: loc, 
@@ -1051,7 +1081,7 @@
                 currentExclusions = e.excludedNames || [];
                 
                 window.updateSuggestedTags(); 
-                window.handleClick(false); // Parse immediately
+                window.handleClick(false); // Parse immediately to sync UI
             } 
         };
         
@@ -1118,7 +1148,7 @@
         };
 
         window.initializeSortable = function() {
-            // Reordering logic handled by arrows now
+            // Reordering logic handled by arrows
         };
 
         window.handleDeleteScheduledEvent = async (date, name) => {
