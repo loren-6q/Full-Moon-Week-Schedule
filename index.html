@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Full Moon Posting Scheduler</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌕</text></svg>">
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -34,13 +36,12 @@
         #calendarOutput { min-height: 250px; }
         #tagsOnlyOutput { min-height: 150px; }
         .tab-button.active {
-            border-bottom: 4px solid #ef4444 !important;
+            border-bottom: 3px solid #ef4444 !important;
             color: #ef4444 !important;
             font-weight: 600 !important;
             background-color: #f1f5f9 !important;
         }
         .compact-list-item { padding: 0.2rem 0; font-size: 0.75rem; }
-        .sortable-drag { opacity: 0.6; background-color: #f1f5f9; }
         .settings-grid-container-custom { display: grid; grid-template-columns: 35% 65%; gap: 2rem; }
         @media (max-width: 768px) { .settings-grid-container-custom { grid-template-columns: 1fr; } }
         
@@ -60,10 +61,6 @@
         .scheduled-event-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .scheduled-event-card h3 { font-size: 1rem; font-weight: 700; color: #4f46e5; }
         
-        .collapsible-btn {
-            display: flex; justify-content: space-between; align-items: center;
-            width: 100%; padding: 0.75rem 1rem; font-weight: 600; border-radius: 0.5rem; transition: background-color 0.2s;
-        }
         .event-group { border: 1px solid #cbd5e1; padding: 1rem; margin-bottom: 1.5rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
         /* Suggestion Pill Styles */
@@ -118,7 +115,7 @@
         .order-btn:hover { background: #e2e8f0; color: #1e293b; }
     </style>
 </head>
-<body class="bg-background min-h-screen p-4 sm:p-8 font-sans">
+<body class="bg-background min-h-screen p-2 sm:p-6 font-sans">
     
     <!-- Supabase Library Loader -->
     <script type="module">
@@ -127,32 +124,32 @@
     </script>
     
     <div class="max-w-7xl mx-auto">
-        <header class="text-center mb-6 p-4 bg-white rounded-xl shadow-lg border border-gray-100">
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Full Moon Posting Scheduler</h1>
+        <header class="text-center mb-1 p-1 bg-white rounded-xl shadow-sm border border-gray-100">
+            <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">Full Moon Week Scheduler</h1>
         </header>
         
-        <!-- Navigation Tabs -->
-        <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-sm overflow-hidden">
-            <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-4 text-center transition hover:bg-gray-50">Event</button>
-            <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">Settings</button>
-            <button id="tab-scheduler-btn" onclick="showTab('scheduler')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">Schedule</button>
-             <button id="tab-calendar-btn" onclick="showTab('calendar')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">Calendar</button>
-            <button id="tab-history-btn" onclick="showTab('history')" class="tab-button flex-1 py-4 text-center transition hover:bg-gray-50">History</button>
+        <!-- Navigation Tabs (Sticky) -->
+        <div class="sticky top-0 z-50 flex border-b border-gray-200 mb-4 bg-white rounded-t-xl shadow-sm overflow-hidden">
+            <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Event</button>
+            <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Settings</button>
+            <button id="tab-scheduler-btn" onclick="showTab('scheduler')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Schedule</button>
+             <button id="tab-calendar-btn" onclick="showTab('calendar')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Calendar</button>
+            <button id="tab-history-btn" onclick="showTab('history')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">History</button>
         </div>
 
         <!-- EDITOR TAB -->
         <div id="tab-editor-content" class="tab-content">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="space-y-6">
-                    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 template-box-bg">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4">Event Details</h2>
-                        <div class="mb-4">
-                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Load Template</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100 template-box-bg">
+                        <h2 class="text-base font-bold text-gray-800 mb-2">Event Details</h2>
+                        <div class="mb-3">
+                            <label class="block text-[9px] font-semibold text-gray-500 uppercase mb-0.5">Load Template</label>
                             <select id="eventTemplateSelect" onchange="loadEventTemplate()" class="w-full border border-gray-200 rounded-lg p-2 text-sm bg-white">
                                 <option value="">--- Select Template ---</option>
                             </select>
                         </div>
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <div class="flex items-center space-x-3">
                                 <label class="text-sm font-medium text-gray-700">🗓 Date:</label>
                                 <input type="date" id="inputIsoDate" class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20">
@@ -160,41 +157,38 @@
                             <input type="text" id="inputEventName" placeholder="🎉 EVENT NAME" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20" oninput="updateSuggestedTags()">
                             <input type="text" id="inputLocation" placeholder="📍 LOCATION" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary/20" oninput="updateSuggestedTags()">
                         </div>
-                        <div class="mt-6">
-                             <div class="flex justify-between items-center mb-2">
+                        <div class="mt-4">
+                             <div class="flex justify-between items-center mb-1">
                                 <label class="text-sm font-bold text-gray-800">Description</label>
-                                <select id="editorSnippetSelect" onchange="insertSnippet()" class="text-xs border rounded p-1 bg-white">
+                                <select id="editorSnippetSelect" onchange="insertSnippet()" class="text-[10px] border rounded p-1 bg-white">
                                     <option value="">+ Insert Snippet</option>
                                 </select>
                              </div>
                              <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Paste party details here..."></textarea>
                         </div>
-                        <div class="mt-4">
-                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Extra Hashtags</label>
+                        <div class="mt-3">
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Extra Hashtags</label>
                             <input type="text" id="extraHashtagsInput" oninput="refreshTagPillStates()" placeholder="Type or click suggestions below..." class="w-full border border-gray-300 rounded-lg p-2 text-sm mb-2">
-                            
-                            <!-- SUGGESTED TAGS CONTAINER -->
-                            <div id="suggestedTagsContainer" class="flex flex-wrap items-center min-h-[40px] bg-gray-50 p-2 rounded border border-dashed border-gray-200">
-                                <span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions Based on History:</span>
+                            <div id="suggestedTagsContainer" class="flex flex-wrap items-center min-h-[30px] bg-gray-50 p-1.5 rounded border border-dashed border-gray-200">
+                                <span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="space-y-6">
-                    <div class="bg-indigo-50 p-4 rounded-xl shadow-inner flex flex-col sm:flex-row items-center justify-between border border-indigo-100">
-                        <div id="statusMessage" class="text-xs font-medium text-indigo-600 mb-3 sm:mb-0 italic">Initializing...</div>
-                        <div class="flex space-x-2">
-                            <button onclick="handleClick(false)" class="px-5 py-2 bg-primary text-white text-sm font-bold rounded-full shadow-md hover:bg-indigo-700 transition">PARSE</button>
-                            <button onclick="handleClick(true)" class="px-5 py-2 bg-accent text-white text-sm font-bold rounded-full shadow-md hover:bg-amber-600 transition">SAVE TO LIST</button>
-                            <button onclick="saveCurrentAsTemplate()" class="px-5 py-2 bg-gray-600 text-white text-sm font-bold rounded-full shadow-md hover:bg-gray-700 transition">AS TEMPLATE</button>
+                <div class="space-y-4">
+                    <div class="bg-indigo-50 p-2 rounded-xl shadow-inner flex flex-col sm:flex-row items-center justify-between border border-indigo-100">
+                        <div id="statusMessage" class="text-[9px] font-medium text-indigo-600 mb-1 sm:mb-0 italic">Initializing...</div>
+                        <div class="flex space-x-1.5">
+                            <button onclick="handleClick(false)" class="px-3 py-1 bg-primary text-white text-[10px] font-bold rounded-full shadow-md hover:bg-indigo-700 transition">PARSE</button>
+                            <button onclick="handleClick(true)" class="px-3 py-1 bg-accent text-white text-[10px] font-bold rounded-full shadow-md hover:bg-amber-600 transition">SAVE TO LIST</button>
+                            <button onclick="saveCurrentAsTemplate()" class="px-3 py-1 bg-gray-600 text-white text-[10px] font-bold rounded-full shadow-md hover:bg-gray-700 transition">AS TEMPLATE</button>
                         </div>
                     </div>
                     <div class="space-y-4">
                         <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-xs font-bold text-gray-400 uppercase">Post Text Preview</label>
-                                <!-- TAG TOGGLES -->
                                 <div id="detectedTagsManager" class="flex flex-wrap justify-end"></div>
                             </div>
                             <textarea id="calendarOutput" class="w-full border-0 p-0 text-sm focus:ring-0 min-h-[250px]" readonly placeholder="Output will appear here..."></textarea>
@@ -275,7 +269,6 @@
                         </div>
                     </div>
 
-                    <!-- Templates Management in Settings -->
                     <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm template-box-bg">
                         <h2 class="text-lg font-bold mb-4">Templates</h2>
                         <div class="space-y-4">
@@ -306,9 +299,9 @@
         
         <!-- SCHEDULER TAB -->
         <div id="tab-scheduler-content" class="tab-content hidden">
-             <div class="schedule-container p-6 rounded-xl shadow-lg border border-indigo-100">
-                <h2 class="text-2xl font-bold text-indigo-900 mb-6">Upcoming Schedule</h2>
-                <div id="scheduledEventsContainer" class="space-y-6"></div>
+             <div class="schedule-container p-4 rounded-xl shadow-lg border border-indigo-100">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-4">Upcoming Schedule</h2>
+                <div id="scheduledEventsContainer" class="space-y-4"></div>
                 <p id="emptyScheduleMessage" class="text-center text-gray-400 italic py-12">No events currently scheduled.</p>
             </div>
         </div>
@@ -386,8 +379,6 @@
         let saveScheduleTimeout = null;
         let resolveModalPromise = null;
         let currentTagEdit = null;
-        
-        // Tracking exclusions for the current editor session
         let currentExclusions = [];
 
         /** UTILITIES **/
@@ -462,13 +453,8 @@
             document.getElementById('inputLocation').value = e.location || "";
             document.getElementById('rawDescription').value = window.getEventDescription(e);
             document.getElementById('extraHashtagsInput').value = e.extraTags || eventExtraTags[e.eventName] || '';
-            
-            // Restore session exclusions
             currentExclusions = e.excludedNames || [];
-            
             window.showTab('editor');
-            
-            // Auto-trigger parse to show tag pills
             window.handleClick(false);
         };
 
@@ -478,22 +464,16 @@
             const dayEvents = eventSchedule
                 .filter(e => e.date === date)
                 .sort((a, b) => (a.order || 0) - (b.order || 0));
-            
             dayEvents.forEach((e, i) => e.order = i);
-
             const idx = dayEvents.findIndex(e => e.eventName === name);
             if (idx === -1) return;
-
             if (direction === 'up' && idx > 0) {
                 dayEvents[idx].order = idx - 1;
                 dayEvents[idx - 1].order = idx;
             } else if (direction === 'down' && idx < dayEvents.length - 1) {
                 dayEvents[idx].order = idx + 1;
                 dayEvents[idx + 1].order = idx;
-            } else {
-                return;
-            }
-
+            } else { return; }
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
             window.renderScheduleList();
         };
@@ -506,7 +486,6 @@
             } else {
                 currentExclusions.push(name);
             }
-            // Re-run parse without saving to update UI instantly
             window.handleClick(false);
         };
 
@@ -515,52 +494,37 @@
         window.updateSuggestedTags = function() {
             const container = document.getElementById('suggestedTagsContainer');
             if (!container) return;
-
             const eventName = document.getElementById('inputEventName').value.trim().toLowerCase();
             const location = document.getElementById('inputLocation').value.trim().toLowerCase();
-            
             const candidates = new Set();
             if (eventName && eventExtraTags[eventName]) eventExtraTags[eventName].split(/[, ]+/).forEach(t => candidates.add(t));
             if (location && eventExtraTags[location]) eventExtraTags[location].split(/[, ]+/).forEach(t => candidates.add(t));
-
             eventSchedule.forEach(e => {
                 if ((eventName && e.eventName?.toLowerCase() === eventName) || 
                     (location && e.location?.toLowerCase() === location)) {
                     if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => candidates.add(t));
                 }
             });
-
-            const cleanCandidates = Array.from(candidates)
-                .map(t => t.trim())
-                .filter(t => t.length > 1)
-                .map(t => t.startsWith('#') ? t : '#' + t);
-
-            const unique = [...new Set(cleanCandidates.map(t => t.toLowerCase()))];
+            const unique = [...new Set(Array.from(candidates).map(t => t.trim()).filter(t => t.length > 1).map(t => t.startsWith('#') ? t : '#' + t).map(t => t.toLowerCase()))];
             const existingHeader = container.querySelector('span');
             container.innerHTML = '';
             if (existingHeader) container.appendChild(existingHeader);
-
             if (unique.length === 0) {
-                container.innerHTML += `<span class="text-[9px] text-gray-300 italic py-1">No matches found...</span>`;
+                container.innerHTML += `<span class="text-[9px] text-gray-300 italic py-1">No matches...</span>`;
                 return;
             }
-
             unique.forEach(tag => {
                 const pill = document.createElement('div');
-                pill.className = 'tag-pill';
-                pill.textContent = tag;
+                pill.className = 'tag-pill'; pill.textContent = tag;
                 pill.onclick = () => window.toggleHashtag(tag);
                 container.appendChild(pill);
             });
-
             window.refreshTagPillStates();
         };
 
         window.toggleHashtag = function(tag) {
             const input = document.getElementById('extraHashtagsInput');
-            const currentVal = input.value.toLowerCase();
-            const tagsInInput = currentVal.match(/#\w+/g) || [];
-            
+            const tagsInInput = input.value.toLowerCase().match(/#\w+/g) || [];
             if (tagsInInput.includes(tag.toLowerCase())) {
                 const regex = new RegExp(tag, 'gi');
                 input.value = input.value.replace(regex, '').replace(/  +/g, ' ').trim();
@@ -571,14 +535,10 @@
         };
 
         window.refreshTagPillStates = function() {
-            const inputVal = document.getElementById('extraHashtagsInput').value.toLowerCase();
-            const tagsInInput = inputVal.match(/#\w+/g) || [];
+            const tagsInInput = document.getElementById('extraHashtagsInput').value.toLowerCase().match(/#\w+/g) || [];
             document.querySelectorAll('.tag-pill').forEach(pill => {
-                if (tagsInInput.includes(pill.textContent.toLowerCase())) {
-                    pill.classList.add('active');
-                } else {
-                    pill.classList.remove('active');
-                }
+                if (tagsInInput.includes(pill.textContent.toLowerCase())) pill.classList.add('active');
+                else pill.classList.remove('active');
             });
         };
 
@@ -588,19 +548,16 @@
             const statusEl = document.getElementById('statusMessage');
             if (typeof window.supabaseClient === 'undefined') {
                 statusEl.textContent = "Loading library...";
-                setTimeout(initializeSupabase, 500);
-                return;
+                setTimeout(initializeSupabase, 500); return;
             }
             try {
-                supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY, {
-                    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-                });
+                supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
                 await loadInitialDataAndListen(); 
                 statusEl.textContent = "Supabase Live";
-                statusEl.className = "text-xs font-bold text-green-600";
+                statusEl.className = "text-[9px] font-bold text-green-600";
             } catch (e) {
                 statusEl.textContent = "Supabase Error";
-                statusEl.className = "text-xs font-bold text-red-600";
+                statusEl.className = "text-[9px] font-bold text-red-600";
             }
         }
 
@@ -614,15 +571,10 @@
                 { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: window.renderGlobalTags, globalVar: null, type: 'string' },
                 { name: DB_CONFIG.EXTRA_TAGS_KEY, render: () => {}, globalVar: eventExtraTags, type: 'map' }
             ];
-
             for (const c of collections) {
                 try {
                     const { data, error } = await supabase.from(c.name).select('*').eq('id', 1).single();
-                    if (error && error.code !== 'PGRST116') {
-                        console.warn(`Error connecting to ${c.name}:`, error.message);
-                        continue;
-                    }
-
+                    if (error && error.code !== 'PGRST116') continue;
                     let val = null;
                     if (data) {
                         if (c.type === 'array') val = data.events;
@@ -644,9 +596,7 @@
                         }
                     }).subscribe();
                     c.render();
-                } catch (err) {
-                    console.error(`Fatal error loading table "${c.name}":`, err);
-                }
+                } catch (err) { console.error(err); }
             }
         }
 
@@ -666,44 +616,34 @@
             const containerEl = document.getElementById('scheduledEventsContainer');
             const historyListEl = document.getElementById('historyEventsList');
             const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            
             if (!containerEl || !historyListEl) return;
             containerEl.innerHTML = ''; historyListEl.innerHTML = '';
-            
             const allEvents = window.calculateSequentialDays(eventSchedule);
             const upcoming = []; const past = [];
-            
             allEvents.forEach(e => {
                 if (e.postStatus === undefined) e.postStatus = 'pending';
                 if (e.storyStatus === undefined) e.storyStatus = 'pending';
                 if (e.date <= yesterdayStr || (e.postStatus === 'done' && e.storyStatus === 'done')) past.push(e);
                 else upcoming.push(e);
             });
-
             upcoming.sort((a,b) => new Date(a.date) - new Date(b.date) || (a.order || 0) - (b.order || 0));
             const grouped = upcoming.reduce((acc, e) => { if (!acc[e.date]) acc[e.date] = []; acc[e.date].push(e); return acc; }, {});
-
             document.getElementById('emptyScheduleMessage').classList.toggle('hidden', upcoming.length > 0);
-
             for (const dKey in grouped) {
                 const gDiv = document.createElement('div');
                 gDiv.className = 'event-group'; gDiv.dataset.date = dKey;
                 gDiv.innerHTML = `<h3 class="text-sm font-bold text-gray-400 mb-3 border-b pb-1 flex justify-between">🗓 Day ${grouped[dKey][0].dayNumber} - ${dKey} <button onclick="copyDayEventNames('${dKey}')" class="text-[10px] text-indigo-500 uppercase">Copy Names</button></h3><div class="scheduled-list space-y-3"></div>`;
                 const list = gDiv.querySelector('.scheduled-list');
                 grouped[dKey].forEach(e => {
-                    const card = document.createElement('div');
-                    card.className = 'scheduled-event-card';
+                    const card = document.createElement('div'); card.className = 'scheduled-event-card';
                     card.onclick = () => window.loadEventForEdit(e);
-                    
                     const postWithDay = `🌕Full Moon Week - Day ${e.dayNumber}🌕\n` + e.postText;
-
                     card.innerHTML = `
                         <div class="flex items-start">
                             <div class="flex flex-col space-y-1 mr-3 flex-shrink-0">
                                 <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${e.eventName}','up')" class="order-btn">▲</button>
                                 <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${e.eventName}','down')" class="order-btn">▼</button>
                             </div>
-                            
                             <div class="flex-grow min-w-0">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="pr-2 truncate"><h3>${e.eventName}</h3><p class="truncate opacity-60">${e.location}</p></div>
@@ -720,8 +660,7 @@
                                     <textarea id="tg-${e.date}-${e.eventName}" onblur="updateText('${e.date}','${e.eventName}',this.value,'tagsOnly')" class="w-24 text-[10px] h-16 border rounded p-1 leading-tight font-mono">${e.tagsOnly}</textarea>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                     list.appendChild(card);
                 });
                 containerEl.appendChild(gDiv);
@@ -748,8 +687,7 @@
                         <p class="whitespace-pre-wrap mb-2">${e.postText.replace('Day X', 'Day ?')}</p>
                         <hr class="mb-2">
                         <p class="font-mono text-[10px] text-gray-500">${e.tagsOnly}</p>
-                    </div>
-                `;
+                    </div>`;
                 list.appendChild(d);
             });
             document.getElementById('emptyHistoryMessage').classList.toggle('hidden', past.length > 0);
@@ -761,49 +699,30 @@
             const allEvents = window.calculateSequentialDays(eventSchedule);
             if (allEvents.length === 0) { document.getElementById('emptyCalendarMessage').classList.remove('hidden'); return; }
             document.getElementById('emptyCalendarMessage').classList.add('hidden');
-
-            const groupedByPeriod = {};
-            PEAK_DATES.forEach(p => groupedByPeriod[p.name] = []);
-            groupedByPeriod["Other/Ungrouped"] = [];
-
+            const groupedByPeriod = {}; PEAK_DATES.forEach(p => groupedByPeriod[p.name] = []); groupedByPeriod["Other/Ungrouped"] = [];
             allEvents.forEach(e => {
-                const evDate = new Date(e.date + 'T00:00:00');
-                let placed = false;
+                const evDate = new Date(e.date + 'T00:00:00'); let placed = false;
                 for (let p of PEAK_DATES) {
-                    const peakDate = new Date(p.date + 'T00:00:00');
-                    const diff = Math.abs(evDate - peakDate) / 8.64e7;
+                    const peakDate = new Date(p.date + 'T00:00:00'); const diff = Math.abs(evDate - peakDate) / 8.64e7;
                     if (diff <= 10) { groupedByPeriod[p.name].push(e); placed = true; break; }
                 }
                 if (!placed) groupedByPeriod["Other/Ungrouped"].push(e);
             });
-
-            const sortedPeriods = Object.keys(groupedByPeriod).reverse();
-
-            sortedPeriods.forEach(pName => {
-                const pEvents = groupedByPeriod[pName];
-                if (pEvents.length === 0) return;
-
-                const sanitizedId = pName.replace(/[^a-z0-9]/gi, '');
-                const periodId = `p-${sanitizedId}`;
-                const periodDiv = document.createElement('div');
-                periodDiv.className = 'border rounded-lg overflow-hidden mb-4 shadow-sm';
+            Object.keys(groupedByPeriod).reverse().forEach(pName => {
+                const pEvents = groupedByPeriod[pName]; if (pEvents.length === 0) return;
+                const periodId = `p-${pName.replace(/[^a-z0-9]/gi, '')}`;
+                const periodDiv = document.createElement('div'); periodDiv.className = 'border rounded-lg overflow-hidden mb-4 shadow-sm';
                 periodDiv.innerHTML = `
                     <button onclick="window.toggleHistDetail('${periodId}')" class="w-full text-left px-4 py-3 bg-gray-100 flex justify-between items-center font-bold text-gray-700">
-                        <span>${pName}</span>
-                        <span class="text-xs opacity-50">${pEvents.length} events</span>
-                    </button>
-                    <div id="${periodId}" class="hidden p-4 bg-white space-y-4"></div>
-                `;
-                
+                        <span>${pName}</span><span class="text-xs opacity-50">${pEvents.length} events</span>
+                    </button><div id="${periodId}" class="hidden p-4 bg-white space-y-4"></div>`;
                 const contentDiv = periodDiv.querySelector(`#${periodId}`);
                 const datesInPeriod = pEvents.reduce((acc, ev) => { if(!acc[ev.date]) acc[ev.date] = []; acc[ev.date].push(ev); return acc; }, {});
                 Object.keys(datesInPeriod).sort().forEach(dKey => {
                     const dEvents = datesInPeriod[dKey];
                     const dateGroup = document.createElement('div');
                     dateGroup.innerHTML = `<h4 class="text-xs font-black uppercase tracking-tighter text-gray-400 mb-1">Day ${dEvents[0].dayNumber} (${dKey}):</h4>`;
-                    dEvents.forEach(de => {
-                        dateGroup.innerHTML += `<div class="text-sm pl-2 py-0.5 border-l-2 border-gray-100 ml-1"><b>${de.eventName}</b> @ ${de.location}</div>`;
-                    });
+                    dEvents.forEach(de => { dateGroup.innerHTML += `<div class="text-sm pl-2 py-0.5 border-l-2 border-gray-100 ml-1"><b>${de.eventName}</b> @ ${de.location}</div>`; });
                     contentDiv.appendChild(dateGroup);
                 });
                 list.appendChild(periodDiv);
@@ -819,33 +738,23 @@
             .sort().forEach(([n, d]) => {
                 const li = document.createElement('li'); li.className = 'compact-list-item flex justify-between items-center';
                 li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span>
-                <div class="flex space-x-2">
-                    <button onclick="window.editTag('${n}')" class="text-indigo-500">Edit</button>
-                    <button onclick="window.deleteTag('${n}')" class="text-red-500">✕</button>
-                </div>`;
+                <div class="flex space-x-2"><button onclick="window.editTag('${n}')" class="text-indigo-500">Edit</button><button onclick="window.deleteTag('${n}')" class="text-red-500">✕</button></div>`;
                 list.appendChild(li);
             });
         };
 
         window.renderSnippetSelect = function() { 
-            const select = document.getElementById('snippetSelect'); 
-            const edSelect = document.getElementById('editorSnippetSelect'); 
             const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); 
-            select.innerHTML = html; edSelect.innerHTML = html; 
+            document.getElementById('snippetSelect').innerHTML = html; document.getElementById('editorSnippetSelect').innerHTML = html; 
         };
 
-        window.renderGlobalTags = function() { 
-            const el = document.getElementById('defaultTagsInput');
-            if (el) el.value = globalTagsString; 
-        };
-
+        window.renderGlobalTags = function() { if (document.getElementById('defaultTagsInput')) document.getElementById('defaultTagsInput').value = globalTagsString; };
         window.renderEventTemplateSelect = function() { 
             const options = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join('');
-            document.getElementById('eventTemplateSelect').innerHTML = options;
-            document.getElementById('templateManageSelect').innerHTML = options;
+            document.getElementById('eventTemplateSelect').innerHTML = options; document.getElementById('templateManageSelect').innerHTML = options;
         };
 
-        /** INTERACTION HANDLERS **/
+        /** HANDLERS **/
 
         window.toggleStatus = async function(date, name, type) {
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
@@ -862,15 +771,11 @@
             if (idx === -1) return;
             const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, '');
             eventSchedule[idx][field] = cleanVal;
-            
-            // Sync the change back to the description body for future edits/reuses
             const blocks = cleanVal.split('\n\n');
             if (blocks.length >= 2) {
-                const lastIsHashtag = blocks[blocks.length - 1].trim().startsWith('#');
-                const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
+                const endIdx = blocks[blocks.length - 1].trim().startsWith('#') ? blocks.length - 1 : blocks.length;
                 eventSchedule[idx].description = blocks.slice(1, endIdx).join('\n\n').trim();
             }
-            
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
@@ -880,296 +785,144 @@
             const loc = document.getElementById('inputLocation').value.trim();
             const desc = document.getElementById('rawDescription').value.trim();
             const xtra = document.getElementById('extraHashtagsInput').value.trim();
-
             if(!date || !name || !desc) return alert("Date, Name, Description required.");
-
-            // Tagging Logic Engine - Overhauled for "Edit/Reuse Awareness"
             const allMatches = [];
             Object.entries(nameTagDatabase).forEach(([n, d]) => {
-                const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const reg = new RegExp(`(\\b${escaped}\\b)`, 'gi'); 
-                let m;
+                const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi'); let m;
                 while ((m = reg.exec(desc)) !== null) {
-                    // Check if strictly followed by the tag already (within 30 chars buffer)
-                    const lookAhead = desc.substring(m.index + m.length, m.index + m.length + 30);
-                    const isPreTagged = lookAhead.includes(d.tag);
-                    
-                    allMatches.push({ 
-                        name: n, 
-                        tag: d.tag, 
-                        index: m.index, 
-                        length: n.length,
-                        isPreTagged: isPreTagged
-                    });
+                    const isPreTagged = desc.substring(m.index + m.length, m.index + m.length + 30).includes(d.tag);
+                    allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length, isPreTagged: isPreTagged });
                 }
             });
-
-            // Filtering for overlap (longer names win)
             allMatches.sort((a, b) => b.length - a.length || a.index - b.index);
-            const validMatches = [];
-            const occupied = new Set();
+            const validMatches = []; const occupied = new Set();
             allMatches.forEach(m => {
                 let hasOverlap = false;
                 for (let i = m.index; i < m.index + m.length; i++) { if (occupied.has(i)) { hasOverlap = true; break; } }
                 if (!hasOverlap) { validMatches.push(m); for (let i = m.index; i < m.index + m.length; i++) occupied.add(i); }
             });
-
-            // DETECTED TAGS UI pill manager
-            const detectedNames = [...new Set(validMatches.map(m => m.name))];
-            const tagManager = document.getElementById('detectedTagsManager');
-            tagManager.innerHTML = '';
-            detectedNames.forEach(n => {
-                const isExcluded = currentExclusions.includes(n);
-                const pill = document.createElement('div');
+            const tagManager = document.getElementById('detectedTagsManager'); tagManager.innerHTML = '';
+            const uniqueNames = [...new Set(validMatches.map(m => m.name))];
+            uniqueNames.forEach(n => {
+                const isExcluded = currentExclusions.includes(n); const pill = document.createElement('div');
                 pill.className = `active-tag-pill cursor-pointer ${isExcluded ? 'excluded' : ''}`;
-                pill.innerHTML = `${n} ${isExcluded ? '+' : '✕'}`;
-                pill.onclick = () => window.toggleTagExclusion(n);
-                tagManager.appendChild(pill);
+                pill.innerHTML = `${n} ${isExcluded ? '+' : '✕'}`; pill.onclick = () => window.toggleTagExclusion(n); tagManager.appendChild(pill);
             });
 
-            // Process matches: Sort back-to-front to maintain indices during injection/removal
-            let injectedDesc = desc;
-            const sortedForProcessing = [...validMatches].sort((a, b) => b.index - a.index);
+            // FILTER: ONLY TARGET THE FIRST INSTANCE OF EACH UNIQUE TAG IN THE FINAL QUEUE
+            const seenTags = new Set();
             const finalIncludedTags = [];
+            const processingQueue = validMatches.filter(m => {
+                if (currentExclusions.includes(m.name)) return true; // Include for stripping
+                if (!seenTags.has(m.tag)) { seenTags.add(m.tag); return true; }
+                return false;
+            }).sort((a, b) => b.index - a.index);
 
-            sortedForProcessing.forEach(m => {
-                const isExcluded = currentExclusions.includes(m.name);
-                
-                if (isExcluded) {
-                    // IF ALREADY TAGGED IN TEXT -> STRIP THE TAG
+            let injectedDesc = desc;
+            processingQueue.forEach(m => {
+                if (currentExclusions.includes(m.name)) {
                     if (m.isPreTagged) {
                         const buffer = injectedDesc.substring(m.index + m.length, m.index + m.length + 40);
                         const tagPos = buffer.indexOf(m.tag);
                         if (tagPos !== -1) {
-                            const actualStart = m.index + m.length + tagPos;
-                            const actualEnd = actualStart + m.tag.length;
-                            injectedDesc = injectedDesc.substring(0, actualStart) + injectedDesc.substring(actualEnd);
-                            // Cleanup double spaces that might result from stripping
-                            injectedDesc = injectedDesc.replace(/  +/g, ' ');
+                            const start = m.index + m.length + tagPos;
+                            injectedDesc = (injectedDesc.substring(0, start) + injectedDesc.substring(start + m.tag.length)).replace(/  +/g, ' ');
                         }
                     }
                 } else {
-                    // IF NOT TAGGED -> INJECT TAG
-                    if (!m.isPreTagged) {
-                        injectedDesc = injectedDesc.substring(0, m.index + m.length) + " " + m.tag + injectedDesc.substring(m.index + m.length);
-                    }
-                    // ADD TO STORY TAGS LIST (Order list by appearance)
+                    if (!m.isPreTagged) { injectedDesc = injectedDesc.substring(0, m.index + m.length) + " " + m.tag + injectedDesc.substring(m.index + m.length); }
                     if (!finalIncludedTags.includes(m.tag)) finalIncludedTags.push(m.tag);
                 }
             });
-
-            // Re-sort the final Story Tags list by original index
-            const tagIndices = {};
-            validMatches.forEach(m => { if(!currentExclusions.includes(m.name) && tagIndices[m.tag] === undefined) tagIndices[m.tag] = m.index; });
+            const tagIndices = {}; validMatches.forEach(m => { if(!currentExclusions.includes(m.name) && tagIndices[m.tag] === undefined) tagIndices[m.tag] = m.index; });
             const orderedStoryTags = finalIncludedTags.sort((a,b) => tagIndices[a] - tagIndices[b]);
-
-            const rawTagsString = (globalTagsString + " " + xtra).replace(/[, \n\t]+/g, " ");
-            const hashtagRegex = /#\w+/g;
-            const allExtractedHashtags = rawTagsString.match(hashtagRegex) || [];
-            const uniqueHashtags = [...new Set(allExtractedHashtags.map(t => t.toLowerCase()))];
-            const hashes = uniqueHashtags.join(' ');
-
+            const hashes = [...new Set((globalTagsString + " " + xtra).replace(/[, \n\t]+/g, " ").match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
             const body = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${injectedDesc}\n\n${hashes}`;
             document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + body;
             document.getElementById('tagsOnlyOutput').value = orderedStoryTags.join('\n');
-
             if (save) {
                 const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
-                let order;
-                if (existIdx > -1) {
-                    order = eventSchedule[existIdx].order; // PRESERVE ORDER ON EDIT
-                } else {
-                    const currentDayEvents = eventSchedule.filter(e => e.date === date);
-                    order = currentDayEvents.length; // APPEND TO END ON NEW
-                }
-                
-                const obj = { 
-                    eventName: name, 
-                    date, 
-                    location: loc, 
-                    postText: body, 
-                    description: injectedDesc, 
-                    tagsOnly: orderedStoryTags.join('\n'), 
-                    postStatus: 'pending', 
-                    storyStatus: 'pending', 
-                    extraTags: xtra, 
-                    order: order,
-                    excludedNames: currentExclusions 
-                };
+                const order = (existIdx > -1) ? eventSchedule[existIdx].order : eventSchedule.filter(e => e.date === date).length;
+                const obj = { eventName: name, date, location: loc, postText: body, description: injectedDesc, tagsOnly: orderedStoryTags.join('\n'), postStatus: 'pending', storyStatus: 'pending', extraTags: xtra, order: order, excludedNames: currentExclusions };
                 if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
                 if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
-                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-                window.showTab('scheduler');
+                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.showTab('scheduler');
             }
         };
 
         window.saveCurrentAsTemplate = async function() {
             const name = document.getElementById('inputEventName').value.trim();
-            const loc = document.getElementById('inputLocation').value.trim();
-            const desc = document.getElementById('rawDescription').value.trim();
-            const hashtags = document.getElementById('extraHashtagsInput').value.trim();
-            if (!name) return alert("Enter Event Name to use as title.");
-            
-            eventDatabase[name] = { 
-                eventName: name, 
-                location: loc, 
-                description: desc, 
-                extraTags: hashtags,
-                excludedNames: currentExclusions 
-            };
-            await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
-            alert(`Template saved.`); window.renderEventTemplateSelect();
+            if (!name) return alert("Name required.");
+            eventDatabase[name] = { eventName: name, location: document.getElementById('inputLocation').value.trim(), description: document.getElementById('rawDescription').value.trim(), extraTags: document.getElementById('extraHashtagsInput').value.trim(), excludedNames: currentExclusions };
+            await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert(`Template saved.`); window.renderEventTemplateSelect();
         };
 
         window.editTag = (n) => { const d = nameTagDatabase[n]; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; document.getElementById('cancelTagEditBtn').classList.remove('hidden'); };
         window.cancelTagEdit = () => { document.getElementById('newName').value = ''; document.getElementById('newTag').value = ''; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
         window.deleteTag = async (n) => { if(confirm(`Delete tag for ${n}?`)) { delete nameTagDatabase[n]; await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
         window.addNameMapEntry = async () => { 
-            const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(), c = document.getElementById('newCategory').value; 
-            if (!n || !t) return; 
-            let finalTag = t;
-            if (!finalTag.startsWith('@') && !finalTag.startsWith('#')) finalTag = '@' + finalTag;
+            const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(); if (!n || !t) return; 
+            let tag = t.startsWith('@') || t.startsWith('#') ? t : '@' + t;
             if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; 
-            nameTagDatabase[n] = { tag: finalTag, category: c }; 
-            await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); 
-            window.cancelTagEdit(); window.renderNameMap(); 
+            nameTagDatabase[n] = { tag, category: document.getElementById('newCategory').value }; 
+            await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.cancelTagEdit(); window.renderNameMap(); 
         };
         window.bulkImportTags = async () => { 
-            const input = document.getElementById('bulkInstaMapInput').value.trim(); 
-            if(!input) return; 
-            input.split('\n').forEach(l => { 
-                const parts = l.split('\t'); 
-                if(parts.length >= 2) {
-                    const name = parts[0].trim();
-                    let tag = parts[1].trim();
-                    if (!tag.startsWith('@') && !tag.startsWith('#')) tag = '@' + tag;
-                    nameTagDatabase[name] = { tag: tag, category: parts[2] ? parts[2].trim() : 'Other' }; 
-                }
-            }); 
-            await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); 
-            document.getElementById('bulkInstaMapInput').value = ''; window.renderNameMap(); 
+            const input = document.getElementById('bulkInstaMapInput').value.trim(); if(!input) return; 
+            input.split('\n').forEach(l => { const parts = l.split('\t'); if(parts.length >= 2) {
+                let tag = parts[1].trim(); tag = tag.startsWith('@') || tag.startsWith('#') ? tag : '@' + tag;
+                nameTagDatabase[parts[0].trim()] = { tag, category: parts[2] ? parts[2].trim() : 'Other' }; 
+            }}); 
+            await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); document.getElementById('bulkInstaMapInput').value = ''; window.renderNameMap(); 
         };
 
         window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
         window.loadSnippet = () => { const k = document.getElementById('snippetSelect').value; if (textSnippets[k]) { document.getElementById('snippetName').value = k; document.getElementById('snippetContent').value = textSnippets[k]; } };
         window.deleteSnippet = async () => { const k = document.getElementById('snippetSelect').value; if(k && confirm(`Delete snippet ${k}?`)) { delete textSnippets[k]; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); } };
-        
         window.insertSnippet = () => {
-            const k = document.getElementById('editorSnippetSelect').value;
-            if (textSnippets[k]) {
-                const area = document.getElementById('rawDescription');
-                const start = area.selectionStart, end = area.selectionEnd, txt = area.value;
-                area.value = txt.substring(0, start) + textSnippets[k] + txt.substring(end);
-                area.focus();
-                area.selectionStart = area.selectionEnd = start + textSnippets[k].length;
-                document.getElementById('editorSnippetSelect').value = '';
+            const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) {
+                const area = document.getElementById('rawDescription'); const start = area.selectionStart, end = area.selectionEnd, txt = area.value;
+                area.value = txt.substring(0, start) + textSnippets[k] + txt.substring(end); area.focus(); area.selectionStart = area.selectionEnd = start + textSnippets[k].length; document.getElementById('editorSnippetSelect').value = '';
             }
         };
 
         window.saveGlobalHashtags = async () => { globalTagsString = document.getElementById('defaultTagsInput').value.trim(); await saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); };
-        
         window.loadEventTemplate = () => { 
-            const k = document.getElementById('eventTemplateSelect').value; 
-            if (eventDatabase[k]) { 
-                const e = eventDatabase[k]; 
-                document.getElementById('inputEventName').value = e.eventName || k; 
-                document.getElementById('inputLocation').value = e.location || ''; 
-                document.getElementById('rawDescription').value = e.description || ''; 
-                document.getElementById('extraHashtagsInput').value = e.extraTags || ''; 
-                
-                // Restore template exclusions
-                currentExclusions = e.excludedNames || [];
-                
-                window.updateSuggestedTags(); 
-                window.handleClick(false); // Parse immediately to sync UI
+            const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) {
+                const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || '';
+                document.getElementById('rawDescription').value = e.description || ''; document.getElementById('extraHashtagsInput').value = e.extraTags || '';
+                currentExclusions = e.excludedNames || []; window.updateSuggestedTags(); window.handleClick(false);
             } 
         };
-        
         window.loadTemplateForManage = () => {
-            const k = document.getElementById('templateManageSelect').value;
-            if (eventDatabase[k]) {
-                const e = eventDatabase[k];
-                document.getElementById('manageTemplateName').value = e.eventName || k;
-                document.getElementById('manageTemplateLoc').value = e.location || '';
-                document.getElementById('manageTemplateDesc').value = e.description || '';
-                document.getElementById('manageTemplateTags').value = e.extraTags || '';
-            } else {
-                document.getElementById('manageTemplateName').value = '';
-                document.getElementById('manageTemplateLoc').value = '';
-                document.getElementById('manageTemplateDesc').value = '';
-                document.getElementById('manageTemplateTags').value = '';
-            }
+            const k = document.getElementById('templateManageSelect').value; if (eventDatabase[k]) {
+                const e = eventDatabase[k]; document.getElementById('manageTemplateName').value = e.eventName || k; document.getElementById('manageTemplateLoc').value = e.location || '';
+                document.getElementById('manageTemplateDesc').value = e.description || ''; document.getElementById('manageTemplateTags').value = e.extraTags || '';
+            } else { document.getElementById('manageTemplateName').value = ''; document.getElementById('manageTemplateLoc').value = ''; document.getElementById('manageTemplateDesc').value = ''; document.getElementById('manageTemplateTags').value = ''; }
         };
-
         window.saveTemplateFromSettings = async () => {
-            const name = document.getElementById('manageTemplateName').value.trim();
-            const loc = document.getElementById('manageTemplateLoc').value.trim();
-            const desc = document.getElementById('manageTemplateDesc').value.trim();
-            const hashtags = document.getElementById('manageTemplateTags').value.trim();
-            if (!name) return alert("Name required.");
-            const originalKey = document.getElementById('templateManageSelect').value;
-            if (originalKey && originalKey !== name) delete eventDatabase[originalKey];
-            eventDatabase[name] = { eventName: name, location: loc, description: desc, extraTags: hashtags };
-            await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase);
-            alert("Template updated."); window.renderEventTemplateSelect();
+            const name = document.getElementById('manageTemplateName').value.trim(); if (!name) return alert("Name required.");
+            const key = document.getElementById('templateManageSelect').value; if (key && key !== name) delete eventDatabase[key];
+            eventDatabase[name] = { eventName: name, location: document.getElementById('manageTemplateLoc').value.trim(), description: document.getElementById('manageTemplateDesc').value.trim(), extraTags: document.getElementById('manageTemplateTags').value.trim() };
+            await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert("Template updated."); window.renderEventTemplateSelect();
         };
-
-        window.deleteTemplate = async () => {
-            const k = document.getElementById('templateManageSelect').value;
-            if (k && confirm(`Delete template "${k}"?`)) {
-                delete eventDatabase[k]; await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); window.renderEventTemplateSelect(); window.loadTemplateForManage();
-            }
-        };
-
+        window.deleteTemplate = async () => { const k = document.getElementById('templateManageSelect').value; if (k && confirm(`Delete template "${k}"?`)) { delete eventDatabase[k]; await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); window.renderEventTemplateSelect(); window.loadTemplateForManage(); } };
         window.loadEventExtraTags = () => { 
-            const hashtagsInput = document.getElementById('extraHashtagsInput');
-            if (hashtagsInput.value.trim() !== "") { window.updateSuggestedTags(); return; }
-            const n = document.getElementById('inputEventName').value.trim(); 
-            const l = document.getElementById('inputLocation').value.trim(); 
-            if (eventExtraTags[n]) hashtagsInput.value = eventExtraTags[n]; 
-            else if (eventExtraTags[l]) hashtagsInput.value = eventExtraTags[l]; 
-            window.updateSuggestedTags();
+            const input = document.getElementById('extraHashtagsInput'); if (input.value.trim() !== "") { window.updateSuggestedTags(); return; }
+            const n = document.getElementById('inputEventName').value.trim(); const l = document.getElementById('inputLocation').value.trim(); 
+            if (eventExtraTags[n]) input.value = eventExtraTags[n]; else if (eventExtraTags[l]) input.value = eventExtraTags[l]; window.updateSuggestedTags();
         };
-
         window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
-        
         window.loadEventFromHistory = (e) => {
-            document.getElementById('inputEventName').value = e.eventName || "";
-            document.getElementById('inputLocation').value = e.location || "";
-            document.getElementById('rawDescription').value = window.getEventDescription(e);
-            document.getElementById('extraHashtagsInput').value = e.extraTags || "";
-            document.getElementById('inputIsoDate').value = ""; 
-            
-            // History reuse also keeps the exclusions
-            currentExclusions = e.excludedNames || [];
-            
-            window.showTab('editor');
-            window.handleClick(false);
+            document.getElementById('inputEventName').value = e.eventName || ""; document.getElementById('inputLocation').value = e.location || "";
+            document.getElementById('rawDescription').value = window.getEventDescription(e); document.getElementById('extraHashtagsInput').value = e.extraTags || "";
+            document.getElementById('inputIsoDate').value = ""; currentExclusions = e.excludedNames || []; window.showTab('editor'); window.handleClick(false);
         };
-
-        window.initializeSortable = function() {
-            // Reordering logic handled by arrows
-        };
-
-        window.handleDeleteScheduledEvent = async (date, name) => {
-            if (confirm(`Delete ${name}?`)) {
-                eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name));
-                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-                window.renderScheduleList();
-            }
-        };
-
+        window.handleDeleteScheduledEvent = async (date, name) => { if (confirm(`Delete ${name}?`)) { eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name)); await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); } };
         window.copyDayEventNames = (date) => { const names = eventSchedule.filter(e => e.date === date).map(e => e.eventName).join('\n'); window.copyToClipboard(names); };
+        window.closeModal = function(confirmed) { document.getElementById('deleteModal').classList.remove('active'); if (resolveModalPromise) { resolveModalPromise(confirmed); resolveModalPromise = null; } };
 
-        window.closeModal = function(confirmed) {
-            document.getElementById('deleteModal').classList.remove('active');
-            if (resolveModalPromise) { resolveModalPromise(confirmed); resolveModalPromise = null; }
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeSupabase();
-            document.getElementById('inputIsoDate').value = new Date().toISOString().split('T')[0];
-        });
+        document.addEventListener('DOMContentLoaded', () => { initializeSupabase(); document.getElementById('inputIsoDate').value = new Date().toISOString().split('T')[0]; });
     </script>
 </body>
 </html>
