@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Full Moon Posting Scheduler</title>
+    <title>Full Moon Week Scheduler</title>
     <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌕</text></svg>">
     <!-- Load Tailwind CSS -->
@@ -42,7 +42,6 @@
             background-color: #f1f5f9 !important;
         }
         .compact-list-item { padding: 0.2rem 0; font-size: 0.75rem; }
-        .sortable-drag { opacity: 0.6; background-color: #f1f5f9; }
         .settings-grid-container-custom { display: grid; grid-template-columns: 35% 65%; gap: 2rem; }
         @media (max-width: 768px) { .settings-grid-container-custom { grid-template-columns: 1fr; } }
         
@@ -64,7 +63,6 @@
         
         .event-group { border: 1px solid #cbd5e1; padding: 0.75rem; margin-bottom: 1rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-        /* Suggestion Pill Styles */
         .tag-pill {
             display: inline-block;
             padding: 2px 8px;
@@ -81,7 +79,6 @@
         .tag-pill:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .tag-pill.active { background: #4f46e5; color: white; border-color: #4f46e5; }
 
-        /* Active Tag Pill Styles */
         .active-tag-pill {
             display: inline-flex;
             align-items: center;
@@ -101,7 +98,6 @@
             border-color: #e2e8f0;
         }
 
-        /* Order Button Styles */
         .order-btn {
             padding: 0 4px;
             border-radius: 4px;
@@ -118,7 +114,6 @@
 </head>
 <body class="bg-background min-h-screen p-2 sm:p-6 font-sans">
     
-    <!-- Supabase Library Loader -->
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         window.supabaseClient = { createClient };
@@ -167,10 +162,33 @@
                              </div>
                              <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Paste party details here..."></textarea>
                         </div>
+
+                        <!-- QUICK ADD TAG INLINE -->
+                        <div class="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+                            <h3 class="text-[10px] font-bold text-emerald-800 uppercase mb-2">Quick Add Tag to DB</h3>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <input type="text" id="quickName" placeholder="Name (e.g. Mat.Joe)" class="p-1.5 border rounded text-xs">
+                                <div class="flex space-x-1">
+                                    <input type="text" id="quickTag" placeholder="@handle" class="flex-grow p-1.5 border rounded text-xs">
+                                    <button onclick="searchIGInline()" class="px-2 bg-pink-600 text-white rounded text-[10px] font-bold">IG</button>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <select id="quickCategory" class="flex-1 p-1.5 border rounded text-xs bg-white">
+                                    <option value="DJ">DJ</option>
+                                    <option value="Venue">Venue</option>
+                                    <option value="Presenter">Presenter</option>
+                                    <option value="Artist">Artist</option>
+                                    <option value="Label">Label</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <button onclick="saveQuickTag()" class="flex-1 bg-secondary text-white rounded text-xs font-bold py-1.5">Save to DB</button>
+                            </div>
+                        </div>
+
                         <div class="mt-3">
                             <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Extra Hashtags</label>
                             <input type="text" id="extraHashtagsInput" oninput="refreshTagPillStates()" placeholder="Type or click suggestions below..." class="w-full border border-gray-300 rounded-lg p-2 text-sm mb-2">
-                            <!-- SUGGESTED TAGS CONTAINER -->
                             <div id="suggestedTagsContainer" class="flex flex-wrap items-center min-h-[30px] bg-gray-50 p-1.5 rounded border border-dashed border-gray-200">
                                 <span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>
                             </div>
@@ -385,6 +403,7 @@
         let resolveModalPromise = null;
         let currentTagEdit = null;
         let currentExclusions = [];
+        let isSaving = false;
 
         /** UTILITIES **/
         
@@ -441,6 +460,35 @@
             window.open(url, '_blank');
         };
 
+        window.searchIGInline = function() {
+            const name = document.getElementById('quickName').value.trim();
+            if (!name) return alert("Enter a name first.");
+            const url = `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(name)}`;
+            window.open(url, '_blank');
+        };
+
+        /** INLINE TAG SAVE **/
+        window.saveQuickTag = async function() {
+            const n = document.getElementById('quickName').value.trim();
+            const t = document.getElementById('quickTag').value.trim();
+            const c = document.getElementById('quickCategory').value;
+            if (!n || !t) return alert("Name and Handle required.");
+            
+            let tag = t.startsWith('@') || t.startsWith('#') ? t : '@' + t;
+            nameTagDatabase[n] = { tag, category: c };
+            
+            const success = await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+            if (success) {
+                document.getElementById('quickName').value = "";
+                document.getElementById('quickTag').value = "";
+                window.renderNameMap();
+                // Feedback
+                const statusEl = document.getElementById('statusMessage');
+                statusEl.textContent = `Tag ${n} Saved!`;
+                setTimeout(() => { if(!isSaving) statusEl.textContent = "Supabase Live"; }, 2000);
+            }
+        };
+
         /** UI ACTIONS **/
 
         window.showTab = function(tabName) {
@@ -478,13 +526,13 @@
             const idx = dayEvents.findIndex(e => e.eventName === name);
             if (idx === -1) return;
             if (direction === 'up' && idx > 0) {
-                const temp = dayEvents[idx].order;
+                const tempOrder = dayEvents[idx].order;
                 dayEvents[idx].order = dayEvents[idx - 1].order;
-                dayEvents[idx - 1].order = temp;
+                dayEvents[idx - 1].order = tempOrder;
             } else if (direction === 'down' && idx < dayEvents.length - 1) {
-                const temp = dayEvents[idx].order;
+                const tempOrder = dayEvents[idx].order;
                 dayEvents[idx].order = dayEvents[idx + 1].order;
-                dayEvents[idx + 1].order = temp;
+                dayEvents[idx + 1].order = tempOrder;
             } else { return; }
             await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
             window.renderScheduleList();
@@ -614,8 +662,11 @@
                     }
                     supabase.channel(`public_${c.name}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: c.name, filter: 'id=eq.1' }, (payload) => {
                         let updated = c.type === 'array' ? payload.new.events : (c.type === 'string' ? payload.new.tags : payload.new.data);
-                        if (updated !== null) {
-                            if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...updated); }
+                        if (updated !== null && !isSaving) {
+                            if (c.type === 'array') { 
+                                eventSchedule.length = 0; 
+                                eventSchedule.push(...updated); 
+                            }
                             else if (c.type === 'string') { globalTagsString = updated; }
                             else { for(let k in c.globalVar) delete c.globalVar[k]; Object.assign(c.globalVar, updated); }
                             c.render();
@@ -628,11 +679,17 @@
 
         async function saveDataToSupabase(table, data) {
             if (!supabase) return false;
+            isSaving = true;
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = "Syncing Cloud...";
             const payload = { id: 1 };
             if (table === DB_CONFIG.SCHEDULE_DB_KEY) payload.events = data;
             else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) payload.tags = data;
             else payload.data = data;
             const { error } = await supabase.from(table).upsert(payload);
+            isSaving = false;
+            statusEl.textContent = error ? "Sync Error" : "Cloud Saved";
+            setTimeout(() => { if (!isSaving) statusEl.textContent = "Supabase Live"; }, 2000);
             return !error;
         }
 
@@ -791,7 +848,7 @@
             eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done';
             window.renderScheduleList();
             if (saveScheduleTimeout) clearTimeout(saveScheduleTimeout);
-            saveScheduleTimeout = setTimeout(async () => { await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); }, 2500);
+            saveScheduleTimeout = setTimeout(async () => { await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); }, 100);
         };
 
         window.updateText = async function(date, name, val, field) {
@@ -822,8 +879,10 @@
                 let m;
                 while ((m = reg.exec(desc)) !== null) {
                     if (m.index === reg.lastIndex) reg.lastIndex++;
-                    const lookAhead = desc.substring(m.index + m.length, m.index + m.length + 30);
-                    const isPreTagged = lookAhead.includes(d.tag);
+                    // AGGRESSIVE LOOKAHEAD for existing tags (Check for tag within 60 chars)
+                    const lookAheadBuffer = desc.substring(m.index + m.length, m.index + m.length + 60);
+                    // Match handle but ensure it's the exact one
+                    const isPreTagged = lookAheadBuffer.toLowerCase().includes(d.tag.toLowerCase());
                     allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length, isPreTagged: isPreTagged });
                 }
             });
@@ -862,8 +921,8 @@
                 if (isExcluded) {
                     if (m.isPreTagged) {
                         const start = m.index + m.length;
-                        const buffer = injectedDesc.substring(start, start + 40);
-                        const tagPos = buffer.indexOf(m.tag);
+                        const buffer = injectedDesc.substring(start, start + 60);
+                        const tagPos = buffer.toLowerCase().indexOf(m.tag.toLowerCase());
                         if (tagPos !== -1) {
                             injectedDesc = (injectedDesc.substring(0, start + tagPos) + injectedDesc.substring(start + tagPos + m.tag.length)).trim().replace(/  +/g, ' ');
                         }
@@ -908,9 +967,28 @@
             await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert(`Template saved.`); window.renderEventTemplateSelect();
         };
 
-        window.editTag = (n) => { const d = nameTagDatabase[n]; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; document.getElementById('cancelTagEditBtn').classList.remove('hidden'); };
-        window.cancelTagEdit = () => { document.getElementById('newName').value = ''; document.getElementById('newTag').value = ''; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
-        window.deleteTag = async (n) => { if(confirm(`Delete tag for ${n}?`)) { delete nameTagDatabase[n]; await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
+        window.editTag = (n) => { 
+            const d = nameTagDatabase[n]; 
+            document.getElementById('newName').value = n; 
+            document.getElementById('newTag').value = d.tag; 
+            document.getElementById('newCategory').value = d.category; 
+            currentTagEdit = n; 
+            document.getElementById('cancelTagEditBtn').classList.remove('hidden'); 
+            window.showTab('settings');
+        };
+        window.cancelTagEdit = () => { 
+            document.getElementById('newName').value = ''; 
+            document.getElementById('newTag').value = ''; 
+            currentTagEdit = null; 
+            document.getElementById('cancelTagEditBtn').classList.add('hidden'); 
+        };
+        window.deleteTag = async (n) => { 
+            if(confirm(`Delete tag for ${n}?`)) { 
+                delete nameTagDatabase[n]; 
+                await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); 
+                window.renderNameMap(); 
+            } 
+        };
         window.addNameMapEntry = async () => { 
             const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(); if (!n || !t) return; 
             let tag = t.startsWith('@') || t.startsWith('#') ? t : '@' + t;
@@ -1006,7 +1084,7 @@
             window.copyToClipboard(output);
             const statusEl = document.getElementById('statusMessage');
             statusEl.textContent = `Day ${dayNum} Post Copied!`;
-            setTimeout(() => statusEl.textContent = "Supabase Live", 2000);
+            setTimeout(() => { if (!isSaving) statusEl.textContent = "Supabase Live"; }, 2000);
         };
 
         window.copyDayTagsOnly = (date) => {
@@ -1022,7 +1100,7 @@
             window.copyToClipboard(uniqueTags.join('\n'));
             const statusEl = document.getElementById('statusMessage');
             statusEl.textContent = `Day Tags Copied!`;
-            setTimeout(() => statusEl.textContent = "Supabase Live", 2000);
+            setTimeout(() => { if (!isSaving) statusEl.textContent = "Supabase Live"; }, 2000);
         };
 
         window.closeModal = function(confirmed) { document.getElementById('deleteModal').classList.remove('active'); if (resolveModalPromise) { resolveModalPromise(confirmed); resolveModalPromise = null; } };
