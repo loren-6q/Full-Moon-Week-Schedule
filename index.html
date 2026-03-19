@@ -32,13 +32,13 @@
         }
     </script>
     <style>
-        /* Prevent horizontal scroll */
-        body { overflow-x: hidden; width: 100%; position: relative; }
+        /* Prevent horizontal scroll and ensure sticky works */
+        html, body { overflow-x: hidden; width: 100%; height: 100%; margin: 0; padding: 0; }
         
         textarea { font-size: 0.875rem; line-height: 1.5; resize: vertical; }
         #rawDescription { min-height: 150px; }
         #calendarOutput { min-height: 250px; }
-        #tagsOnlyOutput { min-height: 120px; }
+        #tagsOnlyOutput { min-height: 100px; }
         
         .tab-button.active {
             border-bottom: 3px solid #ef4444 !important;
@@ -48,7 +48,6 @@
         }
         
         .compact-list-item { padding: 0.2rem 0; font-size: 0.75rem; }
-        
         .settings-grid-container-custom { display: grid; grid-template-columns: 35% 65%; gap: 2rem; }
         @media (max-width: 768px) { .settings-grid-container-custom { grid-template-columns: 1fr; } }
         
@@ -57,7 +56,7 @@
         .template-box-bg { background-color: #fefce8 !important; } 
         .history-box-bg { background-color: #f8fafc !important; }
         
-        .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; z-index: 100; }
+        .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; z-index: 200; }
         .modal.active { pointer-events: auto; opacity: 1; }
         
         .scheduled-event-card { padding: 0.75rem !important; font-size: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: white; transition: box-shadow 0.2s; cursor: pointer; }
@@ -122,27 +121,37 @@
         }
         .fm-guide-list li { break-inside: avoid; margin-bottom: 0.25rem; }
         @media (max-width: 640px) { .fm-guide-list { column-count: 1; } }
+
+        /* Sticky Navigation fix */
+        #nav-sticky-wrapper {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: white;
+        }
     </style>
 </head>
-<body class="bg-background min-h-screen p-2 sm:p-6 font-sans max-w-full">
+<body class="bg-background min-h-screen font-sans">
     
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         window.supabaseClient = { createClient };
     </script>
     
-    <div class="max-w-7xl mx-auto w-full">
+    <div class="max-w-7xl mx-auto w-full p-2 sm:p-6">
         <header class="text-center mb-1 p-1 bg-white rounded-xl shadow-sm border border-gray-100">
             <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">Full Moon Week Scheduler</h1>
         </header>
         
         <!-- Navigation Tabs (Frozen/Sticky) -->
-        <div class="sticky top-0 z-[60] flex border-b border-gray-200 mb-4 bg-white rounded-t-xl shadow-md overflow-hidden w-full">
-            <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-2 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Event</button>
-            <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-2 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Settings</button>
-            <button id="tab-scheduler-btn" onclick="showTab('scheduler')" class="tab-button flex-1 py-2 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Schedule</button>
-             <button id="tab-calendar-btn" onclick="showTab('calendar')" class="tab-button flex-1 py-2 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Calendar</button>
-            <button id="tab-history-btn" onclick="showTab('history')" class="tab-button flex-1 py-2 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">History</button>
+        <div id="nav-sticky-wrapper">
+            <div class="flex border-b border-gray-200 mb-4 bg-white rounded-t-xl shadow-md overflow-hidden w-full">
+                <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Event</button>
+                <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Settings</button>
+                <button id="tab-scheduler-btn" onclick="showTab('scheduler')" class="tab-button flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Schedule</button>
+                <button id="tab-calendar-btn" onclick="showTab('calendar')" class="tab-button flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Calendar</button>
+                <button id="tab-history-btn" onclick="showTab('history')" class="tab-button flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">History</button>
+            </div>
         </div>
 
         <!-- EDITOR TAB -->
@@ -175,7 +184,7 @@
                              <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Paste party details here..."></textarea>
                         </div>
 
-                        <!-- BULK SCHEDULER SECTION (MOVED BACK) -->
+                        <!-- BULK SCHEDULER SECTION (MOVED BACK TO LEFT COLUMN) -->
                         <div class="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg shadow-inner">
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="text-[10px] font-bold text-amber-800 uppercase">Bulk Recurring Scheduler</h3>
@@ -328,24 +337,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm template-box-bg">
-                        <h2 class="text-lg font-bold mb-4">Templates</h2>
-                        <div class="space-y-4">
-                            <div>
-                                <select id="templateManageSelect" onchange="loadTemplateForManage()" class="w-full p-2 border rounded mb-2 text-sm bg-white"><option value="">--- Load Template ---</option></select>
-                                <input type="text" id="manageTemplateName" placeholder="Template Title" class="w-full p-2 border rounded text-sm mb-2">
-                                <input type="text" id="manageTemplateLoc" placeholder="Location" class="w-full p-2 border rounded text-sm mb-2">
-                                <textarea id="manageTemplateDesc" placeholder="Template description..." class="w-full border rounded p-2 text-sm mb-2" rows="4"></textarea>
-                                <input type="text" id="manageTemplateTags" placeholder="Template hashtags" class="w-full p-2 border rounded text-sm mb-2">
-                                <div class="flex space-x-2">
-                                    <button onclick="saveTemplateFromSettings()" class="flex-1 py-2 bg-gray-500 text-white rounded text-sm">Save</button>
-                                    <button onclick="deleteTemplate()" class="flex-1 py-2 bg-red-500 text-white rounded text-sm">Delete</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h2 class="text-lg font-bold mb-4">Global Hashtags</h2>
                         <textarea id="defaultTagsInput" onblur="saveGlobalHashtags()" class="w-full border rounded p-2 text-sm" rows="4"></textarea>
@@ -380,10 +371,10 @@
     </div>
 
     <!-- PASTE DATES MODAL -->
-    <div id="pasteDatesModal" class="hidden modal fixed inset-0 flex items-center justify-center bg-black/50 z-[100]">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
+    <div id="pasteDatesModal" class="hidden modal fixed inset-0 flex items-center justify-center bg-black/50 z-[1000]">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-amber-600 mb-2 uppercase">Paste Date List</h3>
-            <p class="text-[10px] text-gray-400 mb-2">YYYY-MM-DD format, one per line.</p>
+            <p class="text-[10px] text-gray-500 mb-2">YYYY-MM-DD format, one per line.</p>
             <textarea id="bulkPasteArea" class="w-full border p-2 text-xs rounded mb-4" rows="6" placeholder="2026-12-24&#10;2026-12-31"></textarea>
             <div class="flex justify-end space-x-3">
                 <button onclick="document.getElementById('pasteDatesModal').classList.add('hidden')" class="text-gray-400 text-xs font-bold">Cancel</button>
@@ -394,7 +385,15 @@
 
     <script>
         const FMP_DATES_2026 = ['2026-01-03', '2026-02-02', '2026-03-03', '2026-04-02', '2026-05-01', '2026-06-01', '2026-06-29', '2026-07-31', '2026-08-28', '2026-09-26', '2026-10-27', '2026-11-24', '2026-12-24', '2026-12-31'];
-        const DB_CONFIG = { INSTA_DB_KEY: 'name_tag_database', EVENT_DB_KEY: 'event_templates', SNIPPETS_KEY: 'text_snippets', SCHEDULE_DB_KEY: 'event_schedule', GLOBAL_TAGS_KEY: 'global_tags', EXTRA_TAGS_KEY: 'event_extra_tags', CATEGORIES: ["DJ", "Venue", "Presenter", "Artist", "Label", "Other"] };
+        const DB_CONFIG = {
+            INSTA_DB_KEY: 'name_tag_database', 
+            EVENT_DB_KEY: 'event_templates',     
+            SNIPPETS_KEY: 'text_snippets',       
+            SCHEDULE_DB_KEY: 'event_schedule',   
+            GLOBAL_TAGS_KEY: 'global_tags',      
+            EXTRA_TAGS_KEY: 'event_extra_tags', 
+            CATEGORIES: ["DJ", "Venue", "Presenter", "Artist", "Label", "Other"]
+        };
         const PEAK_DATES = [{ date: '2025-12-05', name: 'December 2025' }, { date: '2025-12-31', name: "NYE & Jan 2026" }, { date: '2026-02-02', name: 'Feb 2026' }, { date: '2026-03-03', name: 'Mar 2026' }, { date: '2026-04-02', name: 'Apr 2026' }, { date: '2026-05-01', name: 'May 2026' }, { date: '2026-05-31', name: 'May/Jun 2026' }, { date: '2026-06-29', name: 'Jun 2026' }, { date: '2026-07-29', name: 'Jul 2026' }, { date: '2026-08-28', name: 'Aug 2026' }, { date: '2026-09-26', name: 'Sep 2026' }, { date: '2026-10-26', name: 'Oct 2026' }, { date: '2026-11-24', name: 'Nov 2026' }, { date: '2026-12-24', name: 'Dec 2026' }, { date: '2026-12-31', name: 'NYE 2026' }];
         const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
@@ -426,7 +425,8 @@
             if (!e.postText) return "";
             const blocks = e.postText.split('\n\n');
             if (blocks.length > 1) {
-                const lastIsHashtag = blocks[blocks.length - 1].trim().startsWith('#');
+                const lastBlock = blocks[blocks.length - 1].trim();
+                const lastIsHashtag = lastBlock.startsWith('#');
                 const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
                 return blocks.slice(1, endIdx).join('\n\n').trim();
             }
@@ -450,6 +450,26 @@
             
             currentExclusions = e.excludedNames || [];
             window.showTab('editor');
+            window.handleClick(false);
+        };
+
+        window.loadEventFromHistory = (e) => {
+            if (!e) return;
+            const description = window.getEventDescription(e);
+            const nameInput = document.getElementById('inputEventName');
+            const locInput = document.getElementById('inputLocation');
+            const descInput = document.getElementById('rawDescription');
+            const xtraInput = document.getElementById('extraHashtagsInput');
+            const isoInput = document.getElementById('inputIsoDate');
+
+            if (nameInput) nameInput.value = e.eventName || ""; 
+            if (locInput) locInput.value = e.location || "";
+            if (descInput) descInput.value = description; 
+            if (xtraInput) xtraInput.value = e.extraTags || "";
+            if (isoInput) isoInput.value = ""; 
+            
+            currentExclusions = e.excludedNames || []; 
+            window.showTab('editor'); 
             window.handleClick(false);
         };
 
@@ -479,26 +499,6 @@
                 list.appendChild(d);
             });
             document.getElementById('emptyHistoryMessage').classList.toggle('hidden', past.length > 0);
-        };
-
-        window.loadEventFromHistory = (e) => {
-            if (!e) return;
-            const description = window.getEventDescription(e);
-            const nameInput = document.getElementById('inputEventName');
-            const locInput = document.getElementById('inputLocation');
-            const descInput = document.getElementById('rawDescription');
-            const xtraInput = document.getElementById('extraHashtagsInput');
-            const isoInput = document.getElementById('inputIsoDate');
-
-            if (nameInput) nameInput.value = e.eventName || ""; 
-            if (locInput) locInput.value = e.location || "";
-            if (descInput) descInput.value = description; 
-            if (xtraInput) xtraInput.value = e.extraTags || "";
-            if (isoInput) isoInput.value = ""; 
-            
-            currentExclusions = e.excludedNames || []; 
-            window.showTab('editor'); 
-            window.handleClick(false);
         };
 
         window.renderScheduleList = function() {
@@ -754,6 +754,7 @@
             else if (tabName === 'calendar') window.renderCalendarSummary();
             else if (tabName === 'settings') { window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); window.renderEventTemplateSelect(); }
             else if (tabName === 'editor') window.updateSuggestedTags();
+            window.scrollTo(0,0);
         };
 
         window.updateText = async function(date, name, val, field) {
@@ -763,7 +764,8 @@
             eventSchedule[idx][field] = cleanVal;
             const blocks = cleanVal.split('\n\n');
             if (blocks.length >= 2) {
-                const lastIsHashtag = blocks[blocks.length - 1].trim().startsWith('#');
+                const lastBlock = blocks[blocks.length - 1].trim();
+                const lastIsHashtag = lastBlock.startsWith('#');
                 const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
                 eventSchedule[idx].description = blocks.slice(1, endIdx).join('\n\n').trim();
             }
@@ -918,26 +920,6 @@
         };
         window.copyDayTagsOnly = (date) => { const tags = [...new Set(window.calculateSequentialDays(eventSchedule).filter(e => e.date === date).map(e => window.findTagForLocation(e.location)).filter(Boolean))]; if (tags.length) window.copyToClipboard(tags.join('\n')); };
 
-        window.loadEventFromHistory = (e) => {
-            if (!e) return;
-            const description = window.getEventDescription(e);
-            const nameInput = document.getElementById('inputEventName');
-            const locInput = document.getElementById('inputLocation');
-            const descInput = document.getElementById('rawDescription');
-            const xtraInput = document.getElementById('extraHashtagsInput');
-            const isoInput = document.getElementById('inputIsoDate');
-
-            if (nameInput) nameInput.value = e.eventName || ""; 
-            if (locInput) locInput.value = e.location || "";
-            if (descInput) descInput.value = description; 
-            if (xtraInput) xtraInput.value = e.extraTags || "";
-            if (isoInput) isoInput.value = ""; 
-            
-            currentExclusions = e.excludedNames || []; 
-            window.showTab('editor'); 
-            window.handleClick(false);
-        };
-
         window.editTag = (n) => { const d = nameTagDatabase[n]; if(!d) return; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; document.getElementById('cancelTagEditBtn').classList.remove('hidden'); window.showTab('settings'); };
         window.cancelTagEdit = () => { document.getElementById('newName').value = ''; document.getElementById('newTag').value = ''; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
         window.deleteTag = async (n) => { if(confirm(`Delete ${n}?`)) { delete nameTagDatabase[n]; await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
@@ -957,12 +939,7 @@
             const nameIn = document.getElementById('manageTemplateName'); if(!nameIn) return;
             const name = nameIn.value.trim(); if (!name) return alert("Name required.");
             const key = document.getElementById('templateManageSelect').value; if (key && key !== name) delete eventDatabase[key];
-            eventDatabase[name] = { 
-                eventName: name, 
-                location: document.getElementById('manageTemplateLoc').value.trim(), 
-                description: document.getElementById('manageTemplateDesc').value.trim(), 
-                extraTags: document.getElementById('manageTemplateTags').value.trim() 
-            };
+            eventDatabase[name] = { eventName: name, location: document.getElementById('manageTemplateLoc').value.trim(), description: document.getElementById('manageTemplateDesc').value.trim(), extraTags: document.getElementById('manageTemplateTags').value.trim() };
             await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert("Template updated."); window.renderEventTemplateSelect();
         };
 
@@ -990,16 +967,11 @@
             const idx = dayEvents.findIndex(e => e.eventName === name);
             if (idx === -1) return;
             if (direction === 'up' && idx > 0) {
-                const tempOrder = dayEvents[idx].order;
-                dayEvents[idx].order = dayEvents[idx - 1].order;
-                dayEvents[idx - 1].order = tempOrder;
+                const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx-1].order; dayEvents[idx-1].order = t;
             } else if (direction === 'down' && idx < dayEvents.length - 1) {
-                const tempOrder = dayEvents[idx].order;
-                dayEvents[idx].order = dayEvents[idx + 1].order;
-                dayEvents[idx + 1].order = tempOrder;
-            } else { return; }
-            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-            window.renderScheduleList();
+                const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx+1].order; dayEvents[idx+1].order = t;
+            }
+            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList();
         };
 
         window.saveSnippet = async () => {
@@ -1028,19 +1000,6 @@
                 await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets);
                 window.renderSnippetSelect();
             }
-        };
-
-        window.moveEvent = async function(date, name, direction) {
-            const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0));
-            dayEvents.forEach((e, i) => e.order = i);
-            const idx = dayEvents.findIndex(e => e.eventName === name);
-            if (idx === -1) return;
-            if (direction === 'up' && idx > 0) {
-                const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx-1].order; dayEvents[idx-1].order = t;
-            } else if (direction === 'down' && idx < dayEvents.length - 1) {
-                const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx+1].order; dayEvents[idx+1].order = t;
-            }
-            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList();
         };
 
         document.addEventListener('DOMContentLoaded', () => { window.initializeSupabase(); const isoInput = document.getElementById('inputIsoDate'); if(isoInput) isoInput.value = new Date().toISOString().split('T')[0]; });
