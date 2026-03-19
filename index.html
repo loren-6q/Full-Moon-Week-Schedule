@@ -127,10 +127,8 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background: #f9fafb; 
+            background: #f9fafb; /* Matches background color */
             padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
         }
     </style>
 </head>
@@ -148,7 +146,7 @@
         
         <!-- Navigation Tabs (Frozen/Sticky) -->
         <div id="nav-sticky-container">
-            <div class="flex border-b border-gray-200 bg-white rounded-t-xl shadow-sm overflow-hidden w-full">
+            <div class="flex border-b border-gray-200 mb-4 bg-white rounded-t-xl shadow-md overflow-hidden w-full">
                 <button id="tab-editor-btn" onclick="showTab('editor')" class="tab-button active flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Event</button>
                 <button id="tab-settings-btn" onclick="showTab('settings')" class="tab-button flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Settings</button>
                 <button id="tab-scheduler-btn" onclick="showTab('scheduler')" class="tab-button flex-1 py-3 text-xs sm:text-sm text-center transition hover:bg-gray-50 uppercase font-bold tracking-wider">Schedule</button>
@@ -248,7 +246,7 @@
                     </div>
                 </div>
 
-                <!-- RIGHT COLUMN: PREVIEW -->
+                <!-- RIGHT COLUMN: PARSING & PREVIEW -->
                 <div class="space-y-4">
                     <div class="bg-indigo-50 p-2 rounded-xl shadow-inner flex flex-col sm:flex-row items-center justify-between border border-indigo-100">
                         <div id="statusMessage" class="text-[9px] font-medium text-indigo-600 mb-1 sm:mb-0 italic">Initializing...</div>
@@ -301,17 +299,6 @@
         <div id="tab-settings-content" class="tab-content hidden">
             <div class="settings-grid-container-custom">
                 <div class="space-y-6">
-                    <!-- EMERGENCY MAINTENANCE (REFINED) -->
-                    <div class="bg-red-50 p-6 rounded-xl border border-red-200 shadow-sm">
-                        <h2 class="text-sm font-bold text-red-800 uppercase mb-3">Emergency Maintenance</h2>
-                        <input type="text" id="maintenanceKeyword" placeholder="Filter by Name (e.g. Psyday)" class="w-full p-2 border rounded text-xs mb-3">
-                        <div class="grid grid-cols-1 gap-2">
-                            <button onclick="shiftSpecificEventsForwardOneDay()" class="w-full py-2 bg-red-600 text-white rounded font-bold text-[10px] uppercase shadow hover:bg-red-700 transition">Shift Both (+1 Day & Sync Text)</button>
-                            <button onclick="syncTemplateTextOnly()" class="w-full py-2 bg-indigo-600 text-white rounded font-bold text-[10px] uppercase shadow hover:bg-indigo-700 transition">Fix Text Only (Sync to current Date)</button>
-                        </div>
-                        <p class="text-[9px] text-gray-500 mt-4 leading-tight italic">Use "Fix Text Only" for events you already shifted where the display text stayed old. Use "Shift Both" for events that still need both shifted.</p>
-                    </div>
-
                     <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 tag-box-bg">
                         <h2 class="text-lg font-bold mb-4">Tag Database</h2>
                         <div class="space-y-2 mb-4">
@@ -321,6 +308,23 @@
                             </select>
                         </div>
                         <div class="max-h-80 overflow-y-auto pr-2"><ul id="databaseList" class="divide-y divide-gray-200"></ul></div>
+                    </div>
+                    <div class="bg-emerald-100 p-6 rounded-xl border border-emerald-200 add-entry-bg">
+                        <h2 class="text-sm font-bold text-emerald-800 uppercase mb-3">Add / Edit Tag</h2>
+                        <div class="space-y-2">
+                            <input type="text" id="newName" placeholder="Display Name" class="w-full p-2 border rounded text-sm">
+                            <div class="flex space-x-2">
+                                <input type="text" id="newTag" placeholder="@instagram_tag" class="flex-grow p-2 border rounded text-sm min-w-0">
+                                <button onclick="searchIGDirectly()" class="px-3 bg-pink-600 text-white rounded text-xs font-bold whitespace-nowrap">Search IG</button>
+                            </div>
+                            <select id="newCategory" class="w-full p-2 border rounded text-sm bg-white">
+                                <option value="DJ">DJ</option><option value="Venue">Venue</option><option value="Presenter">Presenter</option><option value="Artist">Artist</option><option value="Label">Label</option><option value="Other">Other</option>
+                            </select>
+                            <div class="flex space-x-2">
+                                <button onclick="addNameMapEntry()" class="flex-1 py-2 bg-secondary text-white rounded font-bold text-sm">Save Tag</button>
+                                <button id="cancelTagEditBtn" onclick="cancelTagEdit()" class="hidden flex-1 py-2 bg-gray-400 text-white rounded font-bold text-sm">Cancel</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="space-y-6 flex flex-col">
@@ -334,6 +338,22 @@
                             </div>
                         </div>
                     </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm template-box-bg">
+                        <h2 class="text-lg font-bold mb-4">Templates</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <select id="templateManageSelect" onchange="loadTemplateForManage()" class="w-full p-2 border rounded mb-2 text-sm bg-white"><option value="">--- Load Template ---</option></select>
+                                <input type="text" id="manageTemplateName" placeholder="Template Title" class="w-full p-2 border rounded text-sm mb-2">
+                                <input type="text" id="manageTemplateLoc" placeholder="Location" class="w-full p-2 border rounded text-sm mb-2">
+                                <textarea id="manageTemplateDesc" placeholder="Template description..." class="w-full border rounded p-2 text-sm mb-2" rows="4"></textarea>
+                                <input type="text" id="manageTemplateTags" placeholder="Template hashtags" class="w-full p-2 border rounded text-sm mb-2">
+                                <div class="flex space-x-2">
+                                    <button onclick="saveTemplateFromSettings()" class="flex-1 py-2 bg-gray-500 text-white rounded text-sm">Save</button>
+                                    <button onclick="deleteTemplate()" class="flex-1 py-2 bg-red-500 text-white rounded text-sm">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <h2 class="text-lg font-bold mb-4">Global Hashtags</h2>
                         <textarea id="defaultTagsInput" onblur="saveGlobalHashtags()" class="w-full border rounded p-2 text-sm" rows="4"></textarea>
@@ -342,14 +362,14 @@
             </div>
         </div>
         
-        <!-- OTHER TABS -->
         <div id="tab-scheduler-content" class="tab-content hidden">
              <div class="schedule-container p-4 rounded-xl shadow-lg border border-indigo-100 max-w-full">
-                 <h2 class="text-2xl font-bold text-indigo-900 mb-4">Upcoming Schedule</h2>
-                 <div id="scheduledEventsContainer" class="space-y-4 w-full"></div>
-                 <p id="emptyScheduleMessage" class="text-center text-gray-400 italic py-12">No events scheduled.</p>
-             </div>
+                <h2 class="text-2xl font-bold text-indigo-900 mb-4">Upcoming Schedule</h2>
+                <div id="scheduledEventsContainer" class="space-y-4 w-full"></div>
+                <p id="emptyScheduleMessage" class="text-center text-gray-400 italic py-12">No events currently scheduled.</p>
+            </div>
         </div>
+
         <div id="tab-calendar-content" class="tab-content hidden">
             <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-full">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6">Full Moon Calendar View</h2>
@@ -357,8 +377,9 @@
                 <p id="emptyCalendarMessage" class="text-center text-gray-400 italic py-12">No data to display.</p>
             </div>
         </div>
+        
         <div id="tab-history-content" class="tab-content hidden">
-            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 history-box-bg max-w-full">
+             <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 history-box-bg max-w-full">
                 <h2 class="text-2xl font-bold text-gray-500 mb-6">Posting History</h2>
                 <div id="historyEventsList" class="space-y-4 w-full"></div>
                 <p id="emptyHistoryMessage" class="text-center text-gray-400 italic py-12">History is empty.</p>
@@ -368,9 +389,9 @@
 
     <!-- PASTE DATES MODAL -->
     <div id="pasteDatesModal" class="hidden modal fixed inset-0 flex items-center justify-center bg-black/50 z-[1000]">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" onclick="event.stopPropagation()">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
             <h3 class="text-lg font-bold text-amber-600 mb-2 uppercase">Paste Date List</h3>
-            <p class="text-[10px] text-gray-400 mb-2">YYYY-MM-DD format, one per line.</p>
+            <p class="text-[10px] text-gray-500 mb-2">YYYY-MM-DD format, one per line.</p>
             <textarea id="bulkPasteArea" class="w-full border p-2 text-xs rounded mb-4" rows="6" placeholder="2026-12-24&#10;2026-12-31"></textarea>
             <div class="flex justify-end space-x-3">
                 <button onclick="document.getElementById('pasteDatesModal').classList.add('hidden')" class="text-gray-400 text-xs font-bold">Cancel</button>
@@ -381,7 +402,15 @@
 
     <script>
         const FMP_DATES_2026 = ['2026-01-03', '2026-02-02', '2026-03-03', '2026-04-02', '2026-05-01', '2026-06-01', '2026-06-29', '2026-07-31', '2026-08-28', '2026-09-26', '2026-10-27', '2026-11-24', '2026-12-24', '2026-12-31'];
-        const DB_CONFIG = { INSTA_DB_KEY: 'name_tag_database', EVENT_DB_KEY: 'event_templates', SNIPPETS_KEY: 'text_snippets', SCHEDULE_DB_KEY: 'event_schedule', GLOBAL_TAGS_KEY: 'global_tags', EXTRA_TAGS_KEY: 'event_extra_tags', CATEGORIES: ["DJ", "Venue", "Presenter", "Artist", "Label", "Other"] };
+        const DB_CONFIG = {
+            INSTA_DB_KEY: 'name_tag_database', 
+            EVENT_DB_KEY: 'event_templates',     
+            SNIPPETS_KEY: 'text_snippets',       
+            SCHEDULE_DB_KEY: 'event_schedule',   
+            GLOBAL_TAGS_KEY: 'global_tags',      
+            EXTRA_TAGS_KEY: 'event_extra_tags', 
+            CATEGORIES: ["DJ", "Venue", "Presenter", "Artist", "Label", "Other"]
+        };
         const PEAK_DATES = [{ date: '2025-12-05', name: 'December 2025' }, { date: '2025-12-31', name: "NYE & Jan 2026" }, { date: '2026-02-02', name: 'Feb 2026' }, { date: '2026-03-03', name: 'Mar 2026' }, { date: '2026-04-02', name: 'Apr 2026' }, { date: '2026-05-01', name: 'May 2026' }, { date: '2026-05-31', name: 'May/Jun 2026' }, { date: '2026-06-29', name: 'Jun 2026' }, { date: '2026-07-29', name: 'Jul 2026' }, { date: '2026-08-28', name: 'Aug 2026' }, { date: '2026-09-26', name: 'Sep 2026' }, { date: '2026-10-26', name: 'Oct 2026' }, { date: '2026-11-24', name: 'Nov 2026' }, { date: '2026-12-24', name: 'Dec 2026' }, { date: '2026-12-31', name: 'NYE 2026' }];
         const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
@@ -394,7 +423,7 @@
         
         window.calculateSequentialDays = function(events) { 
             const sorted = [...events].sort((a,b) => {
-                const dateDiff = new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00');
+                const dateDiff = new Date(a.date) - new Date(b.date);
                 return dateDiff !== 0 ? dateDiff : (a.order || 0) - (b.order || 0);
             });
             let day = 1, last = null;
@@ -419,55 +448,6 @@
                 return blocks.slice(1, endIdx).join('\n\n').trim();
             }
             return e.postText.trim();
-        };
-
-        /** MAINTENANCE SURGICAL FIXES **/
-        window.shiftSpecificEventsForwardOneDay = async () => {
-            const kwInput = document.getElementById('maintenanceKeyword');
-            if(!kwInput) return;
-            const kw = kwInput.value.trim().toLowerCase();
-            if(!kw) return alert("Please enter a keyword.");
-
-            const matches = eventSchedule.filter(e => e.eventName.toLowerCase().includes(kw));
-            if(matches.length === 0) return alert(`No matching events found.`);
-
-            if(!confirm(`Found ${matches.length} matches. Shift BOTH Date +1 and Text Sync?`)) return;
-
-            eventSchedule.forEach(e => {
-                if(e.eventName.toLowerCase().includes(kw)) {
-                    const d = new Date(e.date + 'T00:00:00');
-                    d.setDate(d.getDate() + 1);
-                    const newIsoDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                    e.date = newIsoDate;
-                    const newFriendly = window.formatDateFriendly(newIsoDate);
-                    e.postText = e.postText.replace(/🗓 DATE: .*/, `🗓 DATE: ${newFriendly}`);
-                }
-            });
-
-            const success = await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-            if (success) { window.renderScheduleList(); alert(`Updated ${matches.length} events (Shift + Text Sync).`); kwInput.value = ""; }
-        };
-
-        window.syncTemplateTextOnly = async () => {
-            const kwInput = document.getElementById('maintenanceKeyword');
-            if(!kwInput) return;
-            const kw = kwInput.value.trim().toLowerCase();
-            if(!kw) return alert("Please enter a keyword.");
-
-            const matches = eventSchedule.filter(e => e.eventName.toLowerCase().includes(kw));
-            if(matches.length === 0) return alert(`No matching events found.`);
-
-            if(!confirm(`Fixing TEXT ONLY for ${matches.length} matches to match their current metadata dates. Correct?`)) return;
-
-            eventSchedule.forEach(e => {
-                if(e.eventName.toLowerCase().includes(kw)) {
-                    const friendly = window.formatDateFriendly(e.date);
-                    e.postText = e.postText.replace(/🗓 DATE: .*/, `🗓 DATE: ${friendly}`);
-                }
-            });
-
-            const success = await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-            if (success) { window.renderScheduleList(); alert(`Fixed template text for ${matches.length} events.`); kwInput.value = ""; }
         };
 
         window.loadEventForEdit = function(e) {
@@ -514,7 +494,7 @@
             const list = document.getElementById('historyEventsList'); 
             if (!list) return;
             list.innerHTML = '';
-            past.sort((a,b) => new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00')).forEach((e, idx) => {
+            past.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((e, idx) => {
                 const uniqueId = `hist-${idx}`; 
                 const escName = e.eventName.replace(/'/g, "\\'"); 
                 const escDate = e.date.replace(/'/g, "\\'");
@@ -541,6 +521,8 @@
         window.renderScheduleList = function() {
             const containerEl = document.getElementById('scheduledEventsContainer');
             const historyListEl = document.getElementById('historyEventsList');
+            
+            // Get local yesterday string
             const today = new Date();
             today.setDate(today.getDate() - 1);
             const yesterdayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
@@ -588,14 +570,14 @@
                                         <button onclick="event.stopPropagation(); window.toggleStatus('${escDate}','${escName}','media')" class="px-2 py-0.5 rounded text-[10px] border ${e.mediaStatus==='done'?'bg-indigo-600 text-white border-indigo-700':'bg-white text-gray-400 border-gray-200'}">🎬</button>
                                         <button onclick="event.stopPropagation(); window.toggleStatus('${escDate}','${escName}','post')" class="px-2 py-0.5 rounded text-[10px] border ${e.postStatus==='done'?'bg-green-500 text-white border-green-600':'bg-white text-gray-400 border-gray-200'}">POST</button>
                                         <button onclick="event.stopPropagation(); window.toggleStatus('${escDate}','${escName}','story')" class="px-2 py-0.5 rounded text-[10px] border ${e.storyStatus==='done'?'bg-green-500 text-white border-green-600':'bg-white text-gray-400 border-gray-200'}">STORY</button>
-                                        <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('pt-${e.date}-${idName}').value)" class="px-2 py-0.5 bg-primary text-white rounded text-[10px]">Post</button>
-                                        <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('tg-${e.date}-${idName}').value)" class="px-2 py-0.5 bg-secondary text-white rounded text-[10px]">Tags</button>
+                                        <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('pt-${escDate}-${idName}').value)" class="px-2 py-0.5 bg-primary text-white rounded text-[10px]">Post</button>
+                                        <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('tg-${escDate}-${idName}').value)" class="px-2 py-0.5 bg-secondary text-white rounded text-[10px]">Tags</button>
                                         <button onclick="event.stopPropagation(); window.handleDeleteScheduledEvent('${escDate}','${escName}')" class="text-red-300 ml-1">✕</button>
                                     </div>
                                 </div>
                                 <div class="flex space-x-2">
-                                    <textarea id="pt-${e.date}-${idName}" onblur="window.updateText('${escDate}','${escName}',this.value,'postText')" class="flex-1 text-[9px] h-12 border rounded p-1 leading-tight font-sans">${postWithDay}</textarea>
-                                    <textarea id="tg-${e.date}-${idName}" onblur="window.updateText('${escDate}','${escName}',this.value,'tagsOnly')" class="w-16 text-[9px] h-12 border rounded p-1 leading-tight font-mono">${e.tagsOnly}</textarea>
+                                    <textarea id="pt-${escDate}-${idName}" onblur="window.updateText('${escDate}','${escName}',this.value,'postText')" class="flex-1 text-[9px] h-12 border rounded p-1 leading-tight font-sans">${postWithDay}</textarea>
+                                    <textarea id="tg-${escDate}-${idName}" onblur="window.updateText('${escDate}','${escName}',this.value,'tagsOnly')" class="w-16 text-[9px] h-12 border rounded p-1 leading-tight font-mono">${e.tagsOnly}</textarea>
                                 </div>
                             </div>
                         </div>`;
@@ -604,6 +586,56 @@
                 containerEl.appendChild(gDiv);
             }
             window.renderHistory(past);
+        };
+
+        window.updateSuggestedTags = function() {
+            const container = document.getElementById('suggestedTagsContainer');
+            if (!container) return;
+            const eventNameInput = document.getElementById('inputEventName');
+            const locationInput = document.getElementById('inputLocation');
+            if(!eventNameInput || !locationInput) return;
+            
+            const eventName = eventNameInput.value.trim().toLowerCase();
+            const location = locationInput.value.trim().toLowerCase();
+            const candidates = new Set();
+            if (eventName && eventExtraTags[eventName]) eventExtraTags[eventName].split(/[, ]+/).forEach(t => candidates.add(t));
+            if (location && eventExtraTags[location]) eventExtraTags[location].split(/[, ]+/).forEach(t => candidates.add(t));
+            eventSchedule.forEach(e => {
+                if ((eventName && e.eventName?.toLowerCase() === eventName) || (location && e.location?.toLowerCase() === location)) {
+                    if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => candidates.add(t));
+                }
+            });
+            const unique = [...new Set(Array.from(candidates).map(t => t.trim()).filter(t => t.length > 1).map(t => t.startsWith('#') ? t : '#' + t).map(t => t.toLowerCase()))];
+            const existingHeader = container.querySelector('span');
+            container.innerHTML = ''; if (existingHeader) container.appendChild(existingHeader);
+            if (unique.length === 0) { container.innerHTML += `<span class="text-[9px] text-gray-300 italic py-1">No matches found...</span>`; return; }
+            unique.forEach(tag => {
+                const pill = document.createElement('div'); pill.className = 'tag-pill'; pill.textContent = tag;
+                pill.onclick = () => window.toggleHashtag(tag); container.appendChild(pill);
+            });
+            window.refreshTagPillStates();
+        };
+
+        window.refreshTagPillStates = function() {
+            const xtraInput = document.getElementById('extraHashtagsInput');
+            if(!xtraInput) return;
+            const inputVal = xtraInput.value.toLowerCase();
+            const tagsInInput = inputVal.match(/#\w+/g) || [];
+            document.querySelectorAll('.tag-pill').forEach(pill => {
+                if (tagsInInput.includes(pill.textContent.toLowerCase())) pill.classList.add('active');
+                else pill.classList.remove('active');
+            });
+        };
+
+        window.toggleHashtag = function(tag) {
+            const input = document.getElementById('extraHashtagsInput');
+            if(!input) return;
+            const currentVal = input.value.toLowerCase();
+            const tagsInInput = currentVal.match(/#\w+/g) || [];
+            if (tagsInInput.includes(tag.toLowerCase())) {
+                const regex = new RegExp(tag, 'gi'); input.value = input.value.replace(regex, '').replace(/  +/g, ' ').trim();
+            } else { input.value = (input.value.trim() + " " + tag).trim(); }
+            window.refreshTagPillStates();
         };
 
         window.initializeSupabase = async function() {
@@ -669,7 +701,75 @@
             return !error;
         }
 
-        /** HANDLERS **/
+        window.toggleBulkMode = () => { bulkMode = !bulkMode; const btn = document.getElementById('bulkModeBtn'); if(btn) btn.textContent = bulkMode ? 'Disable' : 'Enable'; const ctrls = document.getElementById('bulkControls'); if(ctrls) ctrls.classList.toggle('hidden', !bulkMode); updateBulkUI(); };
+        window.updateBulkUI = () => {
+            const typeSelect = document.getElementById('bulkType');
+            if(!typeSelect) return;
+            const type = typeSelect.value;
+            const manCtrl = document.getElementById('manualDatesContainer'); if(manCtrl) manCtrl.classList.toggle('hidden', type !== 'manual');
+            const weekDaySelect = document.getElementById('weeklyDay'); if(weekDaySelect) weekDaySelect.classList.toggle('hidden', type !== 'weekly');
+            const execBtn = document.getElementById('bulkExecuteBtn'); if(execBtn) execBtn.textContent = type === 'weekly' ? 'Generate for 2026' : 'Apply Bulk Schedule';
+        };
+        window.addBulkDate = () => { const input = document.getElementById('addBulkDateInput'); if(!input) return; const d = input.value; if (d && !bulkDates.includes(d)) { bulkDates.push(d); renderBulkDatePills(); } };
+        window.importBulkDates = () => {
+            const pasteArea = document.getElementById('bulkPasteArea'); if(!pasteArea) return;
+            const raw = pasteArea.value;
+            const lines = raw.split(/[\n,]/).map(l => l.trim()).filter(l => /^\d{4}-\d{2}-\d{2}$/.test(l));
+            lines.forEach(d => { if(!bulkDates.includes(d)) bulkDates.push(d); });
+            renderBulkDatePills();
+            const modal = document.getElementById('pasteDatesModal'); if(modal) modal.classList.add('hidden');
+            pasteArea.value = "";
+        };
+        window.removeBulkDate = (d) => { bulkDates = bulkDates.filter(x => x !== d); renderBulkDatePills(); };
+        function renderBulkDatePills() { const list = document.getElementById('bulkDateList'); if(list) list.innerHTML = bulkDates.map(d => `<span class="bg-amber-100 text-amber-800 text-[9px] px-1 rounded flex items-center">${d} <button onclick="window.removeBulkDate('${d}')" class="ml-1 text-red-500 font-bold">✕</button></span>`).join(''); }
+
+        window.executeBulkSave = async () => {
+            const nameInput = document.getElementById('inputEventName');
+            if (!nameInput) return;
+            const name = nameInput.value.trim();
+            const type = document.getElementById('bulkType').value;
+            if (!name) return alert("Event name required.");
+            let targetDates = [];
+            if (type === 'manual') targetDates = [...bulkDates];
+            else {
+                const targetDay = parseInt(document.getElementById('weeklyDay').value);
+                FMP_DATES_2026.forEach(fmpStr => {
+                    const fmp = new Date(fmpStr + 'T00:00:00');
+                    for (let i = -4; i <= 4; i++) {
+                        const check = new Date(fmp); check.setDate(fmp.getDate() + i);
+                        if (check.getDay() === targetDay) {
+                            // LOCAL DATE STRING FIX
+                            const ds = check.getFullYear() + '-' + String(check.getMonth() + 1).padStart(2, '0') + '-' + String(check.getDate()).padStart(2, '0');
+                            targetDates.push(ds);
+                        }
+                    }
+                });
+            }
+            if (!targetDates.length) return alert("No dates found.");
+            for (const d of targetDates) {
+                const isoInput = document.getElementById('inputIsoDate');
+                if (isoInput) isoInput.value = d; 
+                await window.handleClick(true);
+            }
+            alert(`Bulk Scheduled ${targetDates.length} events.`); bulkDates = []; renderBulkDatePills();
+        };
+
+        window.saveQuickTag = async function() {
+            const nInput = document.getElementById('quickName');
+            const tInput = document.getElementById('quickTag');
+            const cInput = document.getElementById('quickCategory');
+            if (!nInput || !tInput || !cInput) return;
+            const n = nInput.value.trim(); const t = tInput.value.trim(); const c = cInput.value;
+            if (!n || !t) return;
+            const { data } = await supabase.from(DB_CONFIG.INSTA_DB_KEY).select('*').eq('id', 1).single();
+            const currentDB = data?.data || {};
+            currentDB[n] = { tag: (t.startsWith('@') || t.startsWith('#') ? t : '@' + t), category: c };
+            if (await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, currentDB)) {
+                Object.assign(nameTagDatabase, currentDB);
+                nInput.value = ""; tInput.value = ""; window.renderNameMap();
+            }
+        };
+
         window.showTab = function(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
@@ -683,50 +783,19 @@
             window.scrollTo(0,0);
         };
 
-        window.updateSuggestedTags = function() {
-            const container = document.getElementById('suggestedTagsContainer');
-            if (!container) return;
-            const eventNameInput = document.getElementById('inputEventName');
-            const locationInput = document.getElementById('inputLocation');
-            if(!eventNameInput || !locationInput) return;
-            const eventName = eventNameInput.value.trim().toLowerCase();
-            const location = locationInput.value.trim().toLowerCase();
-            const candidates = new Set();
-            if (eventName && eventExtraTags[eventName]) eventExtraTags[eventName].split(/[, ]+/).forEach(t => candidates.add(t));
-            if (location && eventExtraTags[location]) eventExtraTags[location].split(/[, ]+/).forEach(t => candidates.add(t));
-            eventSchedule.forEach(e => {
-                if ((eventName && e.eventName?.toLowerCase() === eventName) || (location && e.location?.toLowerCase() === location)) {
-                    if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => candidates.add(t));
-                }
-            });
-            const unique = [...new Set(Array.from(candidates).map(t => t.trim()).filter(t => t.length > 1).map(t => t.startsWith('#') ? t : '#' + t).map(t => t.toLowerCase()))];
-            container.innerHTML = '<span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>';
-            if (unique.length === 0) { container.innerHTML += `<span class="text-[9px] text-gray-300 italic py-1">No matches found...</span>`; return; }
-            unique.forEach(tag => {
-                const pill = document.createElement('div'); pill.className = 'tag-pill'; pill.textContent = tag;
-                pill.onclick = () => window.toggleHashtag(tag); container.appendChild(pill);
-            });
-            window.refreshTagPillStates();
-        };
-
-        window.refreshTagPillStates = function() {
-            const xtraInput = document.getElementById('extraHashtagsInput');
-            if(!xtraInput) return;
-            const tagsInInput = xtraInput.value.toLowerCase().match(/#\w+/g) || [];
-            document.querySelectorAll('.tag-pill').forEach(pill => {
-                if (tagsInInput.includes(pill.textContent.toLowerCase())) pill.classList.add('active');
-                else pill.classList.remove('active');
-            });
-        };
-
-        window.toggleHashtag = function(tag) {
-            const input = document.getElementById('extraHashtagsInput');
-            if(!input) return;
-            const currentVal = input.value.toLowerCase();
-            if (currentVal.includes(tag.toLowerCase())) {
-                const regex = new RegExp(tag, 'gi'); input.value = input.value.replace(regex, '').replace(/  +/g, ' ').trim();
-            } else { input.value = (input.value.trim() + " " + tag).trim(); }
-            window.refreshTagPillStates();
+        window.updateText = async function(date, name, val, field) {
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+            if (idx === -1) return;
+            const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, '');
+            eventSchedule[idx][field] = cleanVal;
+            const blocks = cleanVal.split('\n\n');
+            if (blocks.length >= 2) {
+                const lastBlock = blocks[blocks.length - 1].trim();
+                const lastIsHashtag = lastBlock.startsWith('#');
+                const endIdx = lastIsHashtag ? blocks.length - 1 : blocks.length;
+                eventSchedule[idx].description = blocks.slice(1, endIdx).join('\n\n').trim();
+            }
+            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
         window.handleClick = async function(save) {
@@ -768,9 +837,9 @@
                 const pill = document.createElement('div'); pill.className = `active-tag-pill cursor-pointer ${isExcluded ? 'excluded' : ''}`;
                 pill.innerHTML = `${n} ${isExcluded ? '+' : '✕'}`; pill.onclick = () => window.toggleTagExclusion(n); if(tagManager) tagManager.appendChild(pill);
             });
-            const storyTags = []; const seenTags = new Set();
+            const seenTagsForStory = new Set(); const storyTagsToInclude = [];
             const sortedIndices = [...validMatches].sort((a,b) => a.index - b.index);
-            sortedIndices.forEach(m => { if (!currentExclusions.includes(m.name) && !seenTags.has(m.tag)) { seenTags.add(m.tag); storyTags.push(m); } });
+            sortedIndices.forEach(m => { if (!currentExclusions.includes(m.name) && !seenTagsForStory.has(m.tag)) { seenTagsForStory.add(m.tag); storyTagsToInclude.push(m); } });
             let injectedDesc = desc; const seenInjections = new Set();
             const injectionQueue = [...validMatches].sort((a, b) => b.index - a.index);
             injectionQueue.forEach(m => {
@@ -785,13 +854,14 @@
             });
             const hashes = [...new Set((globalTagsString + " " + xtra).replace(/[, \n\t]+/g, " ").match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
             const body = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${injectedDesc}\n\n${hashes}`;
-            if (document.getElementById('calendarOutput')) document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + body;
-            if (document.getElementById('tagsOnlyOutput')) document.getElementById('tagsOnlyOutput').value = storyTags.map(m => m.tag).join('\n');
+            const outText = "🌕Full Moon Week - Day X🌕\n" + body;
+            const calOut = document.getElementById('calendarOutput'); if (calOut) calOut.value = outText;
+            const tagOut = document.getElementById('tagsOnlyOutput'); if (tagOut) tagOut.value = storyTagsToInclude.map(m => m.tag).join('\n');
             if (save) {
                 const existIdx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
                 let order = (existIdx > -1) ? eventSchedule[existIdx].order : eventSchedule.filter(e => e.date === date).length;
                 let mediaStatus = (existIdx > -1) ? eventSchedule[existIdx].mediaStatus || 'pending' : 'pending';
-                const obj = { eventName: name, date, location: loc, postText: body, description: injectedDesc, tagsOnly: storyTags.map(m => m.tag).join('\n'), postStatus: 'pending', storyStatus: 'pending', mediaStatus, extraTags: xtra, order, excludedNames: currentExclusions };
+                const obj = { eventName: name, date, location: loc, postText: body, description: injectedDesc, tagsOnly: storyTagsToInclude.map(m => m.tag).join('\n'), postStatus: 'pending', storyStatus: 'pending', mediaStatus, extraTags: xtra, order, excludedNames: currentExclusions };
                 if (existIdx > -1) eventSchedule[existIdx] = obj; else eventSchedule.push(obj);
                 if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
                 await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); if(!bulkMode) window.showTab('scheduler');
@@ -838,41 +908,125 @@
             });
         };
 
-        window.toggleStatus = async function(date, name, type) {
-            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
-            if (idx === -1) return;
-            const field = type === 'post' ? 'postStatus' : (type === 'story' ? 'storyStatus' : 'mediaStatus');
-            eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done';
-            window.renderScheduleList(); if (saveScheduleTimeout) clearTimeout(saveScheduleTimeout);
-            saveScheduleTimeout = setTimeout(async () => { await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); }, 100);
-        };
-
-        window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
         window.searchIGDirectly = () => { const nameInput = document.getElementById('newName'); if (nameInput && nameInput.value.trim()) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(nameInput.value.trim())}`, '_blank'); };
         window.searchIGInline = () => { const nameInput = document.getElementById('quickName'); if (nameInput && nameInput.value.trim()) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(nameInput.value.trim())}`, '_blank'); };
-        window.renderSnippetSelect = function() { const html = '<option value="">--- Snippets ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const s1 = document.getElementById('snippetSelect'); if(s1) s1.innerHTML = html; const s2 = document.getElementById('editorSnippetSelect'); if(s2) s2.innerHTML = html; };
+
+        window.renderSnippetSelect = function() { 
+            const html = '<option value="">--- Snippets ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); 
+            const s1 = document.getElementById('snippetSelect'); if(s1) s1.innerHTML = html; 
+            const s2 = document.getElementById('editorSnippetSelect'); if(s2) s2.innerHTML = html; 
+        };
         window.renderGlobalTags = () => { const input = document.getElementById('defaultTagsInput'); if (input) input.value = globalTagsString; };
-        window.renderEventTemplateSelect = () => { const options = '<option value="">--- Templates ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const t1 = document.getElementById('eventTemplateSelect'); if(t1) t1.innerHTML = options; const t2 = document.getElementById('templateManageSelect'); if(t2) t2.innerHTML = options; };
-        window.loadEventTemplate = () => { const sel = document.getElementById('eventTemplateSelect'); if(!sel) return; const k = sel.value; if (eventDatabase[k]) { const e = eventDatabase[k]; const nameIn = document.getElementById('inputEventName'); if(nameIn) nameIn.value = e.eventName || k; const locIn = document.getElementById('inputLocation'); if(locIn) locIn.value = e.location || ''; const descIn = document.getElementById('rawDescription'); if(descIn) descIn.value = e.description || ''; const xtraIn = document.getElementById('extraHashtagsInput'); if(xtraIn) xtraIn.value = e.extraTags || ''; currentExclusions = e.excludedNames || []; window.updateSuggestedTags(); window.handleClick(false); } };
+        window.renderEventTemplateSelect = () => { 
+            const options = '<option value="">--- Templates ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join('');
+            const t1 = document.getElementById('eventTemplateSelect'); if(t1) t1.innerHTML = options; 
+            const t2 = document.getElementById('templateManageSelect'); if(t2) t2.innerHTML = options;
+        };
+
+        window.loadEventTemplate = () => { 
+            const sel = document.getElementById('eventTemplateSelect'); if(!sel) return;
+            const k = sel.value; if (eventDatabase[k]) {
+                const e = eventDatabase[k];
+                const nameIn = document.getElementById('inputEventName'); if(nameIn) nameIn.value = e.eventName || k;
+                const locIn = document.getElementById('inputLocation'); if(locIn) locIn.value = e.location || '';
+                const descIn = document.getElementById('rawDescription'); if(descIn) descIn.value = e.description || '';
+                const xtraIn = document.getElementById('extraHashtagsInput'); if(xtraIn) xtraIn.value = e.extraTags || '';
+                currentExclusions = e.excludedNames || []; window.updateSuggestedTags(); window.handleClick(false);
+            } 
+        };
+
         window.findTagForLocation = (l) => { if(!l) return ""; const sorted = Object.entries(nameTagDatabase).sort((a,b) => b[0].length - a[0].length); for(const [n,d] of sorted){ if(new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'i').test(l)) return d.tag || ""; } return ""; };
-        window.copyDayEventNames = (date) => { const dayEvents = window.calculateSequentialDays(eventSchedule).filter(e => e.date === date); if (!dayEvents.length) return; const list = dayEvents.map(e => `${e.eventName} - ${e.location}${window.findTagForLocation(e.location) ? ' ' + window.findTagForLocation(e.location) : ''}`).join('\n'); const hashes = [...new Set(globalTagsString.match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' '); window.copyToClipboard(`🌕Full Moon Week - Day ${dayEvents[0].dayNumber}🌕\n🗓 DATE: ${window.formatDateFriendly(date)}\n\nToday's events:\n\n${list}\n\n${hashes}`); };
+        
+        window.copyDayEventNames = (date) => { 
+            const dayEvents = window.calculateSequentialDays(eventSchedule).filter(e => e.date === date);
+            if (!dayEvents.length) return;
+            const list = dayEvents.map(e => `${e.eventName} - ${e.location}${window.findTagForLocation(e.location) ? ' ' + window.findTagForLocation(e.location) : ''}`).join('\n');
+            const hashes = [...new Set(globalTagsString.match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
+            window.copyToClipboard(`🌕Full Moon Week - Day ${dayEvents[0].dayNumber}🌕\n🗓 DATE: ${window.formatDateFriendly(date)}\n\nToday's events:\n\n${list}\n\n${hashes}`);
+        };
         window.copyDayTagsOnly = (date) => { const tags = [...new Set(window.calculateSequentialDays(eventSchedule).filter(e => e.date === date).map(e => window.findTagForLocation(e.location)).filter(Boolean))]; if (tags.length) window.copyToClipboard(tags.join('\n')); };
+
         window.editTag = (n) => { const d = nameTagDatabase[n]; if(!d) return; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; document.getElementById('cancelTagEditBtn').classList.remove('hidden'); window.showTab('settings'); };
         window.cancelTagEdit = () => { document.getElementById('newName').value = ''; document.getElementById('newTag').value = ''; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
         window.deleteTag = async (n) => { if(confirm(`Delete ${n}?`)) { delete nameTagDatabase[n]; await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
         window.saveGlobalHashtags = async () => { const input = document.getElementById('defaultTagsInput'); if(input) { globalTagsString = input.value.trim(); await saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); } };
         window.handleDeleteScheduledEvent = async (date, name) => { if (confirm(`Delete ${name}?`)) { eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name)); await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); } };
-        window.closeModal = function(confirmed) { document.getElementById('deleteModal').classList.remove('active'); };
-        window.insertSnippet = () => { const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) { const area = document.getElementById('rawDescription'); const start = area.selectionStart, end = area.selectionEnd, txt = area.value; area.value = txt.substring(0, start) + textSnippets[k] + txt.substring(end); area.focus(); area.selectionStart = area.selectionEnd = start + textSnippets[k].length; document.getElementById('editorSnippetSelect').value = ''; } };
-        window.saveTemplateFromSettings = async () => { const nameIn = document.getElementById('manageTemplateName'); if(!nameIn) return; const name = nameIn.value.trim(); if (!name) return alert("Name required."); const key = document.getElementById('templateManageSelect').value; if (key && key !== name) delete eventDatabase[key]; eventDatabase[name] = { eventName: name, location: document.getElementById('manageTemplateLoc').value.trim(), description: document.getElementById('manageTemplateDesc').value.trim(), extraTags: document.getElementById('manageTemplateTags').value.trim() }; await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert("Template updated."); window.renderEventTemplateSelect(); };
-        window.loadTemplateForManage = () => { const k = document.getElementById('templateManageSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('manageTemplateName').value = e.eventName || k; document.getElementById('manageTemplateLoc').value = e.location || ''; document.getElementById('manageTemplateDesc').value = e.description || ''; document.getElementById('manageTemplateTags').value = e.extraTags || ''; } else { document.getElementById('manageTemplateName').value = ''; document.getElementById('manageTemplateLoc').value = ''; document.getElementById('manageTemplateDesc').value = ''; document.getElementById('manageTemplateTags').value = ''; } };
+        window.closeModal = function(confirmed) { document.getElementById('deleteModal').classList.remove('active'); if (resolveModalPromise) { resolveModalPromise(confirmed); resolveModalPromise = null; } };
+        window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
+        
+        window.insertSnippet = () => {
+            const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) {
+                const area = document.getElementById('rawDescription'); const start = area.selectionStart, end = area.selectionEnd, txt = area.value;
+                area.value = txt.substring(0, start) + textSnippets[k] + txt.substring(end); area.focus(); area.selectionStart = area.selectionEnd = start + textSnippets[k].length; document.getElementById('editorSnippetSelect').value = '';
+            }
+        };
+
+        window.saveTemplateFromSettings = async () => {
+            const nameIn = document.getElementById('manageTemplateName'); if(!nameIn) return;
+            const name = nameIn.value.trim(); if (!name) return alert("Name required.");
+            const key = document.getElementById('templateManageSelect').value; if (key && key !== name) delete eventDatabase[key];
+            eventDatabase[name] = { eventName: name, location: document.getElementById('manageTemplateLoc').value.trim(), description: document.getElementById('manageTemplateDesc').value.trim(), extraTags: document.getElementById('manageTemplateTags').value.trim() };
+            await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert("Template updated."); window.renderEventTemplateSelect();
+        };
+
+        window.loadTemplateForManage = () => {
+            const k = document.getElementById('templateManageSelect').value; 
+            if (eventDatabase[k]) {
+                const e = eventDatabase[k];
+                document.getElementById('manageTemplateName').value = e.eventName || k;
+                document.getElementById('manageTemplateLoc').value = e.location || '';
+                document.getElementById('manageTemplateDesc').value = e.description || '';
+                document.getElementById('manageTemplateTags').value = e.extraTags || '';
+            } else {
+                document.getElementById('manageTemplateName').value = '';
+                document.getElementById('manageTemplateLoc').value = '';
+                document.getElementById('manageTemplateDesc').value = '';
+                document.getElementById('manageTemplateTags').value = '';
+            }
+        };
+
         window.deleteTemplate = async () => { const k = document.getElementById('templateManageSelect').value; if (k && confirm(`Delete template "${k}"?`)) { delete eventDatabase[k]; await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); window.renderEventTemplateSelect(); window.loadTemplateForManage(); } };
-        window.moveEvent = async function(date, name, direction) { const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0)); dayEvents.forEach((e, i) => e.order = i); const idx = dayEvents.findIndex(e => e.eventName === name); if (idx === -1) return; if (direction === 'up' && idx > 0) { const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx-1].order; dayEvents[idx-1].order = t; } else if (direction === 'down' && idx < dayEvents.length - 1) { const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx+1].order; dayEvents[idx+1].order = t; } await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); };
-        window.saveSnippet = async () => { const nInput = document.getElementById('snippetName'); if(!nInput) return; const n = nInput.value.trim(); const cInput = document.getElementById('snippetContent'); if(!cInput) return; const c = cInput.value.trim(); if (!n || !c) return; textSnippets[n] = c; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
-        window.loadSnippet = () => { const k = document.getElementById('snippetSelect').value; if (textSnippets[k]) { document.getElementById('snippetName').value = k; document.getElementById('snippetContent').value = textSnippets[k]; } };
-        window.deleteSnippet = async () => { const k = document.getElementById('snippetSelect').value; if(k && confirm(`Delete snippet ${k}?`)) { delete textSnippets[k]; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); } };
-        window.addNameMapEntry = async () => { const n = document.getElementById('newName').value.trim(); const t = document.getElementById('newTag').value.trim(); if (!n || !t) return; const { data } = await supabase.from(DB_CONFIG.INSTA_DB_KEY).select('*').eq('id', 1).single(); const currentDB = data?.data || {}; if(currentTagEdit && currentTagEdit !== n) delete currentDB[currentTagEdit]; currentDB[n] = { tag: (t.startsWith('@') || t.startsWith('#') ? t : '@' + t), category: document.getElementById('newCategory').value }; if (await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, currentDB)) { Object.assign(nameTagDatabase, currentDB); window.cancelTagEdit(); window.renderNameMap(); } };
-        window.toggleTagExclusion = function(name) { if (currentExclusions.includes(name)) currentExclusions = currentExclusions.filter(n => n !== name); else currentExclusions.push(name); window.handleClick(false); };
+
+        window.moveEvent = async function(date, name, direction) {
+            const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0));
+            dayEvents.forEach((e, i) => e.order = i);
+            const idx = dayEvents.findIndex(e => e.eventName === name);
+            if (idx === -1) return;
+            if (direction === 'up' && idx > 0) {
+                const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx-1].order; dayEvents[idx-1].order = t;
+            } else if (direction === 'down' && idx < dayEvents.length - 1) {
+                const t = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx+1].order; dayEvents[idx+1].order = t;
+            }
+            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList();
+        };
+
+        window.saveSnippet = async () => {
+            const nInput = document.getElementById('snippetName'); if(!nInput) return;
+            const n = nInput.value.trim();
+            const cInput = document.getElementById('snippetContent'); if(!cInput) return;
+            const c = cInput.value.trim();
+            if (!n || !c) return;
+            textSnippets[n] = c;
+            await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets);
+            window.renderSnippetSelect();
+        };
+
+        window.loadSnippet = () => {
+            const k = document.getElementById('snippetSelect').value;
+            if (textSnippets[k]) {
+                document.getElementById('snippetName').value = k;
+                document.getElementById('snippetContent').value = textSnippets[k];
+            }
+        };
+
+        window.deleteSnippet = async () => {
+            const k = document.getElementById('snippetSelect').value;
+            if(k && confirm(`Delete snippet ${k}?`)) {
+                delete textSnippets[k];
+                await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets);
+                window.renderSnippetSelect();
+            }
+        };
 
         document.addEventListener('DOMContentLoaded', () => { window.initializeSupabase(); const isoInput = document.getElementById('inputIsoDate'); if(isoInput) isoInput.value = new Date().toISOString().split('T')[0]; });
     </script>
