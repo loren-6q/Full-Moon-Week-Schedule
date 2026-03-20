@@ -719,18 +719,17 @@
                     pill.className = `active-tag-pill cursor-pointer ${isExcluded ? 'excluded' : ''}`;
                     pill.innerHTML = `${n} ${isExcluded ? '+' : '✕'}`; pill.onclick = () => window.toggleTagExclusion(n); tagManager.appendChild(pill);
                 });
-                return;
+            } else {
+                const datesToSave = type === 'none' ? [document.getElementById('inputIsoDate').value] : pendingRecurringDates;
+                for (const d of datesToSave) {
+                    const { result, existIdx } = await processSingle(d);
+                    if (existIdx > -1) eventSchedule[existIdx] = result; else eventSchedule.push(result);
+                }
+                if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
+                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                if (type !== 'none') { document.getElementById('recurringType').value = 'none'; window.toggleRecurringUI(); }
+                window.showTab('scheduler');
             }
-
-            const datesToSave = type === 'none' ? [document.getElementById('inputIsoDate').value] : pendingRecurringDates;
-            for (const d of datesToSave) {
-                const { result, existIdx } = await processSingle(d);
-                if (existIdx > -1) eventSchedule[existIdx] = result; else eventSchedule.push(result);
-            }
-            if (xtra) { eventExtraTags[name] = xtra; if(loc) eventExtraTags[loc] = xtra; await saveDataToSupabase(DB_CONFIG.EXTRA_TAGS_KEY, eventExtraTags); }
-            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-            if (type !== 'none') { document.getElementById('recurringType').value = 'none'; window.toggleRecurringUI(); }
-            window.showTab('scheduler');
         };
 
         /** INTERFACE HELPERS **/
@@ -823,8 +822,10 @@
             const list = document.getElementById('historyEventsList'); list.innerHTML = '';
             past.sort((a,b) => new Date(b.date + 'T00:00:00') - new Date(a.date + 'T00:00:00')).forEach((e, idx) => {
                 const uniqueId = `hist-${idx}`;
+                const escName = e.eventName.replace(/'/g, "\\'");
+                const escDate = e.date.replace(/'/g, "\\'");
                 const d = document.createElement('div'); d.className = 'p-3 border rounded mb-2 bg-white shadow-sm text-xs';
-                d.innerHTML = `<div class="flex justify-between"><div><b>${e.date}</b>: ${e.eventName}</div><div class="flex space-x-2"><button onclick="window.toggleHistDetail('${uniqueId}')" class="text-indigo-500">Details</button><button onclick='window.loadEventFromHistory(${JSON.stringify(e).replace(/'/g, "&apos;")})' class="text-secondary">Reuse</button></div></div><div id="${uniqueId}" class="hidden mt-3 p-2 bg-gray-50 border-t border-dashed whitespace-pre-wrap">${e.postText}</div>`;
+                d.innerHTML = `<div class="flex justify-between"><div><b>${e.date}</b>: ${e.eventName}</div><div class="flex space-x-2"><button onclick="window.toggleHistDetail('${uniqueId}')" class="text-indigo-500">Details</button><button onclick='window.loadEventFromHistory(${JSON.stringify(e).replace(/'/g, "&apos;")})' class="text-secondary">Reuse</button><button onclick="window.handleDeleteScheduledEvent('${escDate}','${escName}')" class="text-red-300 ml-1">✕</button></div></div><div id="${uniqueId}" class="hidden mt-3 p-2 bg-gray-50 border-t border-dashed whitespace-pre-wrap">${e.postText}</div>`;
                 list.appendChild(d);
             });
             document.getElementById('emptyHistoryMessage').classList.toggle('hidden', past.length > 0);
@@ -866,25 +867,15 @@
             window.renderScheduleList(); await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
-        window.moveEvent = async function(date, name, direction) {
-            const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0));
-            dayEvents.forEach((e, i) => e.order = i);
-            const idx = dayEvents.findIndex(e => e.eventName === name);
-            if (idx === -1) return;
-            if (direction === 'up' && idx > 0) {
-                const tempOrder = dayEvents[idx].order;
-                dayEvents[idx].order = dayEvents[idx - 1].order;
-                dayEvents[idx - 1].order = tempOrder;
-            } else if (direction === 'down' && idx < dayEvents.length - 1) {
-                const tempOrder = dayEvents[idx].order;
-                dayEvents[idx].order = dayEvents[idx + 1].order;
-                dayEvents[idx + 1].order = tempOrder;
-            } else { return; }
-            await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-            window.renderScheduleList();
+        window.handleDeleteScheduledEvent = async (date, name) => { 
+            if (confirm(`Delete ${name}?`)) { 
+                eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name)); 
+                await saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
+                window.renderScheduleList(); 
+            } 
         };
 
-        /** CORE INITIALIZATION & SYNC **/
+        /** INITIALIZATION & SYNC **/
 
         async function initializeSupabase() {
             const statusEl = document.getElementById('statusMessage');
@@ -946,7 +937,7 @@
             return !error;
         }
 
-        /** GENERAL UI HELPERS **/
+        /** REUSABLE UI LOGIC **/
 
         window.renderNameMap = function() {
             const list = document.getElementById('databaseList');
