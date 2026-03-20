@@ -500,21 +500,6 @@
             return `${year}-${month}-${day}`;
         };
 
-        /** INTERFACE HELPERS **/
-
-        window.showTab = function(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-            const content = document.getElementById(`tab-${tabName}-content`);
-            const btn = document.getElementById(`tab-${tabName}-btn`);
-            if (content) content.classList.remove('hidden');
-            if (btn) btn.classList.add('active');
-            if (tabName === 'scheduler') { window.renderScheduleList(); }
-            else if (tabName === 'calendar') { window.renderCalendarSummary(); }
-            else if (tabName === 'settings') { window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); window.renderEventTemplateSelect(); }
-            else if (tabName === 'editor') { window.updateSuggestedTags(); }
-        };
-
         window.safeConfirm = function(title, message) {
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalMessage').textContent = message;
@@ -670,19 +655,19 @@
             });
         }
 
-        /** EVENT DATA LOGIC **/
+        /** INTERFACE HANDLERS **/
 
-        window.loadEventForEdit = function(e) {
-            document.getElementById('inputIsoDate').value = e.date || "";
-            document.getElementById('inputEventName').value = e.eventName || "";
-            document.getElementById('inputLocation').value = e.location || "";
-            document.getElementById('rawDescription').value = window.getEventDescription(e);
-            document.getElementById('extraHashtagsInput').value = e.extraTags || "";
-            currentExclusions = e.excludedNames || [];
-            document.getElementById('recurringType').value = 'none';
-            window.toggleRecurringUI();
-            window.showTab('editor');
-            window.handleClick(false);
+        window.showTab = function(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            const content = document.getElementById(`tab-${tabName}-content`);
+            const btn = document.getElementById(`tab-${tabName}-btn`);
+            if (content) content.classList.remove('hidden');
+            if (btn) btn.classList.add('active');
+            if (tabName === 'scheduler') { window.renderScheduleList(); }
+            else if (tabName === 'calendar') { window.renderCalendarSummary(); }
+            else if (tabName === 'settings') { window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); window.renderEventTemplateSelect(); }
+            else if (tabName === 'editor') { window.updateSuggestedTags(); }
         };
 
         window.toggleTagExclusion = function(name) {
@@ -738,6 +723,8 @@
                 else pill.classList.remove('active');
             });
         };
+
+        /** DATA HANDLERS **/
 
         window.updateText = async function(date, name, val, field) {
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
@@ -847,7 +834,34 @@
             }
         };
 
-        /** SCHEDULER HELPERS **/
+        /** REORDERING HELPERS **/
+
+        window.moveEvent = async function(date, name, direction) {
+            const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0));
+            dayEvents.forEach((e, i) => e.order = i);
+            const idx = dayEvents.findIndex(e => e.eventName === name);
+            if (idx === -1) return;
+            if (direction === 'up' && idx > 0) {
+                const tempOrder = dayEvents[idx].order;
+                dayEvents[idx].order = dayEvents[idx - 1].order;
+                dayEvents[idx - 1].order = tempOrder;
+            } else if (direction === 'down' && idx < dayEvents.length - 1) {
+                const tempOrder = dayEvents[idx].order;
+                dayEvents[idx].order = dayEvents[idx + 1].order;
+                dayEvents[idx + 1].order = tempOrder;
+            } else { return; }
+            await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            window.renderScheduleList();
+        };
+
+        window.toggleStatus = async function(date, name, type) {
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
+            const field = type === 'post' ? 'postStatus' : (type === 'story' ? 'storyStatus' : 'mediaStatus');
+            eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done';
+            window.renderScheduleList(); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        /** SCHEDULER & HISTORY RENDERERS **/
 
         window.renderScheduleList = function() {
             const containerEl = document.getElementById('scheduledEventsContainer');
@@ -920,42 +934,6 @@
             document.getElementById('emptyHistoryMessage').classList.toggle('hidden', past.length > 0);
         };
 
-        window.renderCalendarSummary = function() {
-            const list = document.getElementById('calendarSummaryList'); list.innerHTML = '';
-            const allEvents = window.calculateSequentialDays(eventSchedule);
-            if (allEvents.length === 0) { document.getElementById('emptyCalendarMessage').classList.remove('hidden'); return; }
-            document.getElementById('emptyCalendarMessage').classList.add('hidden');
-            const groupedByPeriod = {}; PEAK_DATES.forEach(p => groupedByPeriod[p.name] = []); groupedByPeriod["Other"] = [];
-            allEvents.forEach(e => {
-                const evDate = new Date(e.date + 'T00:00:00'); let placed = false;
-                for (let p of PEAK_DATES) { if (Math.abs(evDate - new Date(p.date + 'T00:00:00')) / 8.64e7 <= 10) { groupedByPeriod[p.name].push(e); placed = true; break; } }
-                if (!placed) groupedByPeriod["Other"].push(e);
-            });
-            Object.keys(groupedByPeriod).reverse().forEach(pName => {
-                const pEvents = groupedByPeriod[pName]; if (pEvents.length === 0) return;
-                const periodId = `p-${pName.replace(/[^a-z0-9]/gi, '')}`;
-                const periodDiv = document.createElement('div'); periodDiv.className = 'border rounded-lg overflow-hidden mb-4 shadow-sm';
-                periodDiv.innerHTML = `<button onclick="window.toggleHistDetail('${periodId}')" class="w-full text-left px-4 py-3 bg-gray-100 flex justify-between items-center font-bold"><span>${pName}</span><span class="text-xs opacity-50">${pEvents.length} events</span></button><div id="${periodId}" class="hidden p-4 bg-white space-y-4"></div>`;
-                const contentDiv = periodDiv.querySelector(`#${periodId}`);
-                const datesInPeriod = pEvents.reduce((acc, ev) => { if(!acc[ev.date]) acc[ev.date] = []; acc[ev.date].push(ev); return acc; }, {});
-                Object.keys(datesInPeriod).sort().forEach(dKey => {
-                    const dEvents = datesInPeriod[dKey];
-                    const dateGroup = document.createElement('div');
-                    dateGroup.innerHTML = `<h4 class="text-xs font-black uppercase text-gray-400 mb-1">Day ${dEvents[0].dayNumber} (${dKey}):</h4>`;
-                    dEvents.forEach(de => { dateGroup.innerHTML += `<div class="text-sm pl-2 py-0.5 border-l-2 border-gray-100 ml-1"><b>${de.eventName}</b> @ ${de.location}</div>`; });
-                    contentDiv.appendChild(dateGroup);
-                });
-                list.appendChild(periodDiv);
-            });
-        };
-
-        window.toggleStatus = async function(date, name, type) {
-            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
-            const field = type === 'post' ? 'postStatus' : (type === 'story' ? 'storyStatus' : 'mediaStatus');
-            eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done';
-            window.renderScheduleList(); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-        };
-
         window.handleDeleteScheduledEvent = async (date, name) => { 
             if (await window.safeConfirm("Delete Event", `Are you sure you want to delete ${name}?`)) { 
                 eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name)); 
@@ -964,7 +942,7 @@
             } 
         };
 
-        /** SETTINGS HELPERS **/
+        /** SETTINGS TAB HELPERS **/
 
         window.renderNameMap = function() {
             const list = document.getElementById('databaseList');
@@ -1092,7 +1070,7 @@
             const name = document.getElementById('manageTemplateName').value.trim(); if (!name) return alert("Name required.");
             const key = document.getElementById('templateManageSelect').value; if (key && key !== name) delete eventDatabase[key];
             eventDatabase[name] = { eventName: name, location: document.getElementById('manageTemplateLoc').value.trim(), description: document.getElementById('manageTemplateDesc').value.trim(), extraTags: document.getElementById('manageTemplateTags').value.trim() };
-            await window.saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert("Updated."); window.renderEventTemplateSelect();
+            await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert("Updated."); window.renderEventTemplateSelect();
         };
 
         window.deleteTemplate = async () => { 
@@ -1104,8 +1082,6 @@
                 window.loadTemplateForManage(); 
             } 
         };
-        
-        window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
         
         window.loadEventFromHistory = (e) => {
             document.getElementById('inputEventName').value = e.eventName || ""; document.getElementById('inputLocation').value = e.location || "";
@@ -1124,6 +1100,16 @@
             window.copyToClipboard(`🌕Full Moon Week - Day ${dayNum}🌕\n🗓 DATE: ${window.formatDateFriendly(date)}\n\nToday's events:\n\n${eventsText}\n\n${hashes}`);
         };
 
+        window.copyDayTagsOnly = (date) => {
+            const allEvents = window.calculateSequentialDays(eventSchedule);
+            const dayEvents = allEvents.filter(e => e.date === date);
+            if (dayEvents.length === 0) return;
+            const tags = dayEvents.map(e => window.findTagForLocation(e.location)).filter(Boolean);
+            const uniqueTags = [...new Set(tags)];
+            if (uniqueTags.length === 0) return alert("No venue tags.");
+            window.copyToClipboard(uniqueTags.join('\n'));
+        };
+
         window.findTagForLocation = function(locationText) {
             if (!locationText) return "";
             const lowerLoc = locationText.toLowerCase();
@@ -1135,6 +1121,37 @@
             }
             return "";
         };
+
+        window.renderCalendarSummary = function() {
+            const list = document.getElementById('calendarSummaryList'); list.innerHTML = '';
+            const allEvents = window.calculateSequentialDays(eventSchedule);
+            if (allEvents.length === 0) { document.getElementById('emptyCalendarMessage').classList.remove('hidden'); return; }
+            document.getElementById('emptyCalendarMessage').classList.add('hidden');
+            const groupedByPeriod = {}; PEAK_DATES.forEach(p => groupedByPeriod[p.name] = []); groupedByPeriod["Other"] = [];
+            allEvents.forEach(e => {
+                const evDate = new Date(e.date + 'T00:00:00'); let placed = false;
+                for (let p of PEAK_DATES) { if (Math.abs(evDate - new Date(p.date + 'T00:00:00')) / 8.64e7 <= 10) { groupedByPeriod[p.name].push(e); placed = true; break; } }
+                if (!placed) groupedByPeriod["Other"].push(e);
+            });
+            Object.keys(groupedByPeriod).reverse().forEach(pName => {
+                const pEvents = groupedByPeriod[pName]; if (pEvents.length === 0) return;
+                const periodId = `p-${pName.replace(/[^a-z0-9]/gi, '')}`;
+                const periodDiv = document.createElement('div'); periodDiv.className = 'border rounded-lg overflow-hidden mb-4 shadow-sm';
+                periodDiv.innerHTML = `<button onclick="window.toggleHistDetail('${periodId}')" class="w-full text-left px-4 py-3 bg-gray-100 flex justify-between items-center font-bold"><span>${pName}</span><span class="text-xs opacity-50">${pEvents.length} events</span></button><div id="${periodId}" class="hidden p-4 bg-white space-y-4"></div>`;
+                const contentDiv = periodDiv.querySelector(`#${periodId}`);
+                const datesInPeriod = pEvents.reduce((acc, ev) => { if(!acc[ev.date]) acc[ev.date] = []; acc[ev.date].push(ev); return acc; }, {});
+                Object.keys(datesInPeriod).sort().forEach(dKey => {
+                    const dEvents = datesInPeriod[dKey];
+                    const dateGroup = document.createElement('div');
+                    dateGroup.innerHTML = `<h4 class="text-xs font-black uppercase text-gray-400 mb-1">Day ${dEvents[0].dayNumber} (${dKey}):</h4>`;
+                    dEvents.forEach(de => { dateGroup.innerHTML += `<div class="text-sm pl-2 py-0.5 border-l-2 border-gray-100 ml-1"><b>${de.eventName}</b> @ ${de.location}</div>`; });
+                    contentDiv.appendChild(dateGroup);
+                });
+                list.appendChild(periodDiv);
+            });
+        };
+
+        window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
 
         /** INITIALIZATION **/
 
