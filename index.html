@@ -499,7 +499,7 @@
         let isSaving = false;
         let pendingRecurringDates = [];
 
-        /** CORE DATA HELPERS **/
+        /** DATA HELPERS **/
 
         window.saveDataToSupabase = async function(table, data) {
             if (!supabase) return false;
@@ -770,22 +770,7 @@
             });
         };
 
-        /** DATA HANDLERS **/
-
-        window.updateText = async function(date, name, val, field) {
-            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
-            if (idx === -1) return;
-            const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, '');
-            eventSchedule[idx][field] = cleanVal;
-            if (field === 'postText') {
-                const blocks = cleanVal.split('\n\n');
-                if (blocks.length >= 2) {
-                    const endIdx = blocks[blocks.length - 1].trim().startsWith('#') ? blocks.length - 1 : blocks.length;
-                    eventSchedule[idx].description = blocks.slice(1, endIdx).join('\n\n').trim();
-                }
-            }
-            await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-        };
+        /** DATA LOGIC **/
 
         window.handleClick = async function(save) {
             const type = document.getElementById('recurringType').value;
@@ -880,7 +865,7 @@
             }
         };
 
-        /** REORDERING HELPERS **/
+        /** SCHEDULER HELPERS **/
 
         window.moveEvent = async function(date, name, direction) {
             const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -899,15 +884,6 @@
             await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
             window.renderScheduleList();
         };
-
-        window.toggleStatus = async function(date, name, type) {
-            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
-            const field = type === 'post' ? 'postStatus' : (type === 'story' ? 'storyStatus' : 'mediaStatus');
-            eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done';
-            window.renderScheduleList(); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-        };
-
-        /** SCHEDULER & HISTORY RENDERERS **/
 
         window.renderScheduleList = function() {
             const containerEl = document.getElementById('scheduledEventsContainer');
@@ -1043,7 +1019,7 @@
         window.saveCurrentAsTemplate = async function() {
             const name = document.getElementById('inputEventName').value.trim(); if (!name) return alert("Enter Event Name.");
             eventDatabase[name] = { eventName: name, location: document.getElementById('inputLocation').value.trim(), description: document.getElementById('rawDescription').value.trim(), extraTags: document.getElementById('extraHashtagsInput').value.trim(), excludedNames: currentExclusions };
-            await saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert(`Template saved.`); window.renderEventTemplateSelect();
+            await window.saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); alert(`Template saved.`); window.renderEventTemplateSelect();
         };
 
         window.loadEventTemplate = () => { 
@@ -1089,7 +1065,7 @@
             const currentDB = data?.data || {};
             if(currentTagEdit && currentTagEdit !== n) delete currentDB[currentTagEdit]; 
             currentDB[n] = { tag: (t.startsWith('@') || t.startsWith('#') ? t : '@' + t), category: document.getElementById('newCategory').value }; 
-            const success = await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, currentDB);
+            const success = await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, currentDB);
             if (success) { Object.assign(nameTagDatabase, currentDB); window.cancelTagEdit(); window.renderNameMap(); }
         };
 
@@ -1102,18 +1078,18 @@
             input.split('\n').forEach(l => { const parts = l.split('\t'); if(parts.length >= 2) {
                 let tag = parts[1].trim(); currentDB[parts[0].trim()] = { tag: (tag.startsWith('@') || tag.startsWith('#') ? tag : '@' + tag), category: parts[2] ? parts[2].trim() : 'Other' }; 
             }}); 
-            const success = await saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, currentDB);
+            const success = await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, currentDB);
             if (success) { Object.assign(nameTagDatabase, currentDB); document.getElementById('bulkInstaMapInput').value = ''; window.renderNameMap(); }
         };
 
-        window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
+        window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
         window.loadSnippet = () => { const k = document.getElementById('snippetSelect').value; if (textSnippets[k]) { document.getElementById('snippetName').value = k; document.getElementById('snippetContent').value = textSnippets[k]; } };
         
         window.deleteSnippet = async () => { 
             const k = document.getElementById('snippetSelect').value; 
             if(k && await window.safeConfirm("Delete Snippet", `Delete snippet ${k}?`)) { 
                 delete textSnippets[k]; 
-                await saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); 
+                await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); 
                 window.renderSnippetSelect(); 
             } 
         };
@@ -1125,7 +1101,7 @@
             }
         };
 
-        window.saveGlobalHashtags = async () => { globalTagsString = document.getElementById('defaultTagsInput').value.trim(); await saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); };
+        window.saveGlobalHashtags = async () => { globalTagsString = document.getElementById('defaultTagsInput').value.trim(); await window.saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); };
 
         window.loadTemplateForManage = () => {
             const k = document.getElementById('templateManageSelect').value; 
@@ -1192,6 +1168,22 @@
         };
 
         window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
+
+        /** IG SEARCH HELPERS **/
+
+        window.searchIGDirectly = function() {
+            const name = document.getElementById('newName').value.trim();
+            if (!name) return alert("Enter a name first.");
+            const url = `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(name)}`;
+            window.open(url, '_blank');
+        };
+
+        window.searchIGInline = function() {
+            const name = document.getElementById('quickName').value.trim();
+            if (!name) return alert("Enter a name first.");
+            const url = `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(name)}`;
+            window.open(url, '_blank');
+        };
 
         /** INITIALIZATION **/
 
