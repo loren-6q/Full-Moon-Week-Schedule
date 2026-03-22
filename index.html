@@ -46,10 +46,13 @@
         .bulk-import-bg { background-color: #fffbeb !important; }
         .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; z-index: 100; }
         .modal.active { pointer-events: auto; opacity: 1; }
-        .scheduled-event-card { padding: 0.75rem !important; font-size: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: white; transition: box-shadow 0.2s; cursor: pointer; }
+        .scheduled-event-card { padding: 0.75rem !important; font-size: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; background: white; transition: box-shadow 0.2s; cursor: pointer; }
         .scheduled-event-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .scheduled-event-card h3 { font-size: 1rem; font-weight: 700; color: #4f46e5; }
-        .event-group { border: 1px solid #cbd5e1; padding: 0.75rem; margin-bottom: 1rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); width: 100%; }
+        
+        /* Updated Schedule Tab UI */
+        .event-group { border: 2px solid #ca8a04; padding: 0.75rem; margin-bottom: 1.5rem; background-color: #fef9c3; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; }
+        
         .tag-pill { display: inline-block; padding: 2px 8px; margin: 2px; border-radius: 9999px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; background: white; color: #64748b; }
         .tag-pill:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .tag-pill.active { background: #4f46e5; color: white; border-color: #4f46e5; }
@@ -57,6 +60,9 @@
         .active-tag-pill.excluded { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; border-color: #e2e8f0; }
         .order-btn { padding: 0 4px; border-radius: 4px; background: #f1f5f9; color: #64748b; font-size: 10px; line-height: 1.2; border: 1px solid #e2e8f0; width: 20px; text-align: center; }
         .period-divider { background: #4f46e5; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 900; text-transform: uppercase; margin: 24px 0 12px 0; display: flex; align-items: center; justify-content: space-between; }
+        
+        details summary::-webkit-details-marker { display:none; }
+        details summary { list-style: none; }
     </style>
 </head>
 <body class="bg-background min-h-screen p-2 sm:p-6 font-sans max-w-full">
@@ -74,16 +80,33 @@
             </header>
             
             <div class="flex border-b border-gray-200 bg-white rounded-t-xl shadow-sm overflow-hidden w-full">
-                <button id="tab-editor-btn" onclick="window.showTab('editor')" class="tab-button active flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Event</button>
+                <button id="tab-scheduler-btn" onclick="window.showTab('scheduler')" class="tab-button active flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Schedule</button>
+                <button id="tab-editor-btn" onclick="window.showTab('editor')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Event</button>
                 <button id="tab-settings-btn" onclick="window.showTab('settings')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Settings</button>
-                <button id="tab-scheduler-btn" onclick="window.showTab('scheduler')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Schedule</button>
-                 <button id="tab-calendar-btn" onclick="window.showTab('calendar')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Calendar</button>
+                <button id="tab-calendar-btn" onclick="window.showTab('calendar')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Calendar</button>
                 <button id="tab-history-btn" onclick="window.showTab('history')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">History</button>
             </div>
         </div>
 
+        <!-- SCHEDULER TAB -->
+        <div id="tab-scheduler-content" class="tab-content">
+             <div class="schedule-container p-4 rounded-xl shadow-lg border border-indigo-100 max-w-full">
+                <div class="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-indigo-900">Upcoming Schedule</h2>
+                    <div class="flex gap-2">
+                        <input type="text" id="scheduleNameFilter" oninput="window.renderScheduleList()" placeholder="Filter by name..." class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none flex-grow">
+                        <select id="schedulePeriodFilter" onchange="window.renderScheduleList()" class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none min-w-[120px]">
+                            <option value="all">All Periods</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="scheduledEventsContainer" class="space-y-4 w-full"></div>
+                <p id="emptyScheduleMessage" class="text-center text-gray-400 italic py-12">No matching events found.</p>
+            </div>
+        </div>
+
         <!-- EDITOR TAB -->
-        <div id="tab-editor-content" class="tab-content">
+        <div id="tab-editor-content" class="tab-content hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-4">
                     <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 template-box-bg">
@@ -260,23 +283,6 @@
             </div>
         </div>
         
-        <!-- SCHEDULER TAB -->
-        <div id="tab-scheduler-content" class="tab-content hidden">
-             <div class="schedule-container p-4 rounded-xl shadow-lg border border-indigo-100 max-w-full">
-                <div class="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold text-indigo-900">Upcoming Schedule</h2>
-                    <div class="flex gap-2">
-                        <input type="text" id="scheduleNameFilter" oninput="window.renderScheduleList()" placeholder="Filter by name..." class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none flex-grow">
-                        <select id="schedulePeriodFilter" onchange="window.renderScheduleList()" class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none min-w-[120px]">
-                            <option value="all">All Periods</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="scheduledEventsContainer" class="space-y-4 w-full"></div>
-                <p id="emptyScheduleMessage" class="text-center text-gray-400 italic py-12">No matching events found.</p>
-            </div>
-        </div>
-
         <!-- CALENDAR TAB -->
         <div id="tab-calendar-content" class="tab-content hidden">
             <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-full">
@@ -384,7 +390,7 @@
                 const p = window.getPeriodForDate(dKey);
                 if (p !== lastP) { const div = document.createElement('div'); div.className = 'period-divider'; div.innerHTML = `<span>${p} Period</span>`; container.appendChild(div); lastP = p; }
                 const gDiv = document.createElement('div'); gDiv.className = 'event-group';
-                gDiv.innerHTML = `<h3 class="text-xs font-bold text-gray-400 mb-2 border-b pb-1 flex justify-between uppercase tracking-tighter">🗓 ${dKey} <div class="flex gap-1"><button onclick="window.copyDayEventNames('${dKey}')" class="border px-1 rounded shadow-sm bg-white hover:bg-gray-50">Day Post</button><button onclick="window.copyDayTagsOnly('${dKey}')" class="border px-1 rounded shadow-sm bg-white hover:bg-gray-50">Day Tags</button></div></h3><div class="list space-y-2"></div>`;
+                gDiv.innerHTML = `<h3 class="text-xs font-black text-black mb-2 border-b-2 border-black pb-1 flex justify-between uppercase tracking-tighter">🗓 ${dKey} <div class="flex gap-1"><button onclick="window.copyDayEventNames('${dKey}')" class="border-2 border-black px-2 rounded shadow-sm bg-white hover:bg-gray-100 text-black font-bold text-[9px]">Day Post</button><button onclick="window.copyDayTagsOnly('${dKey}')" class="border-2 border-black px-2 rounded shadow-sm bg-white hover:bg-gray-100 text-black font-bold text-[9px]">Day Tags</button></div></h3><div class="list space-y-2"></div>`;
                 const list = gDiv.querySelector('.list');
                 grp[dKey].forEach(e => {
                     const escN = e.eventName.replace(/'/g, "\\'");
@@ -397,24 +403,33 @@
                             <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${escN}','down')" class="order-btn">▼</button>
                         </div>
                         <div class="flex-grow">
-                            <div class="flex justify-between mb-1">
-                                <h3>${e.eventName}</h3>
-                                <div class="flex gap-1">
-                                    <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','media')" class="px-2 border rounded ${e.mediaStatus==='done'?'bg-indigo-600 text-white text-[10px]':'text-[10px] bg-white'}">🎬</button>
-                                    <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','post')" class="px-2 border rounded ${e.postStatus==='done'?'bg-green-500 text-white text-[10px]':'text-[10px] bg-white'}">POST</button>
-                                    <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','story')" class="px-2 border rounded ${e.storyStatus==='done'?'bg-green-500 text-white text-[10px]':'text-[10px] bg-white'}">STORY</button>
-                                    <button onclick="event.stopPropagation(); window.handleDeleteScheduledEvent('${e.date}','${escN}')" class="text-red-300 ml-1">✕</button>
+                            <div class="mb-2">
+                                <h3 class="text-indigo-600">${e.eventName}</h3>
+                            </div>
+                            
+                            <div class="flex justify-between items-center mb-1">
+                                <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('${idPost}').value)" class="text-[8px] font-bold text-primary uppercase hover:underline">Copy Post Text</button>
+                                <div class="flex gap-1 items-center">
+                                    <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('${idTags}').value)" class="text-[8px] font-bold text-secondary uppercase hover:underline">Copy Tags</button>
+                                    <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','media')" class="px-1.5 py-0.5 border rounded leading-none ${e.mediaStatus==='done'?'bg-indigo-600 border-indigo-600':'bg-white border-gray-300'}">
+                                        <span class="text-[12px] filter ${e.mediaStatus==='done'?'brightness-100':'grayscale opacity-40'}">🖼️</span>
+                                    </button>
                                 </div>
                             </div>
+
                             <div class="flex gap-2 items-start">
-                                <div class="flex-grow flex flex-col">
+                                <div class="flex-grow">
                                     <textarea id="${idPost}" onblur="window.updateText('${e.date}','${escN}',this.value,'postText')" class="w-full h-16 text-[9px] border p-1 shadow-inner">${e.postText}</textarea>
-                                    <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('${idPost}').value)" class="mt-1 text-[8px] font-bold text-primary uppercase text-left hover:underline">Copy Post Text</button>
                                 </div>
-                                <div class="w-24 flex flex-col">
+                                <div class="w-24">
                                     <textarea id="${idTags}" onblur="window.updateText('${e.date}','${escN}',this.value,'tagsOnly')" class="w-full h-16 text-[9px] border p-1 shadow-inner font-mono">${e.tagsOnly || ''}</textarea>
-                                    <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('${idTags}').value)" class="mt-1 text-[8px] font-bold text-secondary uppercase text-left hover:underline">Copy Tags</button>
                                 </div>
+                            </div>
+
+                            <div class="flex justify-end gap-1 mt-2 pt-2 border-t border-gray-100">
+                                <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','post')" class="px-3 py-1 border rounded-full font-bold ${e.postStatus==='done'?'bg-green-500 text-white text-[9px] border-green-500':'text-[9px] bg-white text-gray-500 border-gray-200'}">POST</button>
+                                <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','story')" class="px-3 py-1 border rounded-full font-bold ${e.storyStatus==='done'?'bg-green-500 text-white text-[9px] border-green-500':'text-[9px] bg-white text-gray-500 border-gray-200'}">STORY</button>
+                                <button onclick="event.stopPropagation(); window.handleDeleteScheduledEvent('${e.date}','${escN}')" class="px-3 py-1 border border-red-200 text-red-500 rounded-full font-bold text-[9px] ml-2 hover:bg-red-50 transition">✕ DELETE</button>
                             </div>
                         </div>
                     </div>`;
@@ -429,9 +444,63 @@
             const list = document.getElementById('calendarSummaryList'); if (!list) return; list.innerHTML = '';
             const all = window.calculateSequentialDays(eventSchedule); if (all.length === 0) { document.getElementById('emptyCalendarMessage').classList.remove('hidden'); return; }
             document.getElementById('emptyCalendarMessage').classList.add('hidden');
+            
             const grp = {}; PEAK_DATES.forEach(p => grp[p.name] = []);
             all.forEach(e => { const p = window.getPeriodForDate(e.date); if (grp[p]) grp[p].push(e); });
-            Object.keys(grp).reverse().forEach(pName => { if (grp[pName].length === 0) return; const d = document.createElement('div'); d.className = 'border rounded-lg p-3 bg-gray-50 mb-2 shadow-sm'; d.innerHTML = `<h4 class="font-bold border-b mb-2">${pName}</h4>`; grp[pName].forEach(e => { d.innerHTML += `<div class="text-[10px]">${e.date}: <b>${e.eventName}</b> @ ${e.location}</div>`; }); list.appendChild(d); });
+            
+            Object.keys(grp).reverse().forEach(pName => { 
+                if (grp[pName].length === 0) return; 
+                
+                const d = document.createElement('details'); 
+                d.className = 'group border rounded-lg bg-gray-50 mb-2 shadow-sm overflow-hidden'; 
+                
+                const eventsByDate = grp[pName].reduce((acc, e) => {
+                    if (!acc[e.date]) acc[e.date] = [];
+                    acc[e.date].push(e);
+                    return acc;
+                }, {});
+
+                let plainText = `🌕 ${pName} Schedule 🌕\n\n`;
+                let eventsHtml = `<div class="p-3 bg-white border-t space-y-4">`;
+
+                Object.keys(eventsByDate).sort().forEach(date => {
+                    const eventsInDay = eventsByDate[date];
+                    const dayNum = eventsInDay[0].dayNumber;
+                    const dObj = new Date(date + 'T00:00:00');
+                    const dFormatted = `${String(dObj.getDate()).padStart(2,'0')}${dObj.toLocaleString('en-US',{month:'short'}).toUpperCase()}${String(dObj.getFullYear()).slice(-2)}`;
+                    
+                    const dayHeader = `⭐// DAY ${dayNum} - ${dFormatted} \\\\⭐`;
+                    plainText += `${dayHeader}\n`;
+                    eventsHtml += `<div><h5 class="text-[11px] font-black text-gray-800 tracking-tighter mb-1">${dayHeader}</h5><div class="space-y-0.5 ml-2 border-l-2 border-indigo-50 pl-2">`;
+                    
+                    eventsInDay.forEach(e => {
+                        const line = `${e.eventName} @ ${e.location}`;
+                        plainText += `${line}\n`;
+                        // FONT SIZE INCREASED HERE
+                        eventsHtml += `<div class="text-[12px] text-gray-600 font-medium">${e.eventName} <span class="text-gray-400 italic font-normal">@ ${e.location}</span></div>`;
+                    });
+                    
+                    plainText += `\n`;
+                    eventsHtml += `</div></div>`;
+                });
+                
+                eventsHtml += `</div>`;
+
+                d.innerHTML = `
+                    <summary class="font-bold p-3 cursor-pointer list-none flex justify-between items-center hover:bg-gray-100 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm text-gray-800">${pName}</span>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${grp[pName].length} events</span>
+                        </div>
+                        <button onclick="event.preventDefault(); event.stopPropagation(); window.copyToClipboard(decodeURIComponent('${encodeURIComponent(plainText)}'))" 
+                                class="text-[9px] bg-secondary text-white px-2 py-1 rounded font-bold shadow-sm hover:bg-emerald-600 transition">
+                            COPY MONTH
+                        </button>
+                    </summary>
+                    ${eventsHtml}
+                `; 
+                list.appendChild(d); 
+            });
         };
 
         window.renderSnippetSelect = () => { const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const s1 = document.getElementById('snippetSelect'), s2 = document.getElementById('editorSnippetSelect'); if (s1) s1.innerHTML = html; if (s2) s2.innerHTML = html; };
@@ -543,7 +612,6 @@
                 const valid = []; const occ = new Set();
                 allMatches.forEach(m => { let ov = false; for(let i=m.index;i<m.index+m.length;i++){if(occ.has(i))ov=true;} if(!ov){valid.push(m); for(let i=m.index;i<m.index+m.length;i++)occ.add(i);} });
                 
-                // Track FIRST occurrences only
                 const firstOccurrences = {};
                 valid.forEach(m => { if (!currentExclusions.includes(m.name)) { if (firstOccurrences[m.tag] === undefined || m.index < firstOccurrences[m.tag]) firstOccurrences[m.tag] = m.index; } });
 
@@ -555,13 +623,17 @@
 
                 const hashes = [...new Set((globalTagsString + " " + xtra).match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
                 const fullRes = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}\n\n${hashes}`;
-                return { result: { eventName: name, date, location: loc, postText: fullRes, description: inj, tagsOnly: valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag).join('\n'), extraTags: xtra, order: 0, excludedNames: currentExclusions }, fullRes, valid };
+                
+                const uniqueTagsList = [...new Set(valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
+                const tagsOnly = uniqueTagsList.join('\n');
+                
+                return { result: { eventName: name, date, location: loc, postText: fullRes, description: inj, tagsOnly: tagsOnly, extraTags: xtra, order: 0, excludedNames: currentExclusions }, fullRes, valid, uniqueTagsList };
             };
 
             const targetDate = document.getElementById('inputIsoDate').value || '2026-01-01';
-            const { fullRes, valid } = await processSingle(targetDate);
+            const { fullRes, valid, uniqueTagsList } = await processSingle(targetDate);
             document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + fullRes;
-            document.getElementById('tagsOnlyOutput').value = valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag).join('\n');
+            document.getElementById('tagsOnlyOutput').value = uniqueTagsList.join('\n');
             
             const tMan = document.getElementById('detectedTagsManager'); if(tMan) {
                 tMan.innerHTML = ''; [...new Set(valid.map(m => m.name))].forEach(n => {
@@ -633,7 +705,7 @@
                 if (typeof c.render === 'function') c.render();
             }
             const iso = document.getElementById('inputIsoDate'); if (iso) iso.value = window.getLocalDateString(new Date());
-            window.showTab('editor');
+            window.showTab('scheduler');
         }
 
         document.addEventListener('DOMContentLoaded', initializeSupabase);
