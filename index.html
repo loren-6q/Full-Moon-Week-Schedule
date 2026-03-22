@@ -134,7 +134,7 @@
                                     <option value="">+ Insert Snippet</option>
                                 </select>
                              </div>
-                             <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Paste party details here..."></textarea>
+                             <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Paste party details here..." oninput="window.updateSuggestedTags()"></textarea>
                         </div>
                         <div class="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg shadow-inner">
                             <h3 class="text-[10px] font-bold text-emerald-800 uppercase mb-2">Quick Add Tag to DB</h3>
@@ -352,6 +352,7 @@
             if (tab === 'scheduler') window.renderScheduleList();
             else if (tab === 'calendar') window.renderCalendarSummary();
             else if (tab === 'settings') { window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); window.renderEventTemplateSelect(); }
+            else if (tab === 'editor') window.updateSuggestedTags();
         };
 
         window.renderNameMap = () => {
@@ -421,13 +422,29 @@
         /** TAG CLOUD & HASHTAG HELPERS **/
         window.updateSuggestedTags = () => {
             const container = document.getElementById('suggestedTagsContainer'); if (!container) return;
-            const eventName = document.getElementById('inputEventName').value.trim().toLowerCase();
-            const location = document.getElementById('inputLocation').value.trim().toLowerCase();
+            const eventName = (document.getElementById('inputEventName')?.value || "").trim().toLowerCase();
+            const location = (document.getElementById('inputLocation')?.value || "").trim().toLowerCase();
             const candidates = new Set();
-            if (eventName && eventExtraTags[eventName]) eventExtraTags[eventName].split(/[, ]+/).forEach(t => candidates.add(t));
-            if (location && eventExtraTags[location]) eventExtraTags[location].split(/[, ]+/).forEach(t => candidates.add(t));
-            eventSchedule.forEach(e => { if ((eventName && e.eventName?.toLowerCase() === eventName) || (location && e.location?.toLowerCase() === location)) { if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => candidates.add(t)); } });
-            const unique = [...new Set(Array.from(candidates).map(t => t.trim()).filter(t => t.length > 1).map(t => t.startsWith('#') ? t : '#' + t).map(t => t.toLowerCase()))];
+            
+            // From map
+            Object.keys(eventExtraTags).forEach(key => {
+                if (eventName.includes(key.toLowerCase()) || location.includes(key.toLowerCase())) {
+                    eventExtraTags[key].split(/[, ]+/).forEach(t => {
+                        if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim());
+                    });
+                }
+            });
+
+            // From schedule history
+            eventSchedule.forEach(e => {
+                if (e.eventName?.toLowerCase() === eventName || e.location?.toLowerCase() === location) {
+                    if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => {
+                         if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim());
+                    });
+                }
+            });
+
+            const unique = [...candidates].sort();
             container.innerHTML = '<span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>';
             if (unique.length === 0) { container.innerHTML += '<span class="text-[9px] text-gray-300 italic py-1">No matches...</span>'; return; }
             unique.forEach(tag => { const pill = document.createElement('div'); pill.className = 'tag-pill'; pill.textContent = tag; pill.onclick = () => window.toggleHashtag(tag); container.appendChild(pill); });
@@ -513,10 +530,23 @@
                 const valid = []; const occ = new Set();
                 allMatches.forEach(m => { let ov = false; for(let i=m.index;i<m.index+m.length;i++){if(occ.has(i))ov=true;} if(!ov){valid.push(m); for(let i=m.index;i<m.index+m.length;i++)occ.add(i);} });
                 
-                let inj = desc; const seenInj = new Set();
+                // Track lowest index for each unique tag to ensure we only tag the FIRST instance
+                const firstOccurrences = {};
+                valid.forEach(m => {
+                    if (!currentExclusions.includes(m.name)) {
+                        if (firstOccurrences[m.tag] === undefined || m.index < firstOccurrences[m.tag]) {
+                            firstOccurrences[m.tag] = m.index;
+                        }
+                    }
+                });
+
+                let inj = desc; 
                 [...valid].sort((a,b) => b.index - a.index).forEach(m => {
                     if (currentExclusions.includes(m.name)) { if(m.isPreTagged){ const s = m.index + m.length, b = inj.substring(s, s+60), p = b.toLowerCase().indexOf(m.tag.toLowerCase()); if(p!==-1) inj = inj.substring(0, s+p) + inj.substring(s+p+m.tag.length); } }
-                    else if (!m.isPreTagged && !seenInj.has(m.tag)) { inj = inj.substring(0, m.index+m.length) + " " + m.tag + inj.substring(m.index+m.length); seenInj.add(m.tag); }
+                    else if (!m.isPreTagged && m.index === firstOccurrences[m.tag]) { 
+                        // Tagging ONLY the first occurrence of this specific tag
+                        inj = inj.substring(0, m.index+m.length) + " " + m.tag + inj.substring(m.index+m.length); 
+                    }
                 });
 
                 const hashes = [...new Set((globalTagsString + " " + xtra).match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
@@ -574,7 +604,7 @@
             }
         };
 
-        /** AI FINDER (DISABLED AS REQUESTED) **/
+        /** AI FINDER (DISABLED) **/
         window.findDJHandles = async () => { alert("Finder feature currently disabled for reliability."); };
 
         /** INIT **/
