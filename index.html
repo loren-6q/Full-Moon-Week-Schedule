@@ -44,7 +44,6 @@
         .history-box-bg { background-color: #f8fafc !important; }
         .add-entry-bg { background-color: #ecfdf5 !important; }
         .bulk-import-bg { background-color: #fffbeb !important; }
-        .finder-box-bg { background-color: #f5f3ff !important; }
         .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; z-index: 100; }
         .modal.active { pointer-events: auto; opacity: 1; }
         .scheduled-event-card { padding: 0.75rem !important; font-size: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: white; transition: box-shadow 0.2s; cursor: pointer; }
@@ -68,7 +67,7 @@
     </script>
     
     <div class="max-w-7xl mx-auto w-full">
-        <!-- Sticky Header and Navigation -->
+        <!-- Navigation -->
         <div class="sticky top-0 z-50 bg-background pb-4 pt-1">
             <header class="text-center mb-1 p-1 bg-white rounded-xl shadow-sm border border-gray-100">
                 <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">Full Moon Week Scheduler</h1>
@@ -112,7 +111,7 @@
                                     <option value="relative">FM Relative Offset</option>
                                 </select>
                                 <div id="weeklyUI" class="hidden">
-                                    <select id="recurringDay" class="p-1.5 border rounded text-xs w-full">
+                                    <select id="recurringDay" class="p-1.5 border rounded text-xs w-full bg-white">
                                         <option value="1">Every Monday</option><option value="2">Every Tuesday</option><option value="3">Every Wednesday</option><option value="4">Every Thursday</option><option value="5">Every Friday</option><option value="6">Every Saturday</option><option value="0">Every Sunday</option>
                                     </select>
                                 </div>
@@ -230,7 +229,6 @@
                 <div class="space-y-6 flex flex-col">
                     <div class="bg-red-50 p-6 rounded-xl border border-red-200 shadow-sm">
                         <h2 class="text-lg font-bold text-red-900 mb-2">Database Safety</h2>
-                        <p class="text-xs text-red-700 mb-4 font-medium italic">Wipe protection is enabled. Manual backup is recommended.</p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button onclick="window.exportFullDatabase()" class="bg-red-600 text-white p-2 rounded text-xs font-bold shadow-sm hover:bg-red-700">EXPORT TO JSON</button>
                             <button onclick="window.createCloudSnapshot()" class="bg-accent text-white p-2 rounded text-xs font-bold shadow-sm hover:bg-amber-600">CLONE TO BACKUP</button>
@@ -311,14 +309,16 @@
     </div>
 
     <script>
+        /** STATE & CONFIG **/
         const DB_CONFIG = { INSTA_DB_KEY: 'name_tag_database', EVENT_DB_KEY: 'event_templates', SNIPPETS_KEY: 'text_snippets', SCHEDULE_DB_KEY: 'event_schedule', GLOBAL_TAGS_KEY: 'global_tags', EXTRA_TAGS_KEY: 'event_extra_tags', BACKUP_KEY: 'database_backup_snapshots' };
         const PEAK_DATES = [ { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: "January 2026" }, { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' }, { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' }, { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' }, { date: '2026-07-31', name: 'July 2026' }, { date: '2026-08-28', name: 'August 2026' }, { date: '2026-09-26', name: 'September 2026' }, { date: '2026-10-27', name: 'October 2026' }, { date: '2026-11-24', name: 'November 2026' }, { date: '2026-12-24', name: 'December 2026' }, { date: '2026-12-31', name: 'NYE 2026' } ];
+        
         const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
         
         let supabase = null, nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [], globalTagsString = "", eventExtraTags = {}, isSaving = false, resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
 
-        /** ASSIGNING ALL FUNCTIONS TO WINDOW EARLY TO PREVENT 'NOT A FUNCTION' ERRORS **/
+        /** ALL GLOBAL FUNCTIONS (Consolidated and Defined Early) **/
         
         window.getLocalDateString = (d) => { if (!(d instanceof Date)) d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
         window.formatDateFriendly = (iso) => { if (!iso) return 'TBD Date'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); };
@@ -328,7 +328,7 @@
 
         window.safeConfirm = (title, message) => { const m = document.getElementById('deleteModal'); if (!m) return Promise.resolve(true); document.getElementById('modalTitle').textContent = title; document.getElementById('modalMessage').textContent = message; m.classList.add('active'); return new Promise((resolve) => { resolveModalPromise = resolve; }); };
         window.closeModal = (conf) => { const m = document.getElementById('deleteModal'); if (m) m.classList.remove('active'); if (resolveModalPromise) { resolveModalPromise(conf); resolveModalPromise = null; } };
-        window.copyToClipboard = (txt) => { const el = document.createElement('textarea'); el.value = txt; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); const s = document.getElementById('statusMessage'); if (s) { s.textContent = "Copied!"; setTimeout(() => { if(!isSaving) s.textContent = "Supabase Live"; }, 1500); } };
+        window.copyToClipboard = (txt) => { if(!txt) return; const el = document.createElement('textarea'); el.value = txt; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); const s = document.getElementById('statusMessage'); if (s) { s.textContent = "Copied!"; setTimeout(() => { if(!isSaving) s.textContent = "Supabase Live"; }, 1500); } };
 
         window.saveDataToSupabase = async (table, data) => {
             if (!supabase) return false;
@@ -344,16 +344,7 @@
             return !error;
         };
 
-        window.showTab = (tab) => {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-            const c = document.getElementById(`tab-${tab}-content`), b = document.getElementById(`tab-${tab}-btn`);
-            if (c) c.classList.remove('hidden'); if (b) b.classList.add('active');
-            if (tab === 'scheduler') window.renderScheduleList();
-            else if (tab === 'calendar') window.renderCalendarSummary();
-            else if (tab === 'settings') { window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); window.renderEventTemplateSelect(); }
-            else if (tab === 'editor') window.updateSuggestedTags();
-        };
+        /** RENDER LOGIC **/
 
         window.renderNameMap = () => {
             const list = document.getElementById('databaseList'); if (!list) return;
@@ -377,15 +368,14 @@
         };
 
         window.renderScheduleList = () => {
-            const container = document.getElementById('scheduledEventsContainer'), histList = document.getElementById('historyEventsList');
-            if (!container || !histList) return;
+            const container = document.getElementById('scheduledEventsContainer'); if (!container) return;
             const fP = document.getElementById('schedulePeriodFilter').value, fN = document.getElementById('scheduleNameFilter').value.toLowerCase();
-            const now = window.getLocalDateString(new Date()); container.innerHTML = '';
+            const nowStr = window.getLocalDateString(new Date()); container.innerHTML = '';
             const all = window.calculateSequentialDays(eventSchedule);
             const upcoming = [], past = [];
             all.forEach(e => {
                 const p = window.getPeriodForDate(e.date), isM = (fP === 'all' || p === fP) && e.eventName.toLowerCase().includes(fN);
-                if (e.date < now || (e.postStatus === 'done' && e.storyStatus === 'done')) past.push(e);
+                if (e.date < nowStr || (e.postStatus === 'done' && e.storyStatus === 'done')) past.push(e);
                 else if (isM) upcoming.push(e);
             });
             const grp = upcoming.reduce((acc, e) => { if (!acc[e.date]) acc[e.date] = []; acc[e.date].push(e); return acc; }, {});
@@ -394,11 +384,40 @@
                 const p = window.getPeriodForDate(dKey);
                 if (p !== lastP) { const div = document.createElement('div'); div.className = 'period-divider'; div.innerHTML = `<span>${p} Period</span>`; container.appendChild(div); lastP = p; }
                 const gDiv = document.createElement('div'); gDiv.className = 'event-group';
-                gDiv.innerHTML = `<h3 class="text-xs font-bold text-gray-400 mb-2 border-b pb-1 flex justify-between uppercase">🗓 ${dKey} <div class="flex gap-1"><button onclick="window.copyDayEventNames('${dKey}')" class="border px-1 rounded shadow-sm hover:bg-gray-50">Post</button></div></h3><div class="list space-y-2"></div>`;
+                gDiv.innerHTML = `<h3 class="text-xs font-bold text-gray-400 mb-2 border-b pb-1 flex justify-between uppercase tracking-tighter">🗓 ${dKey} <div class="flex gap-1"><button onclick="window.copyDayEventNames('${dKey}')" class="border px-1 rounded shadow-sm bg-white hover:bg-gray-50">Day Post</button><button onclick="window.copyDayTagsOnly('${dKey}')" class="border px-1 rounded shadow-sm bg-white hover:bg-gray-50">Day Tags</button></div></h3><div class="list space-y-2"></div>`;
                 const list = gDiv.querySelector('.list');
                 grp[dKey].forEach(e => {
+                    const escN = e.eventName.replace(/'/g, "\\'");
+                    const idPost = `post-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
+                    const idTags = `tags-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
                     const card = document.createElement('div'); card.className = 'scheduled-event-card'; card.onclick = () => window.loadEventForEdit(e);
-                    card.innerHTML = `<div class="flex justify-between mb-1"><h3>${e.eventName}</h3><button onclick="event.stopPropagation(); window.handleDeleteScheduledEvent('${e.date}','${e.eventName}')" class="text-red-300">✕</button></div><div class="flex gap-2"><textarea onblur="window.updateText('${e.date}','${e.eventName}',this.value,'postText')" class="flex-grow h-12 text-[9px] border p-1 shadow-inner">${e.postText}</textarea></div>`;
+                    card.innerHTML = `<div class="flex items-start">
+                        <div class="flex flex-col mr-2">
+                            <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${escN}','up')" class="order-btn">▲</button>
+                            <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${escN}','down')" class="order-btn">▼</button>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="flex justify-between mb-1">
+                                <h3>${e.eventName}</h3>
+                                <div class="flex gap-1">
+                                    <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','media')" class="px-2 border rounded ${e.mediaStatus==='done'?'bg-indigo-600 text-white text-[10px]':'text-[10px] bg-white'}">🎬</button>
+                                    <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','post')" class="px-2 border rounded ${e.postStatus==='done'?'bg-green-500 text-white text-[10px]':'text-[10px] bg-white'}">POST</button>
+                                    <button onclick="event.stopPropagation(); window.toggleStatus('${e.date}','${escN}','story')" class="px-2 border rounded ${e.storyStatus==='done'?'bg-green-500 text-white text-[10px]':'text-[10px] bg-white'}">STORY</button>
+                                    <button onclick="event.stopPropagation(); window.handleDeleteScheduledEvent('${e.date}','${escN}')" class="text-red-300 ml-1">✕</button>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 items-start">
+                                <div class="flex-grow flex flex-col">
+                                    <textarea id="${idPost}" onblur="window.updateText('${e.date}','${escN}',this.value,'postText')" class="w-full h-16 text-[9px] border p-1 shadow-inner">${e.postText}</textarea>
+                                    <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('${idPost}').value)" class="mt-1 text-[8px] font-bold text-primary uppercase text-left hover:underline">Copy Post Text</button>
+                                </div>
+                                <div class="w-24 flex flex-col">
+                                    <textarea id="${idTags}" onblur="window.updateText('${e.date}','${escN}',this.value,'tagsOnly')" class="w-full h-16 text-[9px] border p-1 shadow-inner font-mono">${e.tagsOnly || ''}</textarea>
+                                    <button onclick="event.stopPropagation(); window.copyToClipboard(document.getElementById('${idTags}').value)" class="mt-1 text-[8px] font-bold text-secondary uppercase text-left hover:underline">Copy Tags</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
                     list.appendChild(card);
                 });
                 container.appendChild(gDiv);
@@ -419,30 +438,16 @@
         window.renderGlobalTags = () => { const el = document.getElementById('defaultTagsInput'); if (el) el.value = globalTagsString; };
         window.renderEventTemplateSelect = () => { const options = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const el = document.getElementById('eventTemplateSelect'); if (el) el.innerHTML = options; };
 
-        /** TAG CLOUD & HASHTAG HELPERS **/
+        /** TAG HELPERS **/
+
         window.updateSuggestedTags = () => {
             const container = document.getElementById('suggestedTagsContainer'); if (!container) return;
             const eventName = (document.getElementById('inputEventName')?.value || "").trim().toLowerCase();
             const location = (document.getElementById('inputLocation')?.value || "").trim().toLowerCase();
             const candidates = new Set();
             
-            // From map
-            Object.keys(eventExtraTags).forEach(key => {
-                if (eventName.includes(key.toLowerCase()) || location.includes(key.toLowerCase())) {
-                    eventExtraTags[key].split(/[, ]+/).forEach(t => {
-                        if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim());
-                    });
-                }
-            });
-
-            // From schedule history
-            eventSchedule.forEach(e => {
-                if (e.eventName?.toLowerCase() === eventName || e.location?.toLowerCase() === location) {
-                    if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => {
-                         if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim());
-                    });
-                }
-            });
+            Object.keys(eventExtraTags).forEach(key => { if (eventName.includes(key.toLowerCase()) || location.includes(key.toLowerCase())) { eventExtraTags[key].split(/[, ]+/).forEach(t => { if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim()); }); } });
+            eventSchedule.forEach(e => { if (e.eventName?.toLowerCase() === eventName || e.location?.toLowerCase() === location) { if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => { if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim()); }); } });
 
             const unique = [...candidates].sort();
             container.innerHTML = '<span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>';
@@ -465,7 +470,18 @@
             document.querySelectorAll('.tag-pill').forEach(pill => { if (tags.includes(pill.textContent.toLowerCase())) pill.classList.add('active'); else pill.classList.remove('active'); });
         };
 
-        /** EDITOR ACTIONS **/
+        /** INTERACTION ACTIONS **/
+
+        window.showTab = (tab) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            const c = document.getElementById(`tab-${tab}-content`), b = document.getElementById(`tab-${tab}-btn`);
+            if (c) c.classList.remove('hidden'); if (b) b.classList.add('active');
+            if (tab === 'scheduler') window.renderScheduleList();
+            else if (tab === 'calendar') window.renderCalendarSummary();
+            else if (tab === 'settings') { window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); window.renderEventTemplateSelect(); }
+            else if (tab === 'editor') window.updateSuggestedTags();
+        };
 
         window.toggleRecurringUI = () => {
             const type = document.getElementById('recurringType').value;
@@ -494,9 +510,6 @@
             const pEl = document.getElementById('recurringPreview'); if(pEl) pEl.innerHTML = pendingRecurringDates.map(d => `<div class='bg-indigo-100 px-1 rounded text-[10px]'>${d}</div>`).join('');
             window.handleClick(false); 
         };
-
-        window.insertSnippet = () => { const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) { const a = document.getElementById('rawDescription'); const s = a.selectionStart, e = a.selectionEnd; a.value = a.value.substring(0, s) + textSnippets[k] + a.value.substring(e); a.focus(); } };
-        window.loadEventTemplate = () => { const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || ''; document.getElementById('rawDescription').value = e.description || ''; document.getElementById('extraHashtagsInput').value = e.extraTags || ''; currentExclusions = e.excludedNames || []; window.updateSuggestedTags(); window.handleClick(false); } };
 
         window.loadEventForEdit = (e) => {
             if (!e) return;
@@ -530,23 +543,14 @@
                 const valid = []; const occ = new Set();
                 allMatches.forEach(m => { let ov = false; for(let i=m.index;i<m.index+m.length;i++){if(occ.has(i))ov=true;} if(!ov){valid.push(m); for(let i=m.index;i<m.index+m.length;i++)occ.add(i);} });
                 
-                // Track lowest index for each unique tag to ensure we only tag the FIRST instance
+                // Track FIRST occurrences only
                 const firstOccurrences = {};
-                valid.forEach(m => {
-                    if (!currentExclusions.includes(m.name)) {
-                        if (firstOccurrences[m.tag] === undefined || m.index < firstOccurrences[m.tag]) {
-                            firstOccurrences[m.tag] = m.index;
-                        }
-                    }
-                });
+                valid.forEach(m => { if (!currentExclusions.includes(m.name)) { if (firstOccurrences[m.tag] === undefined || m.index < firstOccurrences[m.tag]) firstOccurrences[m.tag] = m.index; } });
 
                 let inj = desc; 
                 [...valid].sort((a,b) => b.index - a.index).forEach(m => {
                     if (currentExclusions.includes(m.name)) { if(m.isPreTagged){ const s = m.index + m.length, b = inj.substring(s, s+60), p = b.toLowerCase().indexOf(m.tag.toLowerCase()); if(p!==-1) inj = inj.substring(0, s+p) + inj.substring(s+p+m.tag.length); } }
-                    else if (!m.isPreTagged && m.index === firstOccurrences[m.tag]) { 
-                        // Tagging ONLY the first occurrence of this specific tag
-                        inj = inj.substring(0, m.index+m.length) + " " + m.tag + inj.substring(m.index+m.length); 
-                    }
+                    else if (!m.isPreTagged && m.index === firstOccurrences[m.tag]) inj = inj.substring(0, m.index+m.length) + " " + m.tag + inj.substring(m.index+m.length); 
                 });
 
                 const hashes = [...new Set((globalTagsString + " " + xtra).match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
@@ -558,6 +562,7 @@
             const { fullRes, valid } = await processSingle(targetDate);
             document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + fullRes;
             document.getElementById('tagsOnlyOutput').value = valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag).join('\n');
+            
             const tMan = document.getElementById('detectedTagsManager'); if(tMan) {
                 tMan.innerHTML = ''; [...new Set(valid.map(m => m.name))].forEach(n => {
                     const pill = document.createElement('div'); const exc = currentExclusions.includes(n); pill.className = `active-tag-pill cursor-pointer ${exc?'excluded':''}`; pill.innerHTML = `${n} ${exc?'+':'✕'}`;
@@ -574,9 +579,10 @@
         };
 
         /** DATA SETTINGS **/
+
         window.saveQuickTag = async function() { const n = document.getElementById('quickName').value.trim(), t = document.getElementById('quickTag').value.trim(), c = document.getElementById('quickCategory').value; if (!n || !t) return alert("Required fields."); nameTagDatabase[n] = { tag: (t.startsWith('@') ? t : '@' + t), category: c }; if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { window.renderNameMap(); document.getElementById('quickName').value = ""; document.getElementById('quickTag').value = ""; } };
         window.editTag = (n) => { const d = nameTagDatabase[n]; if(!d) return; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; const btn = document.getElementById('cancelTagEditBtn'); if (btn) btn.classList.remove('hidden'); window.showTab('settings'); };
-        window.cancelTagEdit = () => { document.getElementById('newName').value = ""; document.getElementById('newTag').value = ""; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
+        window.cancelTagEdit = () => { document.getElementById('newName').value = ""; document.getElementById('newTag').value = ""; currentTagEdit = null; const btn = document.getElementById('cancelTagEditBtn'); if (btn) btn.classList.add('hidden'); };
         window.deleteTag = async (n) => { if(await window.safeConfirm("Delete Tag", n)) { delete nameTagDatabase[n]; await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
         window.addNameMapEntry = async () => { const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(); if (!n || !t) return; if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; nameTagDatabase[n] = { tag: (t.startsWith('@') ? t : '@' + t), category: document.getElementById('newCategory').value }; if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { window.cancelTagEdit(); window.renderNameMap(); } };
         window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
@@ -587,9 +593,13 @@
         window.searchIGDirectly = () => { const n = document.getElementById('newName').value.trim(); if (n) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(n)}`, '_blank'); };
         window.searchIGInline = () => { const n = document.getElementById('quickName').value.trim(); if (n) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(n)}`, '_blank'); };
         window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
+        window.toggleStatus = async function(date, name, type) { const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return; const field = type === 'post' ? 'postStatus' : (type === 'story' ? 'storyStatus' : 'mediaStatus'); eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done'; window.renderScheduleList(); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); };
         window.handleDeleteScheduledEvent = async (date, name) => { if (await window.safeConfirm("Delete Event", `Delete ${name}?`)) { eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name)); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); } };
         window.copyDayEventNames = (date) => { const all = window.calculateSequentialDays(eventSchedule), dayEvents = all.filter(e => e.date === date); if (dayEvents.length === 0) return alert("No events."); const dayNum = dayEvents[0].dayNumber, eventsText = dayEvents.map(e => `${e.eventName} - ${e.location} ${window.findTagForLocation(e.location)}`).join('\n'); const matches = globalTagsString.match(/#\w+/g) || [], hashes = [...new Set(matches.map(t => t.toLowerCase()))].join(' '); window.copyToClipboard(`🌕Full Moon Week - Day ${dayNum}🌕\n🗓 DATE: ${window.formatDateFriendly(date)}\n\nToday's events:\n\n${eventsText}\n\n${hashes}`); };
+        window.copyDayTagsOnly = (date) => { const all = window.calculateSequentialDays(eventSchedule), dayEvents = all.filter(e => e.date === date), tags = dayEvents.map(e => window.findTagForLocation(e.location)).filter(Boolean), unique = [...new Set(tags)]; if (unique.length === 0) return alert("No venue tags."); window.copyToClipboard(unique.join('\n')); };
         window.findTagForLocation = (loc) => { if (!loc) return ""; const low = loc.toLowerCase(), entries = Object.entries(nameTagDatabase).sort((a,b) => b[0].length - a[0].length); for (const [n, d] of entries) { const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'i'); if (reg.test(low)) return d.tag || ""; } return ""; };
+        window.moveEvent = async function(date, name, direction) { const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0)); dayEvents.forEach((e, i) => e.order = i); const idx = dayEvents.findIndex(e => e.eventName === name); if (idx === -1) return; if (direction === 'up' && idx > 0) { const temp = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx - 1].order; dayEvents[idx - 1].order = temp; } else if (direction === 'down' && idx < dayEvents.length - 1) { const temp = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx + 1].order; dayEvents[idx + 1].order = temp; } else { return; } await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); };
+
         window.exportFullDatabase = () => { const full = { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString, ts: new Date().toISOString() }; const blob = new Blob([JSON.stringify(full, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `Backup_${window.getLocalDateString(new Date())}.json`; a.click(); };
         window.createCloudSnapshot = async () => { const snap = { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString }; if (await window.saveDataToSupabase(DB_CONFIG.BACKUP_KEY, snap)) alert("Snapshot created."); };
         window.importFullDatabase = async () => {
@@ -604,8 +614,8 @@
             }
         };
 
-        /** AI FINDER (DISABLED) **/
-        window.findDJHandles = async () => { alert("Finder feature currently disabled for reliability."); };
+        window.insertSnippet = () => { const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) { const a = document.getElementById('rawDescription'); const s = a.selectionStart, e = a.selectionEnd; a.value = a.value.substring(0, s) + textSnippets[k] + a.value.substring(e); a.focus(); } };
+        window.loadEventTemplate = () => { const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || ''; document.getElementById('rawDescription').value = e.description || ''; document.getElementById('extraHashtagsInput').value = e.extraTags || ''; currentExclusions = e.excludedNames || []; window.updateSuggestedTags(); window.handleClick(false); } };
 
         /** INIT **/
         async function initializeSupabase() {
