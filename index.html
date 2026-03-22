@@ -44,6 +44,7 @@
         .history-box-bg { background-color: #f8fafc !important; }
         .add-entry-bg { background-color: #ecfdf5 !important; }
         .bulk-import-bg { background-color: #fffbeb !important; }
+        .finder-box-bg { background-color: #f5f3ff !important; }
         .modal { transition: opacity 0.3s ease-in-out; pointer-events: none; opacity: 0; z-index: 100; }
         .modal.active { pointer-events: auto; opacity: 1; }
         .scheduled-event-card { padding: 0.75rem !important; font-size: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: white; transition: box-shadow 0.2s; cursor: pointer; }
@@ -51,6 +52,7 @@
         .scheduled-event-card h3 { font-size: 1rem; font-weight: 700; color: #4f46e5; }
         .event-group { border: 1px solid #cbd5e1; padding: 0.75rem; margin-bottom: 1rem; background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); width: 100%; }
         .tag-pill { display: inline-block; padding: 2px 8px; margin: 2px; border-radius: 9999px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; background: white; color: #64748b; }
+        .tag-pill:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .tag-pill.active { background: #4f46e5; color: white; border-color: #4f46e5; }
         .active-tag-pill { display: inline-flex; align-items: center; padding: 2px 8px; margin: 2px; border-radius: 6px; font-size: 10px; font-weight: 600; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
         .active-tag-pill.excluded { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; border-color: #e2e8f0; }
@@ -330,7 +332,7 @@
 
         window.saveDataToSupabase = async (table, data) => {
             if (!supabase) return false;
-            const isCritical = [DB_CONFIG.INSTA_DB_KEY, DB_CONFIG.SCHEDULE_DB_KEY].includes(table);
+            const isCritical = [DB_CONFIG.INSTA_DB_KEY, DB_CONFIG.SCHEDULE_DB_KEY, DB_CONFIG.EVENT_DB_KEY].includes(table);
             const isEmpty = !data || (typeof data === 'object' && Object.keys(data).length === 0) || (Array.isArray(data) && data.length === 0);
             if (isCritical && isEmpty) { const s = document.getElementById('statusMessage'); if (s) { s.textContent = "GHOST GUARD BLOCKED WIPE"; s.className = "text-[9px] font-bold text-red-600"; } return false; }
             isSaving = true;
@@ -350,7 +352,6 @@
             if (tab === 'scheduler') window.renderScheduleList();
             else if (tab === 'calendar') window.renderCalendarSummary();
             else if (tab === 'settings') { window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); window.renderEventTemplateSelect(); }
-            else if (tab === 'editor') window.updateSuggestedTags();
         };
 
         window.renderNameMap = () => {
@@ -417,6 +418,36 @@
         window.renderGlobalTags = () => { const el = document.getElementById('defaultTagsInput'); if (el) el.value = globalTagsString; };
         window.renderEventTemplateSelect = () => { const options = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const el = document.getElementById('eventTemplateSelect'); if (el) el.innerHTML = options; };
 
+        /** TAG CLOUD & HASHTAG HELPERS **/
+        window.updateSuggestedTags = () => {
+            const container = document.getElementById('suggestedTagsContainer'); if (!container) return;
+            const eventName = document.getElementById('inputEventName').value.trim().toLowerCase();
+            const location = document.getElementById('inputLocation').value.trim().toLowerCase();
+            const candidates = new Set();
+            if (eventName && eventExtraTags[eventName]) eventExtraTags[eventName].split(/[, ]+/).forEach(t => candidates.add(t));
+            if (location && eventExtraTags[location]) eventExtraTags[location].split(/[, ]+/).forEach(t => candidates.add(t));
+            eventSchedule.forEach(e => { if ((eventName && e.eventName?.toLowerCase() === eventName) || (location && e.location?.toLowerCase() === location)) { if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => candidates.add(t)); } });
+            const unique = [...new Set(Array.from(candidates).map(t => t.trim()).filter(t => t.length > 1).map(t => t.startsWith('#') ? t : '#' + t).map(t => t.toLowerCase()))];
+            container.innerHTML = '<span class="text-[9px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>';
+            if (unique.length === 0) { container.innerHTML += '<span class="text-[9px] text-gray-300 italic py-1">No matches...</span>'; return; }
+            unique.forEach(tag => { const pill = document.createElement('div'); pill.className = 'tag-pill'; pill.textContent = tag; pill.onclick = () => window.toggleHashtag(tag); container.appendChild(pill); });
+            window.refreshTagPillStates();
+        };
+
+        window.toggleHashtag = (tag) => {
+            const input = document.getElementById('extraHashtagsInput'); if (!input) return;
+            const tags = input.value.toLowerCase().match(/#\w+/g) || [];
+            if (tags.includes(tag.toLowerCase())) input.value = input.value.replace(new RegExp(tag, 'gi'), '').replace(/  +/g, ' ').trim();
+            else input.value = (input.value.trim() + " " + tag).trim();
+            window.refreshTagPillStates();
+        };
+
+        window.refreshTagPillStates = () => {
+            const input = document.getElementById('extraHashtagsInput'); if (!input) return;
+            const tags = input.value.toLowerCase().match(/#\w+/g) || [];
+            document.querySelectorAll('.tag-pill').forEach(pill => { if (tags.includes(pill.textContent.toLowerCase())) pill.classList.add('active'); else pill.classList.remove('active'); });
+        };
+
         /** EDITOR ACTIONS **/
 
         window.toggleRecurringUI = () => {
@@ -431,8 +462,7 @@
         window.previewRecurring = () => {
             const type = document.getElementById('recurringType').value, name = document.getElementById('inputEventName').value.trim();
             if (!name) return alert("Enter name.");
-            const now = window.getLocalDateString(new Date());
-            pendingRecurringDates = [];
+            const now = window.getLocalDateString(new Date()); pendingRecurringDates = [];
             PEAK_DATES.forEach(peak => {
                 const [y, m, d] = peak.date.split('-').map(n => parseInt(n)), fmD = new Date(y, m-1, d, 0, 0, 0);
                 if (type === 'weekly') {
@@ -448,56 +478,75 @@
             window.handleClick(false); 
         };
 
-        window.updateSuggestedTags = () => { /* Suggested tags logic */ };
-        window.refreshTagPillStates = () => { /* Highlights active hashtags */ };
         window.insertSnippet = () => { const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) { const a = document.getElementById('rawDescription'); const s = a.selectionStart, e = a.selectionEnd; a.value = a.value.substring(0, s) + textSnippets[k] + a.value.substring(e); a.focus(); } };
         window.loadEventTemplate = () => { const k = document.getElementById('eventTemplateSelect').value; if (eventDatabase[k]) { const e = eventDatabase[k]; document.getElementById('inputEventName').value = e.eventName || k; document.getElementById('inputLocation').value = e.location || ''; document.getElementById('rawDescription').value = e.description || ''; document.getElementById('extraHashtagsInput').value = e.extraTags || ''; currentExclusions = e.excludedNames || []; window.updateSuggestedTags(); window.handleClick(false); } };
 
         window.loadEventForEdit = (e) => {
             if (!e) return;
-            const iso = document.getElementById('inputIsoDate'), name = document.getElementById('inputEventName'), loc = document.getElementById('inputLocation'), desc = document.getElementById('rawDescription'), tags = document.getElementById('extraHashtagsInput');
-            if (iso) iso.value = e.date || ""; if (name) name.value = e.eventName || ""; if (loc) loc.value = e.location || ""; if (desc) desc.value = window.getEventDescription(e); if (tags) tags.value = e.extraTags || ""; 
-            currentExclusions = e.excludedNames || [];
-            if(document.getElementById('recurringType')) { document.getElementById('recurringType').value = 'none'; window.toggleRecurringUI(); }
-            window.showTab('editor'); window.handleClick(false);
+            document.getElementById('inputIsoDate').value = e.date || ""; document.getElementById('inputEventName').value = e.eventName || ""; document.getElementById('inputLocation').value = e.location || ""; 
+            document.getElementById('rawDescription').value = window.getEventDescription(e); document.getElementById('extraHashtagsInput').value = e.extraTags || ""; 
+            currentExclusions = e.excludedNames || []; window.toggleRecurringUI(); window.showTab('editor'); window.handleClick(false);
         };
 
         window.updateText = async function(date, name, val, field) {
-            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
-            if (idx === -1) return;
-            const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, '');
-            eventSchedule[idx][field] = cleanVal;
-            if (field === 'postText') {
-                const b = cleanVal.split('\n\n'); if (b.length >= 2) eventSchedule[idx].description = b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim();
-            }
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
+            const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, ''); eventSchedule[idx][field] = cleanVal;
+            if (field === 'postText') { const b = cleanVal.split('\n\n'); if (b.length >= 2) eventSchedule[idx].description = b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim(); }
             await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
         window.handleClick = async function(save) {
             const name = document.getElementById('inputEventName').value.trim(), loc = document.getElementById('inputLocation').value.trim(), desc = document.getElementById('rawDescription').value.trim(), xtra = document.getElementById('extraHashtagsInput').value.trim();
             if (!name || !desc) return save ? alert("Name/Desc required.") : null;
+
+            const processSingle = async (date) => {
+                const allMatches = [];
+                Object.entries(nameTagDatabase).forEach(([n, d]) => {
+                    if (!n || !d.tag) return;
+                    const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi'); 
+                    let m; while ((m = reg.exec(desc)) !== null) {
+                        const buffer = desc.substring(m.index + m.length, m.index + m.length + 70);
+                        allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length, isPreTagged: buffer.toLowerCase().includes(d.tag.toLowerCase()) });
+                    }
+                });
+                allMatches.sort((a,b) => b.length - a.length || a.index - b.index);
+                const valid = []; const occ = new Set();
+                allMatches.forEach(m => { let ov = false; for(let i=m.index;i<m.index+m.length;i++){if(occ.has(i))ov=true;} if(!ov){valid.push(m); for(let i=m.index;i<m.index+m.length;i++)occ.add(i);} });
+                
+                let inj = desc; const seenInj = new Set();
+                [...valid].sort((a,b) => b.index - a.index).forEach(m => {
+                    if (currentExclusions.includes(m.name)) { if(m.isPreTagged){ const s = m.index + m.length, b = inj.substring(s, s+60), p = b.toLowerCase().indexOf(m.tag.toLowerCase()); if(p!==-1) inj = inj.substring(0, s+p) + inj.substring(s+p+m.tag.length); } }
+                    else if (!m.isPreTagged && !seenInj.has(m.tag)) { inj = inj.substring(0, m.index+m.length) + " " + m.tag + inj.substring(m.index+m.length); seenInj.add(m.tag); }
+                });
+
+                const hashes = [...new Set((globalTagsString + " " + xtra).match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
+                const fullRes = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}\n\n${hashes}`;
+                return { result: { eventName: name, date, location: loc, postText: fullRes, description: inj, tagsOnly: valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag).join('\n'), extraTags: xtra, order: 0, excludedNames: currentExclusions }, fullRes, valid };
+            };
+
             const targetDate = document.getElementById('inputIsoDate').value || '2026-01-01';
-            const matches = (globalTagsString + " " + xtra).match(/#\w+/g) || [];
-            const hashes = [...new Set(matches.map(t => t.toLowerCase()))].join(' ');
-            const resText = `🗓 DATE: ${window.formatDateFriendly(targetDate)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${desc}\n\n${hashes}`;
-            document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + resText;
+            const { fullRes, valid } = await processSingle(targetDate);
+            document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + fullRes;
+            document.getElementById('tagsOnlyOutput').value = valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag).join('\n');
+            const tMan = document.getElementById('detectedTagsManager'); if(tMan) {
+                tMan.innerHTML = ''; [...new Set(valid.map(m => m.name))].forEach(n => {
+                    const pill = document.createElement('div'); const exc = currentExclusions.includes(n); pill.className = `active-tag-pill cursor-pointer ${exc?'excluded':''}`; pill.innerHTML = `${n} ${exc?'+':'✕'}`;
+                    pill.onclick = () => { if(exc) currentExclusions = currentExclusions.filter(x=>x!==n); else currentExclusions.push(n); window.handleClick(false); };
+                    tMan.appendChild(pill);
+                });
+            }
 
             if (save) {
                 const dates = document.getElementById('recurringType').value === 'none' ? [targetDate] : pendingRecurringDates;
-                for (const d of dates) {
-                    const payload = { eventName: name, date: d, location: loc, postText: resText, description: desc, extraTags: xtra, order: 0, excludedNames: currentExclusions };
-                    const idx = eventSchedule.findIndex(e => e.date === d && e.eventName === name);
-                    if (idx > -1) eventSchedule[idx] = payload; else eventSchedule.push(payload);
-                }
+                for (const d of dates) { const { result } = await processSingle(d); const idx = eventSchedule.findIndex(e => e.date === d && e.eventName === name); if (idx > -1) eventSchedule[idx] = result; else eventSchedule.push(result); }
                 await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.showTab('scheduler');
             }
         };
 
-        /** SETTINGS ACTIONS **/
-
+        /** DATA SETTINGS **/
         window.saveQuickTag = async function() { const n = document.getElementById('quickName').value.trim(), t = document.getElementById('quickTag').value.trim(), c = document.getElementById('quickCategory').value; if (!n || !t) return alert("Required fields."); nameTagDatabase[n] = { tag: (t.startsWith('@') ? t : '@' + t), category: c }; if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { window.renderNameMap(); document.getElementById('quickName').value = ""; document.getElementById('quickTag').value = ""; } };
         window.editTag = (n) => { const d = nameTagDatabase[n]; if(!d) return; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; const btn = document.getElementById('cancelTagEditBtn'); if (btn) btn.classList.remove('hidden'); window.showTab('settings'); };
-        window.cancelTagEdit = () => { document.getElementById('newName').value = ""; document.getElementById('newTag').value = ""; currentTagEdit = null; const btn = document.getElementById('cancelTagEditBtn'); if (btn) btn.classList.add('hidden'); };
+        window.cancelTagEdit = () => { document.getElementById('newName').value = ""; document.getElementById('newTag').value = ""; currentTagEdit = null; document.getElementById('cancelTagEditBtn').classList.add('hidden'); };
         window.deleteTag = async (n) => { if(await window.safeConfirm("Delete Tag", n)) { delete nameTagDatabase[n]; await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
         window.addNameMapEntry = async () => { const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(); if (!n || !t) return; if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; nameTagDatabase[n] = { tag: (t.startsWith('@') ? t : '@' + t), category: document.getElementById('newCategory').value }; if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { window.cancelTagEdit(); window.renderNameMap(); } };
         window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
@@ -508,13 +557,9 @@
         window.searchIGDirectly = () => { const n = document.getElementById('newName').value.trim(); if (n) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(n)}`, '_blank'); };
         window.searchIGInline = () => { const n = document.getElementById('quickName').value.trim(); if (n) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(n)}`, '_blank'); };
         window.toggleHistDetail = (id) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); };
-        window.toggleStatus = async function(date, name, type) { const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return; const field = type === 'post' ? 'postStatus' : (type === 'story' ? 'storyStatus' : 'mediaStatus'); eventSchedule[idx][field] = eventSchedule[idx][field] === 'done' ? 'pending' : 'done'; window.renderScheduleList(); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); };
         window.handleDeleteScheduledEvent = async (date, name) => { if (await window.safeConfirm("Delete Event", `Delete ${name}?`)) { eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name)); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); } };
         window.copyDayEventNames = (date) => { const all = window.calculateSequentialDays(eventSchedule), dayEvents = all.filter(e => e.date === date); if (dayEvents.length === 0) return alert("No events."); const dayNum = dayEvents[0].dayNumber, eventsText = dayEvents.map(e => `${e.eventName} - ${e.location} ${window.findTagForLocation(e.location)}`).join('\n'); const matches = globalTagsString.match(/#\w+/g) || [], hashes = [...new Set(matches.map(t => t.toLowerCase()))].join(' '); window.copyToClipboard(`🌕Full Moon Week - Day ${dayNum}🌕\n🗓 DATE: ${window.formatDateFriendly(date)}\n\nToday's events:\n\n${eventsText}\n\n${hashes}`); };
         window.findTagForLocation = (loc) => { if (!loc) return ""; const low = loc.toLowerCase(), entries = Object.entries(nameTagDatabase).sort((a,b) => b[0].length - a[0].length); for (const [n, d] of entries) { const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'i'); if (reg.test(low)) return d.tag || ""; } return ""; };
-        window.moveEvent = async function(date, name, direction) { const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0)); dayEvents.forEach((e, i) => e.order = i); const idx = dayEvents.findIndex(e => e.eventName === name); if (idx === -1) return; if (direction === 'up' && idx > 0) { const temp = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx - 1].order; dayEvents[idx - 1].order = temp; } else if (direction === 'down' && idx < dayEvents.length - 1) { const temp = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx + 1].order; dayEvents[idx + 1].order = temp; } else { return; } await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); };
-
-        /** SAFETY & BACKUP ACTIONS **/
         window.exportFullDatabase = () => { const full = { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString, ts: new Date().toISOString() }; const blob = new Blob([JSON.stringify(full, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `Backup_${window.getLocalDateString(new Date())}.json`; a.click(); };
         window.createCloudSnapshot = async () => { const snap = { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString }; if (await window.saveDataToSupabase(DB_CONFIG.BACKUP_KEY, snap)) alert("Snapshot created."); };
         window.importFullDatabase = async () => {
@@ -529,7 +574,7 @@
             }
         };
 
-        /** AI FINDER (MOCKED/CLEANED) **/
+        /** AI FINDER (DISABLED AS REQUESTED) **/
         window.findDJHandles = async () => { alert("Finder feature currently disabled for reliability."); };
 
         /** INIT **/
@@ -548,8 +593,6 @@
                 if (typeof c.render === 'function') c.render();
             }
             const iso = document.getElementById('inputIsoDate'); if (iso) iso.value = window.getLocalDateString(new Date());
-            const fEl = document.getElementById('schedulePeriodFilter');
-            if (fEl) { PEAK_DATES.forEach(p => { const opt = document.createElement('option'); opt.value = p.name; opt.textContent = p.name; fEl.appendChild(opt); }); }
             window.showTab('editor');
         }
 
