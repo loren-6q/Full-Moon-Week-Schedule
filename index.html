@@ -476,7 +476,6 @@
                     eventsInDay.forEach(e => {
                         const line = `${e.eventName} @ ${e.location}`;
                         plainText += `${line}\n`;
-                        // FONT SIZE INCREASED HERE
                         eventsHtml += `<div class="text-[12px] text-gray-600 font-medium">${e.eventName} <span class="text-gray-400 italic font-normal">@ ${e.location}</span></div>`;
                     });
                     
@@ -506,6 +505,17 @@
         window.renderSnippetSelect = () => { const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const s1 = document.getElementById('snippetSelect'), s2 = document.getElementById('editorSnippetSelect'); if (s1) s1.innerHTML = html; if (s2) s2.innerHTML = html; };
         window.renderGlobalTags = () => { const el = document.getElementById('defaultTagsInput'); if (el) el.value = globalTagsString; };
         window.renderEventTemplateSelect = () => { const options = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const el = document.getElementById('eventTemplateSelect'); if (el) el.innerHTML = options; };
+        
+        /* FIXED: Added function to populate the period filter excluding past peak dates */
+        window.renderPeriodFilter = () => {
+            const sel = document.getElementById('schedulePeriodFilter');
+            if (!sel) return;
+            const nowStr = window.getLocalDateString(new Date());
+            sel.innerHTML = '<option value="all">All Periods</option>' + 
+                PEAK_DATES
+                .filter(p => p.date >= nowStr) // Filter out past periods
+                .map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+        };
 
         /** TAG HELPERS **/
 
@@ -631,22 +641,33 @@
             };
 
             const targetDate = document.getElementById('inputIsoDate').value || '2026-01-01';
-            const { fullRes, valid, uniqueTagsList } = await processSingle(targetDate);
-            document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + fullRes;
-            document.getElementById('tagsOnlyOutput').value = uniqueTagsList.join('\n');
             
-            const tMan = document.getElementById('detectedTagsManager'); if(tMan) {
-                tMan.innerHTML = ''; [...new Set(valid.map(m => m.name))].forEach(n => {
-                    const pill = document.createElement('div'); const exc = currentExclusions.includes(n); pill.className = `active-tag-pill cursor-pointer ${exc?'excluded':''}`; pill.innerHTML = `${n} ${exc?'+':'✕'}`;
-                    pill.onclick = () => { if(exc) currentExclusions = currentExclusions.filter(x=>x!==n); else currentExclusions.push(n); window.handleClick(false); };
-                    tMan.appendChild(pill);
-                });
-            }
-
             if (save) {
                 const dates = document.getElementById('recurringType').value === 'none' ? [targetDate] : pendingRecurringDates;
-                for (const d of dates) { const { result } = await processSingle(d); const idx = eventSchedule.findIndex(e => e.date === d && e.eventName === name); if (idx > -1) eventSchedule[idx] = result; else eventSchedule.push(result); }
-                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.showTab('scheduler');
+                for (const d of dates) { 
+                    const { result } = await processSingle(d); 
+                    const idx = eventSchedule.findIndex(e => e.date === d && e.eventName === name); 
+                    if (idx > -1) {
+                        result.order = eventSchedule[idx].order || 0;
+                        eventSchedule[idx] = result; 
+                    } else {
+                        eventSchedule.push(result); 
+                    }
+                }
+                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
+                window.showTab('scheduler');
+            } else {
+                const { fullRes, valid, uniqueTagsList } = await processSingle(targetDate);
+                document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + fullRes;
+                document.getElementById('tagsOnlyOutput').value = uniqueTagsList.join('\n');
+                
+                const tMan = document.getElementById('detectedTagsManager'); if(tMan) {
+                    tMan.innerHTML = ''; [...new Set(valid.map(m => m.name))].forEach(n => {
+                        const pill = document.createElement('div'); const exc = currentExclusions.includes(n); pill.className = `active-tag-pill cursor-pointer ${exc?'excluded':''}`; pill.innerHTML = `${n} ${exc?'+':'✕'}`;
+                        pill.onclick = () => { if(exc) currentExclusions = currentExclusions.filter(x=>x!==n); else currentExclusions.push(n); window.handleClick(false); };
+                        tMan.appendChild(pill);
+                    });
+                }
             }
         };
 
@@ -704,6 +725,9 @@
                 }
                 if (typeof c.render === 'function') c.render();
             }
+            
+            window.renderPeriodFilter();
+            
             const iso = document.getElementById('inputIsoDate'); if (iso) iso.value = window.getLocalDateString(new Date());
             window.showTab('scheduler');
         }
