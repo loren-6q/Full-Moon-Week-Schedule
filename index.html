@@ -397,6 +397,12 @@
                     const idPost = `post-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
                     const idTags = `tags-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
                     const card = document.createElement('div'); card.className = 'scheduled-event-card'; card.onclick = () => window.loadEventForEdit(e);
+                    
+                    /* FIXED: Ensure post text displays correct calculated day number dynamically */
+                    const displayPost = e.postText.startsWith('🌕Full Moon Week') 
+                        ? e.postText.replace(/^🌕Full Moon Week - Day \d+🌕/, `🌕Full Moon Week - Day ${e.dayNumber}🌕`)
+                        : `🌕Full Moon Week - Day ${e.dayNumber}🌕\n${e.postText}`;
+
                     card.innerHTML = `<div class="flex items-start">
                         <div class="flex flex-col mr-2">
                             <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${escN}','up')" class="order-btn">▲</button>
@@ -419,7 +425,7 @@
 
                             <div class="flex gap-2 items-start">
                                 <div class="flex-grow">
-                                    <textarea id="${idPost}" onblur="window.updateText('${e.date}','${escN}',this.value,'postText')" class="w-full h-16 text-[9px] border p-1 shadow-inner">${e.postText}</textarea>
+                                    <textarea id="${idPost}" onblur="window.updateText('${e.date}','${escN}',this.value,'postText')" class="w-full h-16 text-[9px] border p-1 shadow-inner">${displayPost}</textarea>
                                 </div>
                                 <div class="w-24">
                                     <textarea id="${idTags}" onblur="window.updateText('${e.date}','${escN}',this.value,'tagsOnly')" class="w-full h-16 text-[9px] border p-1 shadow-inner font-mono">${e.tagsOnly || ''}</textarea>
@@ -506,14 +512,13 @@
         window.renderGlobalTags = () => { const el = document.getElementById('defaultTagsInput'); if (el) el.value = globalTagsString; };
         window.renderEventTemplateSelect = () => { const options = '<option value="">--- Select Template ---</option>' + Object.keys(eventDatabase).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const el = document.getElementById('eventTemplateSelect'); if (el) el.innerHTML = options; };
         
-        /* FIXED: Added function to populate the period filter excluding past peak dates */
         window.renderPeriodFilter = () => {
             const sel = document.getElementById('schedulePeriodFilter');
             if (!sel) return;
             const nowStr = window.getLocalDateString(new Date());
             sel.innerHTML = '<option value="all">All Periods</option>' + 
                 PEAK_DATES
-                .filter(p => p.date >= nowStr) // Filter out past periods
+                .filter(p => p.date >= nowStr)
                 .map(p => `<option value="${p.name}">${p.name}</option>`).join('');
         };
 
@@ -599,7 +604,9 @@
 
         window.updateText = async function(date, name, val, field) {
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
-            const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, ''); eventSchedule[idx][field] = cleanVal;
+            /* FIXED: Keep headers out of stored postText to ensure sequential automation works */
+            const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, ''); 
+            eventSchedule[idx][field] = cleanVal;
             if (field === 'postText') { const b = cleanVal.split('\n\n'); if (b.length >= 2) eventSchedule[idx].description = b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim(); }
             await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
@@ -609,6 +616,13 @@
             if (!name || !desc) return save ? alert("Name/Desc required.") : null;
 
             const processSingle = async (date) => {
+                /* FIXED: Calculate current day relative to full moon week */
+                const candidate = { date: date, eventName: name, order: 0 };
+                const tempSchedule = [...eventSchedule.filter(e => !(e.date === date && e.eventName === name)), candidate];
+                const calculated = window.calculateSequentialDays(tempSchedule);
+                const match = calculated.find(e => e.date === date && e.eventName === name);
+                const dayNum = match ? match.dayNumber : 'X';
+
                 const allMatches = [];
                 Object.entries(nameTagDatabase).forEach(([n, d]) => {
                     if (!n || !d.tag) return;
@@ -632,7 +646,10 @@
                 });
 
                 const hashes = [...new Set((globalTagsString + " " + xtra).match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
-                const fullRes = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}\n\n${hashes}`;
+                
+                /* FIXED: Prepend automator header to full post result */
+                const header = `🌕Full Moon Week - Day ${dayNum}🌕\n`;
+                const fullRes = `${header}🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}\n\n${hashes}`;
                 
                 const uniqueTagsList = [...new Set(valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
                 const tagsOnly = uniqueTagsList.join('\n');
@@ -658,7 +675,7 @@
                 window.showTab('scheduler');
             } else {
                 const { fullRes, valid, uniqueTagsList } = await processSingle(targetDate);
-                document.getElementById('calendarOutput').value = "🌕Full Moon Week - Day X🌕\n" + fullRes;
+                document.getElementById('calendarOutput').value = fullRes;
                 document.getElementById('tagsOnlyOutput').value = uniqueTagsList.join('\n');
                 
                 const tMan = document.getElementById('detectedTagsManager'); if(tMan) {
