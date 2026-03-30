@@ -479,8 +479,8 @@
                     eventsHtml += `<div><h5 class="text-[11px] font-black text-gray-800 tracking-tighter mb-1">${dayHeader}</h5><div class="space-y-0.5 ml-2 border-l-2 border-indigo-50 pl-2">`;
                     
                     eventsInDay.forEach(e => {
-                        /* UPDATED: Added symbol at start of line for COPY MONTH readable formatting */
-                        const line = `🔸 ${e.eventName} @ ${e.location}`;
+                        /* UPDATED: Using a smaller '·' (interpunct) symbol for cleaner plain text formatting */
+                        const line = `· ${e.eventName} @ ${e.location}`;
                         plainText += `${line}\n`;
                         eventsHtml += `<div class="text-[12px] text-gray-600 font-medium">${e.eventName} <span class="text-gray-400 italic font-normal">@ ${e.location}</span></div>`;
                     });
