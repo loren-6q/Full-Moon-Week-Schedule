@@ -479,7 +479,6 @@
                     eventsHtml += `<div><h5 class="text-[11px] font-black text-gray-800 tracking-tighter mb-1">${dayHeader}</h5><div class="space-y-0.5 ml-2 border-l-2 border-indigo-50 pl-2">`;
                     
                     eventsInDay.forEach(e => {
-                        /* UPDATED: Using a smaller '·' (interpunct) symbol for cleaner plain text formatting */
                         const line = `· ${e.eventName} @ ${e.location}`;
                         plainText += `${line}\n`;
                         eventsHtml += `<div class="text-[12px] text-gray-600 font-medium">${e.eventName} <span class="text-gray-400 italic font-normal">@ ${e.location}</span></div>`;
@@ -602,6 +601,9 @@
             currentExclusions = e.excludedNames || []; window.toggleRecurringUI(); window.showTab('editor'); window.handleClick(false);
         };
 
+        /* FIXED: Restored Reuse button functionality */
+        window.loadEventFromHistory = (e) => window.loadEventForEdit(e);
+
         window.updateText = async function(date, name, val, field) {
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
             const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, ''); 
@@ -655,7 +657,9 @@
                 const header = `🌕Full Moon Week - Day ${dayNum}🌕\n`;
                 const fullRes = `${header}🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}${hashes ? "\n\n" + hashes : ""}`;
                 
-                const uniqueTagsList = [...new Set(valid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
+                /* FIXED: Sort Story Tags chronologically based on appearance in text */
+                const chronologicalValid = [...valid].sort((a, b) => a.index - b.index);
+                const uniqueTagsList = [...new Set(chronologicalValid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
                 const tagsOnly = uniqueTagsList.join('\n');
                 
                 return { result: { eventName: name, date, location: loc, postText: fullRes, description: inj, tagsOnly: tagsOnly, extraTags: xtra, order: 0, excludedNames: currentExclusions }, fullRes, valid, uniqueTagsList };
@@ -681,7 +685,7 @@
                 await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
                 window.showTab('scheduler');
             } else {
-                const { fullRes, valid, uniqueTagsList } = await processSingle(targetDate);
+                const { fullRes, uniqueTagsList, valid } = await processSingle(targetDate);
                 document.getElementById('calendarOutput').value = fullRes;
                 document.getElementById('tagsOnlyOutput').value = uniqueTagsList.join('\n');
                 
