@@ -163,7 +163,7 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                                 <input type="text" id="quickName" placeholder="Name" class="p-1.5 border rounded text-xs w-full">
                                 <div class="flex space-x-1">
-                                    <input type="text" id="quickTag" placeholder="@handle" class="flex-grow p-1.5 border rounded text-xs min-w-0">
+                                    <input type="text" id="quickTag" placeholder="@handle or URL" class="flex-grow p-1.5 border rounded text-xs min-w-0">
                                     <button onclick="window.searchIGInline()" class="px-2 bg-pink-600 text-white rounded text-[10px] font-bold">IG</button>
                                 </div>
                             </div>
@@ -236,7 +236,7 @@
                         <div class="space-y-2">
                             <input type="text" id="newName" placeholder="Display Name" class="w-full p-2 border rounded text-sm">
                             <div class="flex space-x-2">
-                                <input type="text" id="newTag" placeholder="@instagram_tag" class="flex-grow p-2 border rounded text-sm min-w-0">
+                                <input type="text" id="newTag" placeholder="@handle or URL" class="flex-grow p-2 border rounded text-sm min-w-0">
                                 <button onclick="window.searchIGDirectly()" class="px-3 bg-pink-600 text-white rounded text-xs font-bold whitespace-nowrap">Search IG</button>
                             </div>
                             <select id="newCategory" class="w-full p-2 border rounded text-sm bg-white">
@@ -601,7 +601,6 @@
             currentExclusions = e.excludedNames || []; window.toggleRecurringUI(); window.showTab('editor'); window.handleClick(false);
         };
 
-        /* FIXED: Restored Reuse button functionality */
         window.loadEventFromHistory = (e) => window.loadEventForEdit(e);
 
         window.updateText = async function(date, name, val, field) {
@@ -610,6 +609,20 @@
             eventSchedule[idx][field] = cleanVal;
             if (field === 'postText') { const b = cleanVal.split('\n\n'); if (b.length >= 2) eventSchedule[idx].description = b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim(); }
             await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        /* UPDATED: Generic tag cleaner to parse handles from URL or raw text */
+        window.cleanTagInput = (input) => {
+            let t = input.trim();
+            if (!t) return "";
+            if (t.includes('instagram.com/')) {
+                try {
+                    const parts = t.split('instagram.com/')[1].split('/');
+                    t = parts[0].split('?')[0];
+                } catch(e) {}
+            }
+            t = t.replace(/^@/, '');
+            return '@' + t;
         };
 
         window.handleClick = async function(save) {
@@ -657,7 +670,6 @@
                 const header = `🌕Full Moon Week - Day ${dayNum}🌕\n`;
                 const fullRes = `${header}🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}${hashes ? "\n\n" + hashes : ""}`;
                 
-                /* FIXED: Sort Story Tags chronologically based on appearance in text */
                 const chronologicalValid = [...valid].sort((a, b) => a.index - b.index);
                 const uniqueTagsList = [...new Set(chronologicalValid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
                 const tagsOnly = uniqueTagsList.join('\n');
@@ -701,11 +713,39 @@
 
         /** DATA SETTINGS **/
 
-        window.saveQuickTag = async function() { const n = document.getElementById('quickName').value.trim(), t = document.getElementById('quickTag').value.trim(), c = document.getElementById('quickCategory').value; if (!n || !t) return alert("Required fields."); nameTagDatabase[n] = { tag: (t.startsWith('@') ? t : '@' + t), category: c }; if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { window.renderNameMap(); document.getElementById('quickName').value = ""; document.getElementById('quickTag').value = ""; } };
+        /* UPDATED: Using cleaner for URL or handle pasting */
+        window.saveQuickTag = async function() { 
+            const n = document.getElementById('quickName').value.trim(), 
+                  tInput = document.getElementById('quickTag').value.trim(), 
+                  c = document.getElementById('quickCategory').value; 
+            if (!n || !tInput) return alert("Required fields."); 
+            const finalTag = window.cleanTagInput(tInput);
+            nameTagDatabase[n] = { tag: finalTag, category: c }; 
+            if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { 
+                window.renderNameMap(); 
+                document.getElementById('quickName').value = ""; 
+                document.getElementById('quickTag').value = ""; 
+            } 
+        };
+
         window.editTag = (n) => { const d = nameTagDatabase[n]; if(!d) return; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; const btn = document.getElementById('cancelTagEditBtn'); if (btn) btn.classList.remove('hidden'); window.showTab('settings'); };
         window.cancelTagEdit = () => { document.getElementById('newName').value = ""; document.getElementById('newTag').value = ""; currentTagEdit = null; const btn = document.getElementById('cancelTagEditBtn'); if (btn) btn.classList.add('hidden'); };
         window.deleteTag = async (n) => { if(await window.safeConfirm("Delete Tag", n)) { delete nameTagDatabase[n]; await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
-        window.addNameMapEntry = async () => { const n = document.getElementById('newName').value.trim(), t = document.getElementById('newTag').value.trim(); if (!n || !t) return; if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; nameTagDatabase[n] = { tag: (t.startsWith('@') ? t : '@' + t), category: document.getElementById('newCategory').value }; if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { window.cancelTagEdit(); window.renderNameMap(); } };
+
+        /* UPDATED: Using cleaner for URL or handle pasting in Settings */
+        window.addNameMapEntry = async () => { 
+            const n = document.getElementById('newName').value.trim(), 
+                  tInput = document.getElementById('newTag').value.trim(); 
+            if (!n || !tInput) return; 
+            const finalTag = window.cleanTagInput(tInput);
+            if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; 
+            nameTagDatabase[n] = { tag: finalTag, category: document.getElementById('newCategory').value }; 
+            if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { 
+                window.cancelTagEdit(); 
+                window.renderNameMap(); 
+            } 
+        };
+
         window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
         window.loadSnippet = () => { const k = document.getElementById('snippetSelect').value; if (textSnippets[k]) { document.getElementById('snippetName').value = k; document.getElementById('snippetContent').value = textSnippets[k]; } };
         window.deleteSnippet = async () => { const k = document.getElementById('snippetSelect').value; if(k && await window.safeConfirm("Delete Snippet", `Delete ${k}?`)) { delete textSnippets[k]; await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); } };
