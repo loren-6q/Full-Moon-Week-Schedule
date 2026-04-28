@@ -158,6 +158,7 @@
                              </div>
                              <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Paste party details here..." oninput="window.updateSuggestedTags()"></textarea>
                         </div>
+                        <!-- QUICK ADD SECTION -->
                         <div class="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg shadow-inner">
                             <h3 class="text-[10px] font-bold text-emerald-800 uppercase mb-2">Quick Add Tag to DB</h3>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
@@ -172,6 +173,12 @@
                                     <option value="DJ">DJ</option><option value="Venue">Venue</option><option value="Presenter">Presenter</option><option value="Artist">Artist</option><option value="Label">Label</option><option value="Other">Other</option>
                                 </select>
                                 <button onclick="window.saveQuickTag()" class="flex-1 bg-secondary text-white rounded text-xs font-bold py-1.5 shadow-sm">Save to DB</button>
+                            </div>
+                            
+                            <!-- DB QUICK SEARCH (New 3rd Line) -->
+                            <div class="mt-2 pt-2 border-t border-emerald-200">
+                                <input type="text" id="quickDbSearch" oninput="window.renderQuickDbSearch()" placeholder="🔍 Check if tag exists in DB..." class="w-full p-1.5 border rounded text-[10px] bg-white outline-none">
+                                <div id="quickDbSearchResults" class="mt-1 max-h-24 overflow-y-auto text-[9px] text-emerald-800 divide-y divide-emerald-100 bg-white/50 rounded"></div>
                             </div>
                         </div>
                         <div class="mt-3">
@@ -361,6 +368,20 @@
                 li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span><div class="flex gap-2"><button onclick="window.editTag('${n.replace(/'/g, "\\'")}')" class="text-indigo-500">Edit</button><button onclick="window.deleteTag('${n.replace(/'/g, "\\'")}')" class="text-red-500">✕</button></div>`;
                 list.appendChild(li);
             });
+        };
+
+        /* NEW: Render quick search results in Editor tab */
+        window.renderQuickDbSearch = () => {
+            const s = document.getElementById('quickDbSearch').value.toLowerCase(), res = document.getElementById('quickDbSearchResults');
+            if(!res) return; res.innerHTML = ''; if(!s) return;
+            Object.entries(nameTagDatabase)
+                .filter(([n, d]) => n.toLowerCase().includes(s) || d.tag.toLowerCase().includes(s))
+                .sort()
+                .forEach(([n, d]) => {
+                    const d2 = document.createElement('div'); d2.className = 'p-1.5 flex justify-between items-center text-[9px] text-emerald-900 border-b border-emerald-50 last:border-0';
+                    d2.innerHTML = `<span><b>${n}</b> <span class="text-emerald-600/70">${d.tag}</span></span><span class="text-[8px] bg-emerald-100 px-1 rounded font-bold uppercase">${d.category}</span>`;
+                    res.appendChild(d2);
+                });
         };
 
         window.renderHistory = (past) => {
@@ -611,7 +632,6 @@
             await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
-        /* UPDATED: Generic tag cleaner to parse handles from URL or raw text */
         window.cleanTagInput = (input) => {
             let t = input.trim();
             if (!t) return "";
@@ -713,7 +733,6 @@
 
         /** DATA SETTINGS **/
 
-        /* UPDATED: Using cleaner for URL or handle pasting */
         window.saveQuickTag = async function() { 
             const n = document.getElementById('quickName').value.trim(), 
                   tInput = document.getElementById('quickTag').value.trim(), 
@@ -725,6 +744,9 @@
                 window.renderNameMap(); 
                 document.getElementById('quickName').value = ""; 
                 document.getElementById('quickTag').value = ""; 
+                /* Clear search results as database updated */
+                document.getElementById('quickDbSearch').value = "";
+                window.renderQuickDbSearch();
             } 
         };
 
@@ -732,7 +754,6 @@
         window.cancelTagEdit = () => { document.getElementById('newName').value = ""; document.getElementById('newTag').value = ""; currentTagEdit = null; const btn = document.getElementById('cancelTagEditBtn'); if (btn) btn.classList.add('hidden'); };
         window.deleteTag = async (n) => { if(await window.safeConfirm("Delete Tag", n)) { delete nameTagDatabase[n]; await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
 
-        /* UPDATED: Using cleaner for URL or handle pasting in Settings */
         window.addNameMapEntry = async () => { 
             const n = document.getElementById('newName').value.trim(), 
                   tInput = document.getElementById('newTag').value.trim(); 
