@@ -604,7 +604,7 @@
                 const [y, m, d] = peak.date.split('-').map(n => parseInt(n)), fmD = new Date(y, m-1, d, 0, 0, 0);
                 if (type === 'weekly') {
                     const target = parseInt(document.getElementById('recurringDay').value);
-                    for (let i = -3; i <= 3; i++) { const check = new Date(fmD); check.setDate(fmD.getDate() + i); const iso = window.getLocalDateString(check); if (check.getDay() === target && iso >= now) pendingRecurringDates.push(iso); }
+                    for (let i = -3; i <= 3; i++) { check = new Date(fmD); check.setDate(fmD.getDate() + i); const iso = window.getLocalDateString(check); if (check.getDay() === target && iso >= now) pendingRecurringDates.push(iso); }
                 } else if (type === 'relative') {
                     const offset = parseInt(document.getElementById('recurringOffset').value) || 0;
                     const target = new Date(fmD); target.setDate(fmD.getDate() + offset); const iso = window.getLocalDateString(target); if (iso >= now) pendingRecurringDates.push(iso);
@@ -665,7 +665,11 @@
                         allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length, isPreTagged: buffer.toLowerCase().includes(d.tag.toLowerCase()) });
                     }
                 });
+                
+                /* FIXED: Core parsing sorting fix */
+                // Primary sort for overlap detection: longest names first
                 allMatches.sort((a,b) => b.length - a.length || a.index - b.index);
+                
                 const valid = []; const occ = new Set();
                 allMatches.forEach(m => { let ov = false; for(let i=m.index;i<m.index+m.length;i++){if(occ.has(i))ov=true;} if(!ov){valid.push(m); for(let i=m.index;i<m.index+m.length;i++)occ.add(i);} });
                 
@@ -678,20 +682,11 @@
                     else if (!m.isPreTagged && m.index === firstOccurrences[m.tag]) inj = inj.substring(0, m.index+m.length) + " " + m.tag + inj.substring(m.index+m.length); 
                 });
 
-                const bodyHashes = inj.match(/#\w+/g) || [];
-                const bodyHashesSet = new Set(bodyHashes.map(t => t.toLowerCase()));
+                const hashes = [...new Set((globalTagsString + " " + xtra).match(/#\w+/g) || [])].map(t => t.toLowerCase()).join(' ');
+                const fullRes = `🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}\n\n${hashes}`;
                 
-                const rawHashes = (globalTagsString + " " + xtra).match(/#\w+/g) || [];
-                const uniqueHashes = [...new Set(rawHashes.map(t => t.toLowerCase()))]
-                    .filter(h => !bodyHashesSet.has(h));
-
-                const hashes = uniqueHashes.join(' ');
-                
-                const header = `🌕Full Moon Week - Day ${dayNum}🌕\n`;
-                const fullRes = `${header}🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${name}\n📍 LOCATION: ${loc}\n\n${inj}${hashes ? "\n\n" + hashes : ""}`;
-                
-                const chronologicalValid = [...valid].sort((a, b) => a.index - b.index);
-                const uniqueTagsList = [...new Set(chronologicalValid.filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
+                // Deduplicate tags for the tagsOnly output - sorted chronologically by appearance
+                const uniqueTagsList = [...new Set([...valid].sort((a,b) => a.index - b.index).filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
                 const tagsOnly = uniqueTagsList.join('\n');
                 
                 return { result: { eventName: name, date, location: loc, postText: fullRes, description: inj, tagsOnly: tagsOnly, extraTags: xtra, order: 0, excludedNames: currentExclusions }, fullRes, valid, uniqueTagsList };
@@ -744,7 +739,6 @@
                 window.renderNameMap(); 
                 document.getElementById('quickName').value = ""; 
                 document.getElementById('quickTag').value = ""; 
-                /* Clear search results as database updated */
                 document.getElementById('quickDbSearch').value = "";
                 window.renderQuickDbSearch();
             } 
@@ -782,26 +776,13 @@
             const all = window.calculateSequentialDays(eventSchedule), dayEvents = all.filter(e => e.date === date);
             if (dayEvents.length === 0) return alert("No events.");
             const dayNum = dayEvents[0].dayNumber;
-            
             const eventsText = dayEvents.map(e => {
                 const tag = window.findTagForLocation(e.location);
                 const venueStr = tag ? `${e.location} ${tag}` : e.location;
                 return `🔹 ${e.eventName}\n📍 ${venueStr}`;
             }).join('\n\n');
-            
             const matches = globalTagsString.match(/#\w+/g) || [], hashes = [...new Set(matches.map(t => t.toLowerCase()))].join(' ');
-            
-            const textToCopy = [
-                `🌕 FULL MOON WEEK • DAY ${dayNum} 🌕`,
-                `🗓️ DATE: ${window.formatDateFriendly(date).toUpperCase()}`,
-                ``,
-                `✨ TODAY'S EVENTS ✨`,
-                ``,
-                eventsText,
-                ``,
-                hashes
-            ].join('\n');
-
+            const textToCopy = [`🌕 FULL MOON WEEK • DAY ${dayNum} 🌕`,`🗓️ DATE: ${window.formatDateFriendly(date).toUpperCase()}`,``,`✨ TODAY'S EVENTS ✨`,``,eventsText,``,hashes].join('\n');
             window.copyToClipboard(textToCopy);
         };
 
@@ -841,9 +822,7 @@
                 }
                 if (typeof c.render === 'function') c.render();
             }
-            
             window.renderPeriodFilter();
-            
             const iso = document.getElementById('inputIsoDate'); if (iso) iso.value = window.getLocalDateString(new Date());
             window.showTab('scheduler');
         }
