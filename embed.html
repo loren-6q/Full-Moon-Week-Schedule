@@ -31,27 +31,24 @@
             return "Other"; 
         };
         
-        const urlParams = new URLSearchParams(window.location.search);
-        const targetPeriod = urlParams.get('period');
+        let allEventsWithDays = [];
 
-        async function loadSchedule() {
-            if(!targetPeriod) { 
-                document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-4">No period specified.</p>'; 
-                return; 
-            }
-            document.getElementById('period-title').textContent = targetPeriod + " Schedule";
-            
+        async function init() {
+            // 1. Fetch data once
+            document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-4">Loading schedule...</p>';
             const { data } = await supabase.from('event_schedule').select('*').eq('id', 1).single();
+            
             if(!data || !data.events) { 
                 document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-4">Schedule not found.</p>'; 
                 return; 
             }
-            
+
+            // 2. Pre-calculate days sequentially across all events
             const events = data.events;
-            const s = [...events].sort((a,b) => (new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00')) || (a.order || 0) - (b.order || 0)); 
+            const sortedEvents = [...events].sort((a,b) => (new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00')) || (a.order || 0) - (b.order || 0)); 
             
             let day = 1, last = null; 
-            const all = s.map(e => { 
+            allEventsWithDays = sortedEvents.map(e => { 
                 const cur = new Date(e.date + 'T00:00:00'); 
                 if (last) { 
                     const diff = Math.ceil(Math.abs(cur - last) / (8.64e7)); 
@@ -61,9 +58,40 @@
                 return { ...e, dayNumber: day }; 
             });
 
-            const periodEvents = all.filter(e => getPeriodForDate(e.date) === targetPeriod);
+            // 3. Setup target period
+            const urlParams = new URLSearchParams(window.location.search);
+            let targetPeriod = urlParams.get('period');
+
+            if (!targetPeriod) {
+                // Find nearest future period
+                const nowStr = new Date().toISOString().split('T')[0];
+                const futurePeak = PEAK_DATES.find(p => p.date >= nowStr);
+                targetPeriod = futurePeak ? futurePeak.name : PEAK_DATES[PEAK_DATES.length - 1].name;
+            }
+
+            // 4. Populate Period Picker
+            const picker = document.getElementById('periodPicker');
+            PEAK_DATES.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.name;
+                opt.textContent = p.name + " Schedule";
+                if (p.name === targetPeriod) opt.selected = true;
+                picker.appendChild(opt);
+            });
+
+            picker.addEventListener('change', (e) => {
+                renderSchedule(e.target.value);
+            });
+
+            // 5. Initial Render
+            renderSchedule(targetPeriod);
+        }
+
+        function renderSchedule(targetPeriod) {
+            const periodEvents = allEventsWithDays.filter(e => getPeriodForDate(e.date) === targetPeriod);
+            
             if(periodEvents.length === 0) { 
-                document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-4">No events scheduled yet.</p>'; 
+                document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-12">No events scheduled for this period yet.</p>'; 
                 return; 
             }
 
@@ -79,19 +107,21 @@
                 const dayEvents = grp[date];
                 const dayNum = dayEvents[0].dayNumber;
                 const dObj = new Date(date + 'T00:00:00');
-                const dFormatted = `${String(dObj.getDate()).padStart(2,'0')} ${dObj.toLocaleString('en-US',{month:'short'})} ${dObj.getFullYear()}`;
                 
-                html += `<div class="mb-6">
-                    <div class="border-b-2 border-indigo-500 pb-1 mb-3 flex items-baseline justify-between">
-                        <h3 class="text-sm font-bold text-gray-800 uppercase">Day ${dayNum}</h3>
-                        <span class="text-xs text-indigo-600 font-semibold">${dFormatted}</span>
+                // Format: e.g., "Monday, Jun 1, 2026"
+                const dFormatted = dObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+                
+                html += `<div class="mb-5">
+                    <div class="border-b-2 border-indigo-500 pb-1 mb-2 flex items-baseline justify-between gap-2">
+                        <h3 class="text-lg sm:text-xl font-bold text-indigo-700">${dFormatted}</h3>
+                        <span class="text-sm font-semibold text-gray-500 uppercase whitespace-nowrap">Day ${dayNum}</span>
                     </div>
-                    <div class="space-y-3">`;
+                    <div class="space-y-1.5">`;
                 
                 dayEvents.forEach(e => {
-                    html += `<div class="bg-white p-3 rounded shadow-sm border border-gray-100 flex justify-between items-center">
-                        <span class="font-bold text-sm text-gray-800">${e.eventName}</span>
-                        <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 whitespace-nowrap ml-2">📍 ${e.location}</span>
+                    html += `<div class="bg-white p-2 rounded-lg shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-x-2 gap-y-1">
+                        <span class="font-bold text-sm text-gray-800 break-words">${e.eventName}</span>
+                        <span class="text-sm bg-indigo-50 px-1.5 py-0.5 rounded text-indigo-800 w-fit">📍 ${e.location}</span>
                     </div>`;
                 });
                 
@@ -101,12 +131,26 @@
             document.getElementById('content').innerHTML = html;
         }
 
-        document.addEventListener('DOMContentLoaded', loadSchedule);
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </head>
-<body class="bg-transparent font-sans p-4">
+<body class="bg-transparent font-sans p-1 sm:p-2">
     <div class="max-w-2xl mx-auto">
-        <h2 id="period-title" class="text-xl font-black text-center text-indigo-900 mb-6 uppercase tracking-wider">Loading...</h2>
+        <!-- Header & Disclaimer -->
+        <h2 class="text-2xl font-black text-center text-indigo-950 mb-2 uppercase tracking-wider">Live Schedule</h2>
+        
+        <div class="text-[11px] sm:text-xs text-amber-900 bg-amber-50 border border-amber-200 p-2 sm:p-3 rounded-lg mb-4 shadow-sm leading-relaxed">
+            <strong>Note:</strong> This is the most current list of Full Moon Week events. All are subject to change - some are confirmed and some are assumed based on usual schedules. Most events are scheduled within the week leading up to Full Moon, so future Full Moons will be very incomplete. Check back often to see updates!
+        </div>
+
+        <!-- Month Picker -->
+        <div class="mb-4 flex justify-center">
+            <select id="periodPicker" class="w-full sm:w-auto min-w-[200px] p-1.5 border-2 border-indigo-200 rounded-lg text-sm font-bold text-indigo-900 bg-white shadow-sm focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer text-center">
+                <!-- Options populated by JS -->
+            </select>
+        </div>
+
+        <!-- Schedule Content -->
         <div id="content" class="text-sm"></div>
     </div>
 </body>
