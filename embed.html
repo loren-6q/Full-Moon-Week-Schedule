@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Schedule</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Fetch dates config to map dates to periods
+        const PEAK_DATES = [ 
+            { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: "January 2026" }, 
+            { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' }, 
+            { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' }, 
+            { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' }, 
+            { date: '2026-07-31', name: 'July 2026' }, { date: '2026-08-28', name: 'August 2026' }, 
+            { date: '2026-09-26', name: 'September 2026' }, { date: '2026-10-27', name: 'October 2026' }, 
+            { date: '2026-11-24', name: 'November 2026' }, { date: '2026-12-24', name: 'December 2026' }, 
+            { date: '2026-12-31', name: 'NYE 2026' } 
+        ];
+        
+        const getPeriodForDate = (iso) => { 
+            const evD = new Date(iso + 'T00:00:00'); 
+            for (let p of PEAK_DATES) { 
+                if (Math.abs(evD - new Date(p.date + 'T00:00:00')) / 8.64e7 <= 10) return p.name; 
+            } 
+            return "Other"; 
+        };
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetPeriod = urlParams.get('period');
+
+        async function loadSchedule() {
+            if(!targetPeriod) { 
+                document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-4">No period specified.</p>'; 
+                return; 
+            }
+            document.getElementById('period-title').textContent = targetPeriod + " Schedule";
+            
+            const { data } = await supabase.from('event_schedule').select('*').eq('id', 1).single();
+            if(!data || !data.events) { 
+                document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-4">Schedule not found.</p>'; 
+                return; 
+            }
+            
+            const events = data.events;
+            const s = [...events].sort((a,b) => (new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00')) || (a.order || 0) - (b.order || 0)); 
+            
+            let day = 1, last = null; 
+            const all = s.map(e => { 
+                const cur = new Date(e.date + 'T00:00:00'); 
+                if (last) { 
+                    const diff = Math.ceil(Math.abs(cur - last) / (8.64e7)); 
+                    if (diff > 7) day = 1; else if (diff > 0) day += diff; 
+                } 
+                last = cur; 
+                return { ...e, dayNumber: day }; 
+            });
+
+            const periodEvents = all.filter(e => getPeriodForDate(e.date) === targetPeriod);
+            if(periodEvents.length === 0) { 
+                document.getElementById('content').innerHTML = '<p class="text-center text-gray-500 py-4">No events scheduled yet.</p>'; 
+                return; 
+            }
+
+            // Group by date
+            const grp = periodEvents.reduce((acc, e) => { 
+                if (!acc[e.date]) acc[e.date] = []; 
+                acc[e.date].push(e); 
+                return acc; 
+            }, {});
+
+            let html = '';
+            Object.keys(grp).sort().forEach(date => {
+                const dayEvents = grp[date];
+                const dayNum = dayEvents[0].dayNumber;
+                const dObj = new Date(date + 'T00:00:00');
+                const dFormatted = `${String(dObj.getDate()).padStart(2,'0')} ${dObj.toLocaleString('en-US',{month:'short'})} ${dObj.getFullYear()}`;
+                
+                html += `<div class="mb-6">
+                    <div class="border-b-2 border-indigo-500 pb-1 mb-3 flex items-baseline justify-between">
+                        <h3 class="text-sm font-bold text-gray-800 uppercase">Day ${dayNum}</h3>
+                        <span class="text-xs text-indigo-600 font-semibold">${dFormatted}</span>
+                    </div>
+                    <div class="space-y-3">`;
+                
+                dayEvents.forEach(e => {
+                    html += `<div class="bg-white p-3 rounded shadow-sm border border-gray-100 flex justify-between items-center">
+                        <span class="font-bold text-sm text-gray-800">${e.eventName}</span>
+                        <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 whitespace-nowrap ml-2">📍 ${e.location}</span>
+                    </div>`;
+                });
+                
+                html += `</div></div>`;
+            });
+
+            document.getElementById('content').innerHTML = html;
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSchedule);
+    </script>
+</head>
+<body class="bg-transparent font-sans p-4">
+    <div class="max-w-2xl mx-auto">
+        <h2 id="period-title" class="text-xl font-black text-center text-indigo-900 mb-6 uppercase tracking-wider">Loading...</h2>
+        <div id="content" class="text-sm"></div>
+    </div>
+</body>
+</html>
