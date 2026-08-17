@@ -50,9 +50,7 @@
         .scheduled-event-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .scheduled-event-card h3 { font-size: 1rem; font-weight: 700; color: #4f46e5; }
         
-        /* Updated Schedule Tab UI */
         .event-group { border: 2px solid #ca8a04; padding: 0.75rem; margin-bottom: 1.5rem; background-color: #fef9c3; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; }
-        
         .tag-pill { display: inline-block; padding: 2px 8px; margin: 2px; border-radius: 9999px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; background: white; color: #64748b; }
         .tag-pill:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .tag-pill.active { background: #4f46e5; color: white; border-color: #4f46e5; }
@@ -210,10 +208,46 @@
                             <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Story Tags</label>
                             <textarea id="tagsOnlyOutput" class="w-full border-0 p-0 text-sm focus:ring-0 min-h-[120px]" readonly placeholder="@tags..."></textarea>
                         </div>
-                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
-                            <h3 class="text-xs font-bold text-blue-800 uppercase mb-2 border-b border-blue-200 pb-1">2026 Full Moon Guide</h3>
-                            <div class="columns-2 gap-4 text-[9px] text-blue-700 font-sans leading-relaxed">
-                                <div class="whitespace-nowrap">3 Jan: 1JAN-5JAN</div><div class="whitespace-nowrap">2 Feb: 31JAN-4FEB</div><div class="whitespace-nowrap">3 Mar: 1MAR-5MAR (Makha)</div><div class="whitespace-nowrap">2 Apr: 31MAR-4APR</div><div class="whitespace-nowrap">1 May: 29APR-3MAY</div><div class="whitespace-nowrap">1 June: 30MAY-3JUN (Visakha)</div><div class="whitespace-nowrap">29 Jun: 27JUN-1JUL</div><div class="whitespace-nowrap">31 Jul: 29JUL-2AUG (Asalha)</div><div class="whitespace-nowrap">28 Aug: 26AUG-30AUG</div><div class="whitespace-nowrap">26 Sep: 24SEP-28SEP</div><div class="whitespace-nowrap">27 Oct: 25OCT-29OCT (Ok)</div><div class="whitespace-nowrap">24 Nov: 22NOV-26NOV</div><div class="whitespace-nowrap">24 Dec: 22DEC-26DEC</div><div class="whitespace-nowrap">31 Dec: 29DEC-2JAN</div>
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm max-h-80 overflow-y-auto">
+                            <h3 class="text-xs font-bold text-blue-800 uppercase mb-2 border-b border-blue-200 pb-1 sticky top-0 bg-blue-50">Full Moon Guide (2026 & 2027)</h3>
+                            <div class="space-y-3 text-[9px] text-blue-700 font-sans leading-relaxed">
+                                <div>
+                                    <h4 class="font-bold text-blue-900 border-b border-blue-200/60 pb-0.5 mb-1">2026</h4>
+                                    <div class="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                        <div class="whitespace-nowrap">3 Jan: 1JAN-5JAN</div>
+                                        <div class="whitespace-nowrap">2 Feb: 31JAN-4FEB</div>
+                                        <div class="whitespace-nowrap">3 Mar: 1MAR-5MAR (Makha)</div>
+                                        <div class="whitespace-nowrap">2 Apr: 31MAR-4APR</div>
+                                        <div class="whitespace-nowrap">1 May: 29APR-3MAY</div>
+                                        <div class="whitespace-nowrap">1 Jun: 30MAY-3JUN (Visakha)</div>
+                                        <div class="whitespace-nowrap">29 Jun: 27JUN-1JUL</div>
+                                        <div class="whitespace-nowrap">31 Jul: 29JUL-2AUG (Asalha)</div>
+                                        <div class="whitespace-nowrap">28 Aug: 26AUG-30AUG</div>
+                                        <div class="whitespace-nowrap">26 Sep: 24SEP-28SEP</div>
+                                        <div class="whitespace-nowrap">27 Oct: 25OCT-29OCT (Ok)</div>
+                                        <div class="whitespace-nowrap">24 Nov: 22NOV-26NOV</div>
+                                        <div class="whitespace-nowrap">24 Dec: 22DEC-26DEC</div>
+                                        <div class="whitespace-nowrap">31 Dec: 29DEC-2JAN</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-blue-900 border-b border-blue-200/60 pb-0.5 mb-1">2027</h4>
+                                    <div class="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                        <div class="whitespace-nowrap">22 Jan: 20JAN-24JAN</div>
+                                        <div class="whitespace-nowrap">22 Feb: 20FEB-24FEB (Makha)</div>
+                                        <div class="whitespace-nowrap">22 Mar: 20MAR-24MAR</div>
+                                        <div class="whitespace-nowrap">21 Apr: 19APR-23APR</div>
+                                        <div class="whitespace-nowrap">21 May: 19MAY-23MAY (Visakha)</div>
+                                        <div class="whitespace-nowrap">19 Jun: 17JUN-21JUN</div>
+                                        <div class="whitespace-nowrap">20 Jul: 18JUL-22JUL (Asalha)</div>
+                                        <div class="whitespace-nowrap">17 Aug: 15AUG-19AUG</div>
+                                        <div class="whitespace-nowrap">15 Sep: 13SEP-17SEP</div>
+                                        <div class="whitespace-nowrap">16 Oct: 14OCT-18OCT (Ok)</div>
+                                        <div class="whitespace-nowrap">13 Nov: 11NOV-15NOV</div>
+                                        <div class="whitespace-nowrap">13 Dec: 11DEC-15DEC</div>
+                                        <div class="whitespace-nowrap">31 Dec: 29DEC-2JAN</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -289,7 +323,7 @@
             </div>
         </div>
         
-        <!-- CALENDAR TAB (With single Embed Widget Code button revised to top) -->
+        <!-- CALENDAR TAB -->
         <div id="tab-calendar-content" class="tab-content hidden">
             <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-full">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b pb-4">
@@ -329,7 +363,7 @@
     <div id="embedModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="document.getElementById('embedModal').classList.remove('active')">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4 w-[500px]" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-gray-800 mb-2">Embed Code for <span id="embedPeriodName" class="text-indigo-600"></span></h3>
-            <p class="text-xs text-gray-500 mb-4">Copy this code and paste it into your website's HTML to display a live, auto-updating schedule.</p>
+            <p class="text-xs text-gray-500 mb-4">Copy this code and paste it into your website's HTML to display a live, auto-updating schedule. <br/>*(Note: You must host the embed.html file on your domain)*</p>
             <textarea id="embedCodeText" class="w-full border rounded p-3 text-[10px] font-mono h-24 mb-4 bg-gray-50" readonly></textarea>
             <div class="flex justify-end space-x-3">
                 <button onclick="document.getElementById('embedModal').classList.remove('active')" class="px-4 py-2 text-gray-500 font-medium text-sm border rounded">Close</button>
@@ -341,15 +375,44 @@
     <script>
         /** STATE & CONFIG **/
         const DB_CONFIG = { INSTA_DB_KEY: 'name_tag_database', EVENT_DB_KEY: 'event_templates', SNIPPETS_KEY: 'text_snippets', SCHEDULE_DB_KEY: 'event_schedule', GLOBAL_TAGS_KEY: 'global_tags', EXTRA_TAGS_KEY: 'event_extra_tags', BACKUP_KEY: 'database_backup_snapshots' };
-        const PEAK_DATES = [ { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: "January 2026" }, { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' }, { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' }, { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' }, { date: '2026-07-31', name: 'July 2026' }, { date: '2026-08-28', name: 'August 2026' }, { date: '2026-09-26', name: 'September 2026' }, { date: '2026-10-27', name: 'October 2026' }, { date: '2026-11-24', name: 'November 2026' }, { date: '2026-12-24', name: 'December 2026' }, { date: '2026-12-31', name: 'NYE 2026' } ];
+        
+        // Complete PEAK_DATES array with 2025, 2026, AND 2027 dates
+        const PEAK_DATES = [ 
+            { date: '2025-12-05', name: 'December 2025' }, 
+            { date: '2026-01-03', name: 'January 2026' }, 
+            { date: '2026-02-02', name: 'February 2026' }, 
+            { date: '2026-03-03', name: 'March 2026' }, 
+            { date: '2026-04-02', name: 'April 2026' }, 
+            { date: '2026-05-01', name: 'May 2026' }, 
+            { date: '2026-06-01', name: 'June 2026' }, 
+            { date: '2026-06-29', name: 'June 2026 (2nd)' }, 
+            { date: '2026-07-31', name: 'July 2026' }, 
+            { date: '2026-08-28', name: 'August 2026' }, 
+            { date: '2026-09-26', name: 'September 2026' }, 
+            { date: '2026-10-27', name: 'October 2026' }, 
+            { date: '2026-11-24', name: 'November 2026' }, 
+            { date: '2026-12-24', name: 'December 2026' }, 
+            { date: '2026-12-31', name: 'NYE 2026' },
+            { date: '2027-01-22', name: 'January 2027' }, 
+            { date: '2027-02-22', name: 'February 2027' }, 
+            { date: '2027-03-22', name: 'March 2027' }, 
+            { date: '2027-04-21', name: 'April 2027' }, 
+            { date: '2027-05-21', name: 'May 2027' }, 
+            { date: '2027-06-19', name: 'June 2027' }, 
+            { date: '2027-07-20', name: 'July 2027' }, 
+            { date: '2027-08-17', name: 'August 2027' }, 
+            { date: '2027-09-15', name: 'September 2027' }, 
+            { date: '2027-10-16', name: 'October 2027' }, 
+            { date: '2027-11-13', name: 'November 2027' }, 
+            { date: '2027-12-13', name: 'December 2027' }, 
+            { date: '2027-12-31', name: 'NYE 2027' }
+        ];
         
         const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
         
         let supabase = null, nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [], globalTagsString = "", eventExtraTags = {}, isSaving = false, resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
 
-        /** ALL GLOBAL FUNCTIONS (Consolidated and Defined Early) **/
-        
         window.getLocalDateString = (d) => { if (!(d instanceof Date)) d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
         window.formatDateFriendly = (iso) => { if (!iso) return 'TBD Date'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); };
         window.getEventDescription = (e) => { if (!e) return ""; if (e.description) return e.description; if (!e.postText) return ""; const b = e.postText.split('\n\n'); return b.length > 1 ? b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim() : e.postText.trim(); };
@@ -373,8 +436,6 @@
             if (s) { s.textContent = error ? "Sync Error" : "Cloud Saved"; setTimeout(() => { if (!isSaving) s.textContent = "Supabase Live"; }, 2000); }
             return !error;
         };
-
-        /** RENDER LOGIC **/
 
         window.renderNameMap = () => {
             const list = document.getElementById('databaseList'); if (!list) return;
@@ -482,7 +543,6 @@
             window.renderHistory(past);
         };
 
-        /* REVISED: Single global widget picker support */
         window.showEmbedCode = (periodName) => {
             const modal = document.getElementById('embedModal');
             const embedPeriodName = document.getElementById('embedPeriodName');
@@ -545,7 +605,6 @@
                 
                 eventsHtml += `</div>`;
 
-                /* REVISED: Removed individual EMBED WIDGET buttons from summaries */
                 d.innerHTML = `
                     <summary class="font-bold p-3 cursor-pointer list-none flex justify-between items-center hover:bg-gray-100 transition-colors">
                         <div class="flex items-center gap-3">
@@ -610,8 +669,6 @@
             const tags = input.value.toLowerCase().match(/#\w+/g) || [];
             document.querySelectorAll('.tag-pill').forEach(pill => { if (tags.includes(pill.textContent.toLowerCase())) pill.classList.add('active'); else pill.classList.remove('active'); });
         };
-
-        /** INTERACTION ACTIONS **/
 
         window.showTab = (tab) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -847,16 +904,20 @@
 
         /** INIT **/
         async function initializeSupabase() {
-            if (!window.supabaseClient) { setTimeout(initializeSupabase, 500); return; }
+            if (!window.supabaseClient || !window.supabaseClient.createClient) { setTimeout(initializeSupabase, 500); return; }
             supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
             const collections = [ { name: DB_CONFIG.INSTA_DB_KEY, render: window.renderNameMap, globalVar: nameTagDatabase, type: 'map' }, { name: DB_CONFIG.EVENT_DB_KEY, render: window.renderEventTemplateSelect, globalVar: eventDatabase, type: 'map' }, { name: DB_CONFIG.SNIPPETS_KEY, render: window.renderSnippetSelect, globalVar: textSnippets, type: 'map' }, { name: DB_CONFIG.SCHEDULE_DB_KEY, render: window.renderScheduleList, globalVar: eventSchedule, type: 'array' }, { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: window.renderGlobalTags, globalVar: null, type: 'string' }, { name: DB_CONFIG.EXTRA_TAGS_KEY, render: () => {}, globalVar: eventExtraTags, type: 'map' } ];
             for (let c of collections) {
-                const { data } = await supabase.from(c.name).select('*').eq('id', 1).single();
-                if (data) {
-                    const val = (c.type === 'array' ? data.events : (c.type === 'string' ? data.tags : data.data));
-                    if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
-                    else if (c.type === 'string') globalTagsString = val;
-                    else Object.assign(c.globalVar, val);
+                try {
+                    const { data } = await supabase.from(c.name).select('*').eq('id', 1).single();
+                    if (data) {
+                        const val = (c.type === 'array' ? (data.events || []) : (c.type === 'string' ? (data.tags || "") : (data.data || {})));
+                        if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
+                        else if (c.type === 'string') globalTagsString = val;
+                        else Object.assign(c.globalVar, val);
+                    }
+                } catch(err) {
+                    console.error("Error loading table:", c.name, err);
                 }
                 if (typeof c.render === 'function') c.render();
             }
