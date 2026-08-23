@@ -89,13 +89,56 @@
         <!-- SCHEDULER TAB -->
         <div id="tab-scheduler-content" class="tab-content">
              <div class="schedule-container p-4 rounded-xl shadow-lg border border-indigo-100 max-w-full">
-                <div class="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold text-indigo-900">Upcoming Schedule</h2>
-                    <div class="flex gap-2">
-                        <input type="text" id="scheduleNameFilter" oninput="window.renderScheduleList()" placeholder="Filter by name..." class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none flex-grow">
-                        <select id="schedulePeriodFilter" onchange="window.renderScheduleList()" class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none min-w-[120px]">
-                            <option value="all">All Periods</option>
-                        </select>
+                <div class="flex flex-col gap-3 mb-4">
+                    <div class="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+                        <h2 class="text-2xl font-bold text-indigo-900">Upcoming Schedule</h2>
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <input type="text" id="scheduleNameFilter" oninput="window.renderScheduleList()" placeholder="Filter by name..." class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none flex-grow">
+                            <select id="schedulePeriodFilter" onchange="window.renderScheduleList()" class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none min-w-[120px]">
+                                <option value="all">All Periods</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- BULK ACTIONS TOOLBAR -->
+                    <div class="bg-indigo-50/80 p-2.5 rounded-lg border border-indigo-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer font-bold text-indigo-900 text-xs select-none">
+                                <input type="checkbox" id="selectAllFilteredCheckbox" onchange="window.toggleSelectAllFiltered(this.checked)" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+                                <span>Select All Filtered (<span id="selectedCountDisplay">0</span> selected)</span>
+                            </label>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button onclick="window.toggleFindReplacePanel()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 shadow-sm">
+                                🔍 Batch Find & Replace
+                            </button>
+                            <button id="bulkDeleteBtn" onclick="window.bulkDeleteSelected()" disabled class="bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white px-2.5 py-1 rounded text-[10px] font-bold transition shadow-sm">
+                                🗑️ Delete Selected
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- FIND & REPLACE PANEL -->
+                    <div id="findReplacePanel" class="hidden bg-white p-3 rounded-lg border border-indigo-200 shadow-sm space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-xs font-bold text-indigo-900 uppercase">Batch Find & Replace</h4>
+                            <span class="text-[10px] text-gray-400">Fix typos or change venues across multiple events</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <input type="text" id="bulkFindInput" placeholder="Text to find (e.g. misspelling)..." class="p-1.5 border rounded text-xs outline-none focus:border-indigo-500">
+                            <input type="text" id="bulkReplaceInput" placeholder="Replace with..." class="p-1.5 border rounded text-xs outline-none focus:border-indigo-500">
+                            <select id="bulkTargetFieldSelect" class="p-1.5 border rounded text-xs bg-white outline-none">
+                                <option value="all">All Fields (Name, Location, Text)</option>
+                                <option value="eventName">Event Name Only</option>
+                                <option value="location">Location Only</option>
+                                <option value="postText">Post Text Only</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-1">
+                            <button onclick="window.toggleFindReplacePanel()" class="px-2.5 py-1 text-gray-500 text-[10px] font-medium border rounded hover:bg-gray-50">Cancel</button>
+                            <button onclick="window.applyFindReplace('selected')" class="px-2.5 py-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-[10px] font-bold rounded">Replace in Selected</button>
+                            <button onclick="window.applyFindReplace('filtered')" class="px-2.5 py-1 bg-indigo-600 text-white hover:bg-indigo-700 text-[10px] font-bold rounded">Replace All Filtered (<span id="filteredCountDisplay">0</span>)</button>
+                        </div>
                     </div>
                 </div>
                 <div id="scheduledEventsContainer" class="space-y-4 w-full"></div>
@@ -375,8 +418,6 @@
     <script>
         /** STATE & CONFIG **/
         const DB_CONFIG = { INSTA_DB_KEY: 'name_tag_database', EVENT_DB_KEY: 'event_templates', SNIPPETS_KEY: 'text_snippets', SCHEDULE_DB_KEY: 'event_schedule', GLOBAL_TAGS_KEY: 'global_tags', EXTRA_TAGS_KEY: 'event_extra_tags', BACKUP_KEY: 'database_backup_snapshots' };
-        
-        // Complete PEAK_DATES array with 2025, 2026, AND 2027 dates
         const PEAK_DATES = [ 
             { date: '2025-12-05', name: 'December 2025' }, 
             { date: '2026-01-03', name: 'January 2026' }, 
@@ -412,7 +453,9 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
         
         let supabase = null, nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [], globalTagsString = "", eventExtraTags = {}, isSaving = false, resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
+        let selectedEventKeys = new Set();
 
+        /** ALL GLOBAL FUNCTIONS (Consolidated and Defined Early) **/
         window.getLocalDateString = (d) => { if (!(d instanceof Date)) d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
         window.formatDateFriendly = (iso) => { if (!iso) return 'TBD Date'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); };
         window.getEventDescription = (e) => { if (!e) return ""; if (e.description) return e.description; if (!e.postText) return ""; const b = e.postText.split('\n\n'); return b.length > 1 ? b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim() : e.postText.trim(); };
@@ -482,6 +525,12 @@
                 if (e.date < nowStr || (e.postStatus === 'done' && e.storyStatus === 'done')) past.push(e);
                 else if (isM) upcoming.push(e);
             });
+
+            // Update bulk action counter indicators
+            const filteredCountEl = document.getElementById('filteredCountDisplay');
+            if (filteredCountEl) filteredCountEl.textContent = upcoming.length;
+            window.updateBulkSelectionUI(upcoming);
+
             const grp = upcoming.reduce((acc, e) => { if (!acc[e.date]) acc[e.date] = []; acc[e.date].push(e); return acc; }, {});
             let lastP = "";
             Object.keys(grp).sort().forEach(dKey => {
@@ -492,22 +541,26 @@
                 const list = gDiv.querySelector('.list');
                 grp[dKey].forEach(e => {
                     const escN = e.eventName.replace(/'/g, "\\'");
+                    const eventKey = `${e.date}|${e.eventName}`;
+                    const isSelected = selectedEventKeys.has(eventKey);
                     const idPost = `post-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
                     const idTags = `tags-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
-                    const card = document.createElement('div'); card.className = 'scheduled-event-card'; card.onclick = () => window.loadEventForEdit(e);
+                    const card = document.createElement('div'); card.className = `scheduled-event-card ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''}`; card.onclick = () => window.loadEventForEdit(e);
                     
                     const displayPost = e.postText.startsWith('🌕Full Moon Week') 
                         ? e.postText.replace(/^🌕Full Moon Week - Day \d+🌕/, `🌕Full Moon Week - Day ${e.dayNumber}🌕`)
                         : `🌕Full Moon Week - Day ${e.dayNumber}🌕\n${e.postText}`;
 
                     card.innerHTML = `<div class="flex items-start">
-                        <div class="flex flex-col mr-2">
+                        <div class="flex flex-col mr-2 items-center gap-1">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()" onchange="window.toggleEventSelection('${e.date}','${escN}',this.checked)" class="w-4 h-4 cursor-pointer accent-indigo-600 rounded">
                             <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${escN}','up')" class="order-btn">▲</button>
                             <button onclick="event.stopPropagation(); window.moveEvent('${e.date}','${escN}','down')" class="order-btn">▼</button>
                         </div>
                         <div class="flex-grow">
-                            <div class="mb-2">
+                            <div class="mb-2 flex items-center justify-between">
                                 <h3 class="text-indigo-600">${e.eventName}</h3>
+                                <span class="text-[9px] font-mono text-gray-400">📍 ${e.location}</span>
                             </div>
                             
                             <div class="flex justify-between items-center mb-1">
@@ -541,6 +594,130 @@
                 container.appendChild(gDiv);
             });
             window.renderHistory(past);
+        };
+
+        /** BULK ACTIONS HELPERS **/
+        window.toggleFindReplacePanel = () => {
+            const panel = document.getElementById('findReplacePanel');
+            if (panel) panel.classList.toggle('hidden');
+        };
+
+        window.toggleEventSelection = (date, name, isChecked) => {
+            const key = `${date}|${name}`;
+            if (isChecked) selectedEventKeys.add(key);
+            else selectedEventKeys.delete(key);
+            window.renderScheduleList();
+        };
+
+        window.toggleSelectAllFiltered = (isChecked) => {
+            const fP = document.getElementById('schedulePeriodFilter')?.value || 'all', 
+                  fN = (document.getElementById('scheduleNameFilter')?.value || '').toLowerCase();
+            const nowStr = window.getLocalDateString(new Date());
+            const all = window.calculateSequentialDays(eventSchedule);
+            
+            all.forEach(e => {
+                const p = window.getPeriodForDate(e.date);
+                const isM = (fP === 'all' || p === fP) && e.eventName.toLowerCase().includes(fN);
+                const isUpcoming = !(e.date < nowStr || (e.postStatus === 'done' && e.storyStatus === 'done'));
+                
+                if (isUpcoming && isM) {
+                    const key = `${e.date}|${e.eventName}`;
+                    if (isChecked) selectedEventKeys.add(key);
+                    else selectedEventKeys.delete(key);
+                }
+            });
+            window.renderScheduleList();
+        };
+
+        window.updateBulkSelectionUI = (upcomingList = []) => {
+            const countDisplay = document.getElementById('selectedCountDisplay');
+            const deleteBtn = document.getElementById('bulkDeleteBtn');
+            const selectAllCb = document.getElementById('selectAllFilteredCheckbox');
+
+            if (countDisplay) countDisplay.textContent = selectedEventKeys.size;
+            if (deleteBtn) {
+                deleteBtn.disabled = selectedEventKeys.size === 0;
+                deleteBtn.textContent = `🗑️ Delete Selected (${selectedEventKeys.size})`;
+            }
+
+            if (selectAllCb && upcomingList.length > 0) {
+                const allSelected = upcomingList.every(e => selectedEventKeys.has(`${e.date}|${e.eventName}`));
+                selectAllCb.checked = allSelected;
+            } else if (selectAllCb) {
+                selectAllCb.checked = false;
+            }
+        };
+
+        window.bulkDeleteSelected = async () => {
+            if (selectedEventKeys.size === 0) return;
+            const count = selectedEventKeys.size;
+            if (await window.safeConfirm("Bulk Delete", `Are you sure you want to delete ${count} selected event(s)? This action cannot be undone.`)) {
+                eventSchedule = eventSchedule.filter(e => !selectedEventKeys.has(`${e.date}|${e.eventName}`));
+                selectedEventKeys.clear();
+                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            }
+        };
+
+        window.applyFindReplace = async (mode) => {
+            const findText = (document.getElementById('bulkFindInput')?.value || '').trim();
+            const replaceText = document.getElementById('bulkReplaceInput')?.value || '';
+            const targetField = document.getElementById('bulkTargetFieldSelect')?.value || 'all';
+
+            if (!findText) return alert("Please enter text to find.");
+
+            const fP = document.getElementById('schedulePeriodFilter')?.value || 'all';
+            const fN = (document.getElementById('scheduleNameFilter')?.value || '').toLowerCase();
+            const nowStr = window.getLocalDateString(new Date());
+            const all = window.calculateSequentialDays(eventSchedule);
+
+            const targets = all.filter(e => {
+                const p = window.getPeriodForDate(e.date);
+                const isM = (fP === 'all' || p === fP) && e.eventName.toLowerCase().includes(fN);
+                const isUpcoming = !(e.date < nowStr || (e.postStatus === 'done' && e.storyStatus === 'done'));
+                const key = `${e.date}|${e.eventName}`;
+
+                if (!isUpcoming || !isM) return false;
+                if (mode === 'selected') return selectedEventKeys.has(key);
+                return true;
+            });
+
+            if (targets.length === 0) return alert(mode === 'selected' ? "No events currently selected." : "No matching filtered events found.");
+
+            const reg = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            let replacedCount = 0;
+
+            targets.forEach(t => {
+                const idx = eventSchedule.findIndex(e => e.date === t.date && e.eventName === t.eventName);
+                if (idx === -1) return;
+
+                let modified = false;
+                const ev = eventSchedule[idx];
+
+                if (targetField === 'all' || targetField === 'eventName') {
+                    if (reg.test(ev.eventName)) { ev.eventName = ev.eventName.replace(reg, replaceText); modified = true; }
+                }
+                if (targetField === 'all' || targetField === 'location') {
+                    if (ev.location && reg.test(ev.location)) { ev.location = ev.location.replace(reg, replaceText); modified = true; }
+                }
+                if (targetField === 'all' || targetField === 'postText') {
+                    if (ev.postText && reg.test(ev.postText)) { ev.postText = ev.postText.replace(reg, replaceText); modified = true; }
+                    if (ev.description && reg.test(ev.description)) { ev.description = ev.description.replace(reg, replaceText); modified = true; }
+                }
+
+                if (modified) replacedCount++;
+            });
+
+            if (replacedCount > 0) {
+                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+                alert(`Successfully updated ${replacedCount} event(s)!`);
+                document.getElementById('bulkFindInput').value = '';
+                document.getElementById('bulkReplaceInput').value = '';
+                window.toggleFindReplacePanel();
+            } else {
+                alert(`No occurrences of "${findText}" were found in the targeted events.`);
+            }
         };
 
         window.showEmbedCode = (periodName) => {
