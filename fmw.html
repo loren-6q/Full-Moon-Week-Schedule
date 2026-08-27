@@ -73,8 +73,13 @@
     <div class="max-w-7xl mx-auto w-full">
         <!-- Navigation -->
         <div class="sticky top-0 z-50 bg-background pb-4 pt-1">
-            <header class="text-center mb-1 p-1 bg-white rounded-xl shadow-sm border border-gray-100">
+            <header class="text-center mb-1 p-1 bg-white rounded-xl shadow-sm border border-gray-100 flex justify-between items-center px-4">
                 <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">Full Moon Week Scheduler</h1>
+                <div class="flex items-center gap-1.5">
+                    <span id="liveStatusBadge" class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> LIVE SYNC
+                    </span>
+                </div>
             </header>
             
             <div class="flex border-b border-gray-200 bg-white rounded-t-xl shadow-sm overflow-hidden w-full">
@@ -455,7 +460,7 @@
         let supabase = null, nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [], globalTagsString = "", eventExtraTags = {}, isSaving = false, resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
         let selectedEventKeys = new Set();
 
-        /** ALL GLOBAL FUNCTIONS (Consolidated and Defined Early) **/
+        /** ALL GLOBAL FUNCTIONS **/
         window.getLocalDateString = (d) => { if (!(d instanceof Date)) d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
         window.formatDateFriendly = (iso) => { if (!iso) return 'TBD Date'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); };
         window.getEventDescription = (e) => { if (!e) return ""; if (e.description) return e.description; if (!e.postText) return ""; const b = e.postText.split('\n\n'); return b.length > 1 ? b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim() : e.postText.trim(); };
@@ -466,19 +471,134 @@
         window.closeModal = (conf) => { const m = document.getElementById('deleteModal'); if (m) m.classList.remove('active'); if (resolveModalPromise) { resolveModalPromise(conf); resolveModalPromise = null; } };
         window.copyToClipboard = (txt) => { if(!txt) return; const el = document.createElement('textarea'); el.value = txt; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); const s = document.getElementById('statusMessage'); if (s) { s.textContent = "Copied!"; setTimeout(() => { if(!isSaving) s.textContent = "Supabase Live"; }, 1500); } };
 
-        window.saveDataToSupabase = async (table, data) => {
+        window.addEventListener('unhandledrejection', (event) => {
+            if (event.reason && (
+                (event.reason.message && (event.reason.message.includes('WebSocket') || event.reason.name === 'SecurityError')) ||
+                (typeof event.reason === 'string' && event.reason.includes('WebSocket'))
+            )) {
+                console.warn('Realtime WebSockets restricted in this preview environment:', event.reason);
+                event.preventDefault();
+            }
+        });
+
+        /* ATOMIC PRE-FETCH & MERGE SAVE ROUTINE: Prevents multi-device overwrites */
+        window.saveDataToSupabase = async (table, localData) => {
             if (!supabase) return false;
             const isCritical = [DB_CONFIG.INSTA_DB_KEY, DB_CONFIG.SCHEDULE_DB_KEY, DB_CONFIG.EVENT_DB_KEY].includes(table);
-            const isEmpty = !data || (typeof data === 'object' && Object.keys(data).length === 0) || (Array.isArray(data) && data.length === 0);
-            if (isCritical && isEmpty) { const s = document.getElementById('statusMessage'); if (s) { s.textContent = "GHOST GUARD BLOCKED WIPE"; s.className = "text-[9px] font-bold text-red-600"; } return false; }
+            const isEmpty = !localData || (typeof localData === 'object' && Object.keys(localData).length === 0) || (Array.isArray(localData) && localData.length === 0);
+            if (isCritical && isEmpty) { 
+                const s = document.getElementById('statusMessage'); 
+                if (s) { s.textContent = "GHOST GUARD BLOCKED WIPE"; s.className = "text-[9px] font-bold text-red-600"; } 
+                return false; 
+            }
+            
             isSaving = true;
             const s = document.getElementById('statusMessage'); if (s) s.textContent = "Syncing...";
-            const payload = { id: 1 }; if (table === DB_CONFIG.SCHEDULE_DB_KEY) payload.events = data; else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) payload.tags = data; else payload.data = data;
+
+            let finalDataToSave = localData;
+
+            // Pre-fetch latest remote state to safely merge concurrently
+            try {
+                const { data: remoteRow } = await supabase.from(table).select('*').eq('id', 1).single();
+                if (remoteRow) {
+                    if (table === DB_CONFIG.SCHEDULE_DB_KEY) {
+                        const remoteEvents = remoteRow.events || [];
+                        const mergedEvents = [...remoteEvents];
+                        (Array.isArray(localData) ? localData : []).forEach(localEv => {
+                            const matchIdx = mergedEvents.findIndex(re => re.date === localEv.date && re.eventName === localEv.eventName);
+                            if (matchIdx > -1) {
+                                mergedEvents[matchIdx] = localEv;
+                            } else {
+                                mergedEvents.push(localEv);
+                            }
+                        });
+                        finalDataToSave = mergedEvents;
+                        eventSchedule.length = 0;
+                        eventSchedule.push(...mergedEvents);
+                    } else if (table === DB_CONFIG.INSTA_DB_KEY) {
+                        const remoteMap = remoteRow.data || {};
+                        finalDataToSave = { ...remoteMap, ...localData };
+                        Object.assign(nameTagDatabase, finalDataToSave);
+                    } else if (table === DB_CONFIG.EVENT_DB_KEY) {
+                        const remoteMap = remoteRow.data || {};
+                        finalDataToSave = { ...remoteMap, ...localData };
+                        Object.assign(eventDatabase, finalDataToSave);
+                    } else if (table === DB_CONFIG.SNIPPETS_KEY) {
+                        const remoteMap = remoteRow.data || {};
+                        finalDataToSave = { ...remoteMap, ...localData };
+                        Object.assign(textSnippets, finalDataToSave);
+                    }
+                }
+            } catch (err) {
+                console.warn("Pre-fetch merge fallback:", err);
+            }
+
+            const payload = { id: 1 }; 
+            if (table === DB_CONFIG.SCHEDULE_DB_KEY) payload.events = finalDataToSave; 
+            else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) payload.tags = finalDataToSave; 
+            else payload.data = finalDataToSave;
+
             const { error } = await supabase.from(table).upsert(payload);
             isSaving = false;
-            if (s) { s.textContent = error ? "Sync Error" : "Cloud Saved"; setTimeout(() => { if (!isSaving) s.textContent = "Supabase Live"; }, 2000); }
+            
+            if (s) { 
+                s.textContent = error ? "Sync Error" : "Cloud Saved"; 
+                setTimeout(() => { if (!isSaving) s.textContent = "Supabase Live"; }, 2000); 
+            }
             return !error;
         };
+
+        /* SUPABASE REALTIME LIVE SYNC SUBSCRIPTION */
+        function setupRealtimeSubscription() {
+            if (!supabase) return;
+            try {
+                // Test if WebSocket creation is allowed in this environment before subscribing
+                try {
+                    const testSocket = new WebSocket('wss://wxaqneoanwgqgwraovkg.supabase.co/realtime/v1/websocket');
+                    testSocket.close();
+                } catch (wsErr) {
+                    console.warn('Realtime WebSockets restricted in this environment:', wsErr.message || wsErr);
+                    return;
+                }
+
+                const channel = supabase.channel('schema-db-changes');
+                channel
+                    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+                        const table = payload.table;
+                        const newRow = payload.new;
+                        if (!newRow) return;
+
+                        if (table === DB_CONFIG.SCHEDULE_DB_KEY && newRow.events) {
+                            eventSchedule.length = 0;
+                            eventSchedule.push(...(newRow.events || []));
+                            window.renderScheduleList();
+                        } else if (table === DB_CONFIG.INSTA_DB_KEY && newRow.data) {
+                            Object.keys(nameTagDatabase).forEach(k => delete nameTagDatabase[k]);
+                            Object.assign(nameTagDatabase, newRow.data || {});
+                            window.renderNameMap();
+                        } else if (table === DB_CONFIG.EVENT_DB_KEY && newRow.data) {
+                            Object.keys(eventDatabase).forEach(k => delete eventDatabase[k]);
+                            Object.assign(eventDatabase, newRow.data || {});
+                            window.renderEventTemplateSelect();
+                        } else if (table === DB_CONFIG.SNIPPETS_KEY && newRow.data) {
+                            Object.keys(textSnippets).forEach(k => delete textSnippets[k]);
+                            Object.assign(textSnippets, newRow.data || {});
+                            window.renderSnippetSelect();
+                        } else if (table === DB_CONFIG.GLOBAL_TAGS_KEY && newRow.tags !== undefined) {
+                            globalTagsString = newRow.tags || "";
+                            window.renderGlobalTags();
+                        }
+                    })
+                    .subscribe((status, err) => {
+                        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                            console.warn('Realtime connection disabled in this environment:', err || status);
+                            try { supabase.removeChannel(channel); } catch(e) {}
+                        }
+                    });
+            } catch (err) {
+                console.warn("Realtime WebSockets not permitted or supported in this environment:", err);
+            }
+        }
 
         window.renderNameMap = () => {
             const list = document.getElementById('databaseList'); if (!list) return;
@@ -526,7 +646,6 @@
                 else if (isM) upcoming.push(e);
             });
 
-            // Update bulk action counter indicators
             const filteredCountEl = document.getElementById('filteredCountDisplay');
             if (filteredCountEl) filteredCountEl.textContent = upcoming.length;
             window.updateBulkSelectionUI(upcoming);
@@ -847,6 +966,8 @@
             document.querySelectorAll('.tag-pill').forEach(pill => { if (tags.includes(pill.textContent.toLowerCase())) pill.classList.add('active'); else pill.classList.remove('active'); });
         };
 
+        /** INTERACTION ACTIONS **/
+
         window.showTab = (tab) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
@@ -1101,6 +1222,8 @@
             window.renderPeriodFilter();
             const iso = document.getElementById('inputIsoDate'); if (iso) iso.value = window.getLocalDateString(new Date());
             window.showTab('scheduler');
+
+            setupRealtimeSubscription();
         }
 
         document.addEventListener('DOMContentLoaded', initializeSupabase);
