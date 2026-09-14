@@ -45,13 +45,14 @@
         details summary::-webkit-details-marker { display:none; }
         details summary { list-style: none; }
     </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.fb = { initializeApp, getAuth, signInAnonymously, getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc };
+    </script>
 </head>
 <body class="bg-background min-h-screen p-2 sm:p-6 font-sans max-w-full">
-
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        window.supabaseClient = { createClient };
-    </script>
     
     <div class="max-w-7xl mx-auto w-full">
         <!-- HEADER BAR -->
@@ -84,8 +85,9 @@
                         <h2 class="text-2xl font-bold text-indigo-900">Upcoming Schedule</h2>
                         <div class="flex flex-wrap gap-2 items-center">
                             <input type="text" id="scheduleNameFilter" oninput="window.renderScheduleList()" placeholder="Filter by name..." class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none flex-grow">
-                            <select id="schedulePeriodFilter" onchange="window.renderScheduleList()" class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none min-w-[120px]">
-                                <option value="all">All Periods</option>
+                            <select id="schedulePeriodFilter" onchange="window.renderScheduleList()" class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none min-w-[140px]">
+                                <option value="all">All Upcoming Periods</option>
+                                <option value="all_inc_past">Show All (Including Past)</option>
                             </select>
                         </div>
                     </div>
@@ -369,6 +371,9 @@
                             <button onclick="window.exportFullDatabase()" class="bg-red-600 text-white p-2 rounded text-xs font-bold shadow-sm hover:bg-red-700">EXPORT TO JSON</button>
                             <button onclick="window.createCloudSnapshot()" class="bg-accent text-white p-2 rounded text-xs font-bold shadow-sm hover:bg-amber-600">CLONE TO BACKUP</button>
                         </div>
+                        <div class="mt-2 flex gap-2">
+                            <button onclick="window.restoreFromCloudSnapshot()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded text-[10px] font-bold shadow-sm">⚡ RECOVER FROM CLOUD SNAPSHOT</button>
+                        </div>
                         <div class="mt-3 border-t border-red-200 pt-3">
                             <textarea id="restoreInput" class="w-full border rounded p-2 text-[9px] h-14 bg-white outline-none" placeholder="Paste JSON backup data here..."></textarea>
                             <button onclick="window.importFullDatabase()" class="w-full bg-gray-800 text-white py-1 rounded mt-1.5 text-[10px] font-bold">RESTORE & OVERWRITE EVERYTHING</button>
@@ -493,10 +498,17 @@
             { key: 'posted', label: 'POSTED', dot: '🔴', bg: 'bg-rose-100 text-rose-800 border-rose-300' }
         ];
 
-        const SUPABASE_URL = 'https://wxaqneoanwgqgwraovkg.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4YXFuZW9hbndncWd3cmFvdmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjY2NDYsImV4cCI6MjA3NjcwMjY0Nn0.yMpPWxyWlaDfnlGVpQ5gNkibp0k3KwW4KxjllKp5Iiw'; 
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBGESFzwqoO9lQivws195udUCo6MXnHeHc",
+            authDomain: "full-moon-week.firebaseapp.com",
+            projectId: "full-moon-week",
+            storageBucket: "full-moon-week.firebasestorage.app",
+            messagingSenderId: "1064130029135",
+            appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
+            measurementId: "G-3SS3BJQCRN"
+        };
         
-        let supabase = null, nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [], globalTagsString = "", eventExtraTags = {}, isSaving = false, resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
+        let db = null, auth = null, nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [], globalTagsString = "", eventExtraTags = {}, isSaving = false, resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
         let selectedEventKeys = new Set();
         let activeMoveTarget = null;
         let reuseModalTab = 'past'; 
@@ -506,25 +518,119 @@
         let currentVenueMatchIndex = -1;
         let debounceParseTimer = null;
 
+        const CACHE_KEYS = {
+            SCHEDULE: 'fmw_cache_schedule',
+            TAGS: 'fmw_cache_tags',
+            GLOBAL: 'fmw_cache_global',
+            SNIPPETS: 'fmw_cache_snippets',
+            EVENTS: 'fmw_cache_events'
+        };
+
+        window.saveLocalBackup = () => {
+            try {
+                if (eventSchedule && eventSchedule.length > 0) localStorage.setItem(CACHE_KEYS.SCHEDULE, JSON.stringify(eventSchedule));
+                if (Object.keys(nameTagDatabase).length > 0) localStorage.setItem(CACHE_KEYS.TAGS, JSON.stringify(nameTagDatabase));
+                if (globalTagsString) localStorage.setItem(CACHE_KEYS.GLOBAL, globalTagsString);
+                if (Object.keys(textSnippets).length > 0) localStorage.setItem(CACHE_KEYS.SNIPPETS, JSON.stringify(textSnippets));
+            } catch(e) {}
+        };
+
+        window.loadLocalBackup = () => {
+            try {
+                const s = localStorage.getItem(CACHE_KEYS.SCHEDULE);
+                if (s && eventSchedule.length === 0) { const parsed = JSON.parse(s); if (Array.isArray(parsed) && parsed.length > 0) eventSchedule.push(...parsed); }
+                const t = localStorage.getItem(CACHE_KEYS.TAGS);
+                if (t && Object.keys(nameTagDatabase).length === 0) Object.assign(nameTagDatabase, JSON.parse(t));
+                const g = localStorage.getItem(CACHE_KEYS.GLOBAL);
+                if (g && !globalTagsString) globalTagsString = g;
+                const sn = localStorage.getItem(CACHE_KEYS.SNIPPETS);
+                if (sn && Object.keys(textSnippets).length === 0) Object.assign(textSnippets, JSON.parse(sn));
+            } catch(e) {}
+        };
+
         window.getLocalDateString = (d) => { if (!(d instanceof Date)) d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
         window.formatDateFriendly = (iso) => { if (!iso) return 'TBD Date'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); };
         window.getEventDescription = (e) => { if (!e) return ""; if (e.description) return e.description; if (!e.postText) return ""; const b = e.postText.split('\n\n'); return b.length > 1 ? b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim() : e.postText.trim(); };
         window.getPeriodForDate = (iso) => { const evD = new Date(iso + 'T00:00:00'); for (let p of PEAK_DATES) { if (Math.abs(evD - new Date(p.date + 'T00:00:00')) / 8.64e7 <= 10) return p.name; } return "Other"; };
 
-        window.saveDataToSupabase = async (table, data) => {
-            if (!supabase) return false;
+        window.saveDataToFirebase = async (table, data) => {
+            if (!db || !auth) return false;
             const isCritical = [DB_CONFIG.INSTA_DB_KEY, DB_CONFIG.SCHEDULE_DB_KEY, DB_CONFIG.EVENT_DB_KEY].includes(table);
             const isEmpty = !data || (typeof data === 'object' && Object.keys(data).length === 0) || (Array.isArray(data) && data.length === 0);
             if (isCritical && isEmpty) return false; 
             isSaving = true;
-            const payload = { id: 1 }; 
-            if (table === DB_CONFIG.SCHEDULE_DB_KEY) payload.events = data; 
-            else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) payload.tags = data; 
-            else payload.data = data;
 
-            const { error } = await supabase.from(table).upsert(payload);
-            isSaving = false;
-            return !error;
+            const { doc, setDoc } = window.fb;
+            try {
+                if (table === DB_CONFIG.SCHEDULE_DB_KEY) {
+                    const CHUNK_SIZE = 40;
+                    const totalChunks = Math.max(1, Math.ceil(data.length / CHUNK_SIZE));
+                    for (let i = 0; i < totalChunks; i++) {
+                        const chunk = data.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+                        const chunkId = `chunk_${String(i).padStart(3, '0')}`;
+                        await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, chunkId), {
+                            chunkIndex: i,
+                            events: chunk,
+                            updatedAt: new Date().toISOString()
+                        });
+                    }
+                    await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, 'meta'), {
+                        totalChunks,
+                        totalEvents: data.length,
+                        updatedAt: new Date().toISOString()
+                    });
+                } else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) {
+                    await setDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'), {
+                        tags: data,
+                        updatedAt: new Date().toISOString()
+                    });
+                } else {
+                    await setDoc(doc(db, table, 'main'), {
+                        data: data,
+                        updatedAt: new Date().toISOString()
+                    });
+                }
+                isSaving = false;
+                window.saveLocalBackup();
+                return true;
+            } catch(err) {
+                console.error("Firestore Save Error:", err);
+                isSaving = false;
+                return false;
+            }
+        };
+        // Maintain alias so existing codebase calls continue working seamlessly
+        window.saveDataToSupabase = window.saveDataToFirebase;
+
+        window.restoreFromCloudSnapshot = async () => {
+            if (!db) return;
+            try {
+                const { doc, getDoc } = window.fb;
+                const snap = await getDoc(doc(db, DB_CONFIG.BACKUP_KEY, 'main'));
+                if (snap.exists() && snap.data().data) {
+                    const snapshotData = snap.data().data;
+                    if (snapshotData.eventSchedule && snapshotData.eventSchedule.length > 0) {
+                        eventSchedule.length = 0;
+                        eventSchedule.push(...snapshotData.eventSchedule);
+                        await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                    }
+                    if (snapshotData.nameTagDatabase && Object.keys(snapshotData.nameTagDatabase).length > 0) {
+                        Object.assign(nameTagDatabase, snapshotData.nameTagDatabase);
+                        await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+                    }
+                    if (snapshotData.globalTagsString) {
+                        globalTagsString = snapshotData.globalTagsString;
+                        await window.saveDataToFirebase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString);
+                    }
+                    window.saveLocalBackup();
+                    window.renderScheduleList();
+                    window.renderNameMap();
+                    window.renderGlobalTags();
+                    window.showModal("Restored", "Cloud snapshot restored successfully!");
+                }
+            } catch(e) {
+                console.error(e);
+            }
         };
 
         window.getEventStageObj = (e) => {
@@ -814,16 +920,26 @@
 
         window.renderScheduleList = () => {
             const container = document.getElementById('scheduledEventsContainer'); if (!container) return;
-            const fP = document.getElementById('schedulePeriodFilter').value, fN = document.getElementById('scheduleNameFilter').value.toLowerCase(), nowStr = window.getLocalDateString(new Date());
+            const fP = document.getElementById('schedulePeriodFilter')?.value || 'all', fN = (document.getElementById('scheduleNameFilter')?.value || '').toLowerCase(), nowStr = window.getLocalDateString(new Date());
             container.innerHTML = '';
             const all = window.calculateSequentialDays(eventSchedule), upcoming = [], past = [];
             all.forEach(e => {
-                const p = window.getPeriodForDate(e.date), isM = (fP === 'all' || p === fP) && e.eventName.toLowerCase().includes(fN);
-                if (e.date < nowStr || e.isCleared) past.push(e); else if (isM) upcoming.push(e);
+                const p = window.getPeriodForDate(e.date);
+                const isMatchFilter = (fP === 'all' || fP === 'all_inc_past' || p === fP) && e.eventName.toLowerCase().includes(fN);
+                if (fP === 'all_inc_past') {
+                    if (isMatchFilter) upcoming.push(e);
+                } else {
+                    if (e.date < nowStr || e.isCleared) past.push(e); 
+                    else if (isMatchFilter) upcoming.push(e);
+                }
             });
 
-            document.getElementById('filteredCountDisplay').textContent = upcoming.length;
+            const filteredDisplay = document.getElementById('filteredCountDisplay');
+            if (filteredDisplay) filteredDisplay.textContent = upcoming.length;
             window.updateBulkSelectionUI(upcoming);
+
+            const emptyMsg = document.getElementById('emptyScheduleMessage');
+            if (emptyMsg) emptyMsg.classList.toggle('hidden', upcoming.length > 0);
 
             const grp = upcoming.reduce((acc, e) => { (acc[e.date] = acc[e.date] || []).push(e); return acc; }, {});
             let lastP = "";
@@ -842,7 +958,8 @@
                     const escN = e.eventName.replace(/'/g, "\\'"), eventKey = `${e.date}|${e.eventName}`, isSelected = selectedEventKeys.has(eventKey);
                     const idPost = `post-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, ''), idTags = `tags-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
                     const card = document.createElement('div'); card.className = `scheduled-event-card ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''}`;
-                    const displayPost = e.postText.startsWith('🌕Full Moon Week') ? e.postText.replace(/^🌕Full Moon Week - Day \d+🌕/, `🌕Full Moon Week - Day ${e.dayNumber}🌕`) : `🌕Full Moon Week - Day ${e.dayNumber}🌕\n${e.postText}`;
+                    const postRaw = e.postText || '';
+                    const displayPost = postRaw.startsWith('🌕Full Moon Week') ? postRaw.replace(/^🌕Full Moon Week - Day \d+🌕/, `🌕Full Moon Week - Day ${e.dayNumber}🌕`) : `🌕Full Moon Week - Day ${e.dayNumber}🌕\n${postRaw}`;
                     const stageObj = window.getEventStageObj(e), hasGfx = e.mediaStatus === 'done';
 
                     card.innerHTML = `<div class="flex flex-row gap-3 items-stretch w-full">
@@ -1096,7 +1213,14 @@
 
         window.renderSnippetSelect = () => { const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const s1 = document.getElementById('snippetSelect'), s2 = document.getElementById('editorSnippetSelect'); if (s1) s1.innerHTML = html; if (s2) s2.innerHTML = html; };
         window.renderGlobalTags = () => { const el = document.getElementById('defaultTagsInput'); if (el) el.value = globalTagsString; };
-        window.renderPeriodFilter = () => { const sel = document.getElementById('schedulePeriodFilter'); if (sel) sel.innerHTML = '<option value="all">All Periods</option>' + PEAK_DATES.filter(p => p.date >= window.getLocalDateString(new Date())).map(p => `<option value="${p.name}">${p.name}</option>`).join(''); };
+        window.renderPeriodFilter = () => {
+            const sel = document.getElementById('schedulePeriodFilter');
+            if (sel) {
+                const opts = ['<option value="all">All Upcoming Periods</option>', '<option value="all_inc_past">Show All (Including Past)</option>'];
+                PEAK_DATES.forEach(p => opts.push(`<option value="${p.name}">${p.name}</option>`));
+                sel.innerHTML = opts.join('');
+            }
+        };
 
         window.updateSuggestedTags = () => {
             const container = document.getElementById('suggestedTagsContainer'); if (!container) return;
@@ -1300,14 +1424,14 @@
         };
 
         window.exportFullDatabase = () => { const blob = new Blob([JSON.stringify({ nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString, ts: new Date().toISOString() }, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Backup_${window.getLocalDateString(new Date())}.json`; a.click(); };
-        window.createCloudSnapshot = async () => { if (await window.saveDataToSupabase(DB_CONFIG.BACKUP_KEY, { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString })) alert("Snapshot created."); };
+        window.createCloudSnapshot = async () => { if (await window.saveDataToFirebase(DB_CONFIG.BACKUP_KEY, { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString })) alert("Snapshot created."); };
         window.importFullDatabase = async () => {
             const raw = document.getElementById('restoreInput').value.trim(); if (!raw) return;
             if (await window.safeConfirm("RESTORE", "Overwriting all data. OK?")) {
                 try {
                     const p = JSON.parse(raw);
                     if(p.nameTagDatabase) nameTagDatabase = p.nameTagDatabase; if(p.eventDatabase) eventDatabase = p.eventDatabase; if(p.textSnippets) textSnippets = p.textSnippets; if(p.eventSchedule) eventSchedule = p.eventSchedule; if(p.globalTagsString) globalTagsString = p.globalTagsString;
-                    await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); await window.saveDataToSupabase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); await window.saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString);
+                    await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); await window.saveDataToFirebase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); await window.saveDataToFirebase(DB_CONFIG.SNIPPETS_KEY, textSnippets); await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); await window.saveDataToFirebase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString);
                     location.reload();
                 } catch (e) {}
             }
@@ -1315,49 +1439,109 @@
 
         window.insertSnippet = () => { const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) { const a = document.getElementById('rawDescription'), s = a.selectionStart, e = a.selectionEnd; a.value = a.value.substring(0, s) + textSnippets[k] + a.value.substring(e); a.focus(); } };
 
-        async function initializeSupabase() {
-            if (!window.supabaseClient?.createClient) { setTimeout(initializeSupabase, 500); return; }
+        async function initializeFirebase() {
+            window.loadLocalBackup();
+            if (!window.fb) {
+                setTimeout(initializeFirebase, 200);
+                return;
+            }
             try {
-                supabase = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
-                const collections = [ 
-                    { name: DB_CONFIG.INSTA_DB_KEY, render: window.renderNameMap, globalVar: nameTagDatabase, type: 'map' }, 
-                    { name: DB_CONFIG.EVENT_DB_KEY, render: () => {}, globalVar: eventDatabase, type: 'map' }, 
-                    { name: DB_CONFIG.SNIPPETS_KEY, render: window.renderSnippetSelect, globalVar: textSnippets, type: 'map' }, 
-                    { name: DB_CONFIG.SCHEDULE_DB_KEY, render: window.renderScheduleList, globalVar: eventSchedule, type: 'array' }, 
-                    { name: DB_CONFIG.GLOBAL_TAGS_KEY, render: window.renderGlobalTags, globalVar: null, type: 'string' }, 
-                    { name: DB_CONFIG.EXTRA_TAGS_KEY, render: () => {}, globalVar: eventExtraTags, type: 'map' } 
-                ];
+                const { initializeApp, getAuth, signInAnonymously, getFirestore, doc, getDoc, getDocs, collection } = window.fb;
+                const app = initializeApp(FIREBASE_CONFIG);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-                for (let c of collections) {
-                    try {
-                        const { data, error } = await supabase.from(c.name).select('*').eq('id', 1).single();
-                        if (!error && data) {
-                            const val = (c.type === 'array' ? (data.events || []) : (c.type === 'string' ? (data.tags || "") : (data.data || {})));
-                            if (c.type === 'array') { eventSchedule.length = 0; eventSchedule.push(...val); }
-                            else if (c.type === 'string') globalTagsString = val;
-                            else Object.assign(c.globalVar, val);
+                await signInAnonymously(auth);
+
+                // 1. Fetch Event Schedule chunks
+                try {
+                    const schedSnaps = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
+                    const chunks = [];
+                    schedSnaps.forEach(d => {
+                        if (d.id.startsWith('chunk_')) {
+                            chunks.push(d.data());
+                        } else if (d.id === 'main' && d.data().events) {
+                            chunks.push({ chunkIndex: 0, events: d.data().events });
                         }
-                    } catch(tErr) {}
-                    if (typeof c.render === 'function') c.render();
+                    });
+                    chunks.sort((a, b) => (a.chunkIndex || 0) - (b.chunkIndex || 0));
+                    const allEvents = [];
+                    chunks.forEach(c => {
+                        if (Array.isArray(c.events)) allEvents.push(...c.events);
+                    });
+                    if (allEvents.length > 0) {
+                        eventSchedule.length = 0;
+                        eventSchedule.push(...allEvents);
+                        window.renderScheduleList();
+                    }
+                } catch(e) {
+                    console.error("Error loading schedule chunks:", e);
                 }
 
+                // 2. Fetch Name Tag Database
+                try {
+                    const tagSnap = await getDoc(doc(db, DB_CONFIG.INSTA_DB_KEY, 'main'));
+                    if (tagSnap.exists() && tagSnap.data().data) {
+                        Object.assign(nameTagDatabase, tagSnap.data().data);
+                        window.renderNameMap();
+                    }
+                } catch(e) {}
+
+                // 3. Fetch Snippets
+                try {
+                    const snipSnap = await getDoc(doc(db, DB_CONFIG.SNIPPETS_KEY, 'main'));
+                    if (snipSnap.exists() && snipSnap.data().data) {
+                        Object.assign(textSnippets, snipSnap.data().data);
+                        window.renderSnippetSelect();
+                    }
+                } catch(e) {}
+
+                // 4. Fetch Global Tags
+                try {
+                    const globSnap = await getDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'));
+                    if (globSnap.exists() && globSnap.data().tags) {
+                        globalTagsString = globSnap.data().tags;
+                        window.renderGlobalTags();
+                    }
+                } catch(e) {}
+
+                // 5. Fallback Snapshot recovery if schedule is still empty
+                if (eventSchedule.length === 0) {
+                    try {
+                        const snapDoc = await getDoc(doc(db, DB_CONFIG.BACKUP_KEY, 'main'));
+                        if (snapDoc.exists() && snapDoc.data().data?.eventSchedule?.length > 0) {
+                            eventSchedule.push(...snapDoc.data().data.eventSchedule);
+                            window.renderScheduleList();
+                        }
+                    } catch(bErr) {}
+                }
+
+                window.saveLocalBackup();
                 window.renderPeriodFilter();
                 window.updateEditorStatusUI();
                 window.updateEditorGfxUI();
-                
-                // Set static SVG icons once
-                document.getElementById('editorGfxIcon').innerHTML = ICONS.camera;
-                document.getElementById('editorReuseIcon').innerHTML = ICONS.reuse;
-                document.getElementById('reuseModalTitleIcon').innerHTML = ICONS.reuse;
+
+                const gfxEl = document.getElementById('editorGfxIcon');
+                if (gfxEl) gfxEl.innerHTML = ICONS.camera;
+                const reuseEl = document.getElementById('editorReuseIcon');
+                if (reuseEl) reuseEl.innerHTML = ICONS.reuse;
+                const titleReuseEl = document.getElementById('reuseModalTitleIcon');
+                if (titleReuseEl) titleReuseEl.innerHTML = ICONS.reuse;
 
                 const iso = document.getElementById('inputIsoDate'); 
                 if (iso && !iso.value) iso.value = window.getLocalDateString(new Date());
 
-            } catch(err) { console.error("Initialization error:", err); }
+            } catch(err) {
+                console.error("Firebase init error:", err);
+            }
             window.showTab('scheduler');
         }
 
-        document.addEventListener('DOMContentLoaded', initializeSupabase);
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeFirebase);
+        } else {
+            initializeFirebase();
+        }
     </script>
     <script src="https://loren-6q.github.io/WETNav/nav.js"></script>
 </body>
