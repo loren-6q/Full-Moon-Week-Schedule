@@ -55,7 +55,6 @@
 <body class="bg-background min-h-screen p-2 sm:p-6 font-sans max-w-full">
     
     <div class="max-w-7xl mx-auto w-full">
-        <!-- HEADER BAR -->
         <div class="sticky top-0 z-50 bg-background pb-3 pt-1">
             <header class="text-center mb-1 p-1 bg-white rounded-xl shadow-sm border border-gray-100 flex justify-between items-center px-4">
                 <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">Full Moon Week Scheduler</h1>
@@ -77,7 +76,6 @@
             </div>
         </div>
 
-        <!-- SCHEDULE TAB -->
         <div id="tab-scheduler-content" class="tab-content">
              <div class="schedule-container p-4 rounded-xl shadow-lg border border-indigo-100 max-w-full">
                 <div class="flex flex-col gap-3 mb-4">
@@ -130,7 +128,6 @@
             </div>
         </div>
 
-        <!-- EDITOR TAB -->
         <div id="tab-editor-content" class="tab-content hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-4">
@@ -297,7 +294,6 @@
             </div>
         </div>
 
-        <!-- CALENDAR TAB -->
         <div id="tab-calendar-content" class="tab-content hidden">
             <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-full">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b pb-4">
@@ -315,7 +311,6 @@
             </div>
         </div>
         
-        <!-- HISTORY TAB -->
         <div id="tab-history-content" class="tab-content hidden">
              <div class="bg-white p-3 rounded-xl shadow-lg border border-gray-100 history-box-bg max-w-full">
                 <h2 class="text-lg font-bold text-gray-500 mb-2">Posting History</h2>
@@ -325,7 +320,6 @@
         </div>
     </div>
 
-    <!-- SETTINGS MODAL -->
     <div id="settingsModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="window.closeSettingsModal()">
         <div class="bg-white p-6 rounded-2xl shadow-2xl max-sm:w-full mx-4 w-[850px] max-h-[88vh] overflow-y-auto" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-4 border-b pb-3">
@@ -402,7 +396,6 @@
         </div>
     </div>
 
-    <!-- DELETE MODAL -->
     <div id="deleteModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="window.closeModal()">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4" onclick="event.stopPropagation()">
             <h3 id="modalTitle" class="text-lg font-bold text-red-600 mb-2">Confirm Action</h3>
@@ -414,7 +407,6 @@
         </div>
     </div>
     
-    <!-- EMBED CODE MODAL -->
     <div id="embedModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="document.getElementById('embedModal').classList.remove('active')">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4 w-[500px]" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-gray-800 mb-2">Embed Code for <span id="embedPeriodName" class="text-indigo-600"></span></h3>
@@ -427,7 +419,6 @@
         </div>
     </div>
 
-    <!-- REUSE EVENT MODAL -->
     <div id="reuseHistoryModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="document.getElementById('reuseHistoryModal').classList.remove('active')">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4 w-[650px] max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-3">
@@ -449,7 +440,6 @@
         </div>
     </div>
 
-    <!-- MOVE DATE MODAL -->
     <div id="moveDateModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="document.getElementById('moveDateModal').classList.remove('active')">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4 w-[380px]" onclick="event.stopPropagation()">
             <h3 class="text-base font-bold text-indigo-900 mb-1">Move Event Date</h3>
@@ -468,7 +458,6 @@
     </div>
 
     <script>
-        // Central SVG Icon Dictionary (Removes ~200 lines of duplicate inline SVG markup)
         const ICONS = {
             top: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M17 11l-5-5-5 5m10 7l-5-5-5 5"/></svg>`,
             up: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg>`,
@@ -483,11 +472,32 @@
             reuse: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3"/></svg>`
         };
 
-        const DB_CONFIG = { INSTA_DB_KEY: 'name_tag_database', EVENT_DB_KEY: 'event_templates', SNIPPETS_KEY: 'text_snippets', SCHEDULE_DB_KEY: 'event_schedule', GLOBAL_TAGS_KEY: 'global_tags', EXTRA_TAGS_KEY: 'event_extra_tags', BACKUP_KEY: 'database_backup_snapshots' };
+        const DB_CONFIG = { 
+            INSTA_DB_KEY: 'name_tag_database', 
+            EVENT_DB_KEY: 'event_templates', 
+            SNIPPETS_KEY: 'text_snippets', 
+            SCHEDULE_DB_KEY: 'event_schedule', 
+            GLOBAL_TAGS_KEY: 'global_tags', 
+            EXTRA_TAGS_KEY: 'event_extra_tags', 
+            BACKUP_KEY: 'database_backup_snapshots' 
+        };
         
         const PEAK_DATES = [ 
-            { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: 'January 2026' }, { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' }, { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' }, { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' }, { date: '2026-07-31', name: 'July 2026' }, { date: '2026-08-28', name: 'August 2026' }, { date: '2026-09-26', name: 'September 2026' }, { date: '2026-10-27', name: 'October 2026' }, { date: '2026-11-24', name: 'November 2026' }, { date: '2026-12-24', name: 'December 2026' }, { date: '2026-12-31', name: 'NYE 2026' },
-            { date: '2027-01-22', name: 'January 2027' }, { date: '2027-02-22', name: 'February 2027' }, { date: '2027-03-22', name: 'March 2027' }, { date: '2027-04-21', name: 'April 2027' }, { date: '2027-05-21', name: 'May 2027' }, { date: '2027-06-19', name: 'June 2027' }, { date: '2027-07-20', name: 'July 2027' }, { date: '2027-08-17', name: 'August 2027' }, { date: '2027-09-15', name: 'September 2027' }, { date: '2027-10-16', name: 'October 2027' }, { date: '2027-11-13', name: 'November 2027' }, { date: '2027-12-13', name: 'December 2027' }, { date: '2027-12-31', name: 'NYE 2027' }
+            { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: 'January 2026' }, 
+            { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' }, 
+            { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' }, 
+            { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' }, 
+            { date: '2026-07-31', name: 'July 2026' }, { date: '2026-08-28', name: 'August 2026' }, 
+            { date: '2026-09-26', name: 'September 2026' }, { date: '2026-10-27', name: 'October 2026' }, 
+            { date: '2026-11-24', name: 'November 2026' }, { date: '2026-12-24', name: 'December 2026' }, 
+            { date: '2026-12-31', name: 'NYE 2026' },
+            { date: '2027-01-22', name: 'January 2027' }, { date: '2027-02-22', name: 'February 2027' }, 
+            { date: '2027-03-22', name: 'March 2027' }, { date: '2027-04-21', name: 'April 2027' }, 
+            { date: '2027-05-21', name: 'May 2027' }, { date: '2027-06-19', name: 'June 2027' }, 
+            { date: '2027-07-20', name: 'July 2027' }, { date: '2027-08-17', name: 'August 2027' }, 
+            { date: '2027-09-15', name: 'September 2027' }, { date: '2027-10-16', name: 'October 2027' }, 
+            { date: '2027-11-13', name: 'November 2027' }, { date: '2027-12-13', name: 'December 2027' }, 
+            { date: '2027-12-31', name: 'NYE 2027' }
         ];
         
         const STATUS_STAGES = [
@@ -508,7 +518,10 @@
             measurementId: "G-3SS3BJQCRN"
         };
         
-        let db = null, auth = null, nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [], globalTagsString = "", eventExtraTags = {}, isSaving = false, resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
+        let db = null, auth = null;
+        let nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [];
+        let globalTagsString = "", eventExtraTags = {}, isSaving = false;
+        let resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
         let selectedEventKeys = new Set();
         let activeMoveTarget = null;
         let reuseModalTab = 'past'; 
@@ -554,13 +567,13 @@
         window.getPeriodForDate = (iso) => { const evD = new Date(iso + 'T00:00:00'); for (let p of PEAK_DATES) { if (Math.abs(evD - new Date(p.date + 'T00:00:00')) / 8.64e7 <= 10) return p.name; } return "Other"; };
 
         window.saveDataToFirebase = async (table, data) => {
-            if (!db || !auth) return false;
+            if (!db) return false;
             const isCritical = [DB_CONFIG.INSTA_DB_KEY, DB_CONFIG.SCHEDULE_DB_KEY, DB_CONFIG.EVENT_DB_KEY].includes(table);
             const isEmpty = !data || (typeof data === 'object' && Object.keys(data).length === 0) || (Array.isArray(data) && data.length === 0);
             if (isCritical && isEmpty) return false; 
             isSaving = true;
 
-            const { doc, setDoc } = window.fb;
+            const { doc, setDoc, getDocs, collection, deleteDoc } = window.fb;
             try {
                 if (table === DB_CONFIG.SCHEDULE_DB_KEY) {
                     const CHUNK_SIZE = 40;
@@ -579,6 +592,22 @@
                         totalEvents: data.length,
                         updatedAt: new Date().toISOString()
                     });
+
+                    try {
+                        const snap = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
+                        for (const d of snap.docs) {
+                            if (d.id === 'main') {
+                                await deleteDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, d.id));
+                            } else if (d.id.startsWith('chunk_')) {
+                                const idx = parseInt(d.id.replace('chunk_', ''), 10);
+                                if (!isNaN(idx) && idx >= totalChunks) {
+                                    await deleteDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, d.id));
+                                }
+                            }
+                        }
+                    } catch(cleanErr) {
+                        console.warn("Chunk cleanup notice:", cleanErr);
+                    }
                 } else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) {
                     await setDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'), {
                         tags: data,
@@ -594,12 +623,12 @@
                 window.saveLocalBackup();
                 return true;
             } catch(err) {
-                console.error("Firestore Save Error:", err);
+                console.error(`Firebase save error on ${table}:`, err);
                 isSaving = false;
                 return false;
             }
         };
-        // Maintain alias so existing codebase calls continue working seamlessly
+
         window.saveDataToSupabase = window.saveDataToFirebase;
 
         window.restoreFromCloudSnapshot = async () => {
@@ -625,11 +654,9 @@
                     window.saveLocalBackup();
                     window.renderScheduleList();
                     window.renderNameMap();
-                    window.renderGlobalTags();
-                    window.showModal("Restored", "Cloud snapshot restored successfully!");
                 }
             } catch(e) {
-                console.error(e);
+                console.error("Cloud restore failed:", e);
             }
         };
 
@@ -678,12 +705,30 @@
             window.triggerDebouncedParse();
         };
 
-        window.toggleEventGfxStatus = async (date, name) => {
+        window.toggleEventGfxStatus = async (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
             if (idx === -1) return;
             eventSchedule[idx].mediaStatus = eventSchedule[idx].mediaStatus === 'done' ? 'pending' : 'done';
             window.renderScheduleList();
-            await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        window.cycleEventTextStatus = async (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); 
+            if (idx === -1) return;
+            const currentObj = window.getEventStageObj(eventSchedule[idx]);
+            const nextStageObj = STATUS_STAGES[(STATUS_STAGES.findIndex(s => s.key === currentObj.key) + 1) % STATUS_STAGES.length];
+            eventSchedule[idx].textStatus = nextStageObj.key;
+            eventSchedule[idx].isDraft = nextStageObj.key === 'draft';
+            eventSchedule[idx].postStatus = nextStageObj.key === 'posted' ? 'done' : 'pending';
+            eventSchedule[idx].storyStatus = (nextStageObj.key === 'story' || nextStageObj.key === 'posted') ? 'done' : 'pending';
+            if (nextStageObj.key !== 'posted') eventSchedule[idx].isCleared = false;
+            window.renderScheduleList();
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
         };
 
         window.triggerDebouncedParse = () => {
@@ -763,9 +808,33 @@
             }); 
         };
 
-        window.safeConfirm = (title, message) => { const m = document.getElementById('deleteModal'); if (!m) return Promise.resolve(true); document.getElementById('modalTitle').textContent = title; document.getElementById('modalMessage').textContent = message; m.classList.add('active'); return new Promise((resolve) => { resolveModalPromise = resolve; }); };
-        window.closeModal = (conf) => { const m = document.getElementById('deleteModal'); if (m) m.classList.remove('active'); if (resolveModalPromise) { resolveModalPromise(conf); resolveModalPromise = null; } };
-        window.copyToClipboard = (txt) => { if(!txt) return; const el = document.createElement('textarea'); el.value = txt; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); };
+        window.safeConfirm = (title, message) => { 
+            const m = document.getElementById('deleteModal'); 
+            if (!m) return Promise.resolve(true); 
+            document.getElementById('modalTitle').textContent = title; 
+            document.getElementById('modalMessage').textContent = message; 
+            m.classList.add('active'); 
+            return new Promise((resolve) => { resolveModalPromise = resolve; }); 
+        };
+
+        window.closeModal = (conf) => { 
+            const m = document.getElementById('deleteModal'); 
+            if (m) m.classList.remove('active'); 
+            if (resolveModalPromise) { 
+                resolveModalPromise(conf); 
+                resolveModalPromise = null; 
+            } 
+        };
+
+        window.copyToClipboard = (txt) => { 
+            if (!txt) return; 
+            const el = document.createElement('textarea'); 
+            el.value = txt; 
+            document.body.appendChild(el); 
+            el.select(); 
+            document.execCommand('copy'); 
+            document.body.removeChild(el); 
+        };
 
         window.openSettingsModal = () => { const m = document.getElementById('settingsModal'); if (m) { m.classList.add('active'); window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); } };
         window.closeSettingsModal = () => { const m = document.getElementById('settingsModal'); if (m) m.classList.remove('active'); };
@@ -862,23 +931,32 @@
             });
         };
 
-        window.cycleEventTextStatus = async (date, name) => {
-            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
-            const currentObj = window.getEventStageObj(eventSchedule[idx]);
-            const nextStageObj = STATUS_STAGES[(STATUS_STAGES.findIndex(s => s.key === currentObj.key) + 1) % STATUS_STAGES.length];
-            eventSchedule[idx].textStatus = nextStageObj.key;
-            eventSchedule[idx].isDraft = nextStageObj.key === 'draft';
-            eventSchedule[idx].postStatus = nextStageObj.key === 'posted' ? 'done' : 'pending';
-            eventSchedule[idx].storyStatus = (nextStageObj.key === 'story' || nextStageObj.key === 'posted') ? 'done' : 'pending';
-            if (nextStageObj.key !== 'posted') eventSchedule[idx].isCleared = false;
-            window.renderScheduleList();
-            await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-        };
-
         window.clearPostedForDay = async (dKey) => {
-            let clearedCount = 0;
-            eventSchedule.forEach(e => { if (e.date === dKey && (e.textStatus === 'posted' || e.postStatus === 'done')) { e.isCleared = true; clearedCount++; } });
-            if (clearedCount > 0) { await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); }
+            const postedEvents = eventSchedule.filter(e => e.date === dKey && (e.textStatus === 'posted' || e.postStatus === 'done'));
+            if (postedEvents.length === 0) {
+                const allDayEvents = eventSchedule.filter(e => e.date === dKey && !e.isCleared);
+                if (allDayEvents.length === 0) return;
+                const confirmAll = await window.safeConfirm(
+                    "Clear Day Events", 
+                    `None of the events on ${dKey} are marked 'POSTED' (🔴). Would you like to clear all ${allDayEvents.length} event(s) for this day to History?`
+                );
+                if (confirmAll) {
+                    allDayEvents.forEach(e => { e.isCleared = true; e.textStatus = 'posted'; e.postStatus = 'done'; });
+                    await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                    window.renderScheduleList();
+                }
+                return;
+            }
+
+            const confirmed = await window.safeConfirm(
+                "Clear Posted Events", 
+                `Move ${postedEvents.length} posted event(s) on ${dKey} from the schedule to History?`
+            );
+            if (confirmed) {
+                postedEvents.forEach(e => { e.isCleared = true; });
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            }
         };
 
         window.autoDetectDateFromDesc = () => {
@@ -911,11 +989,16 @@
             let eventsToRender = past || window.calculateSequentialDays(eventSchedule).filter(e => e.date < window.getLocalDateString(new Date()) || e.isCleared || (e.postStatus === 'done' && e.storyStatus === 'done'));
             eventsToRender.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((e, idx) => {
                 const d = document.createElement('div'); d.className = 'p-1.5 border rounded-lg mb-1 bg-white text-[11px] shadow-sm hover:border-slate-300 transition';
-                const escN = e.eventName.replace(/'/g, "\\'");
-                d.innerHTML = `<div class="flex justify-between items-center"><div><b class="text-indigo-900">${e.date}</b>: <span class="font-bold text-gray-800">${e.eventName}</span> <span class="text-gray-400 font-normal">📍 ${e.location || 'No Location'}</span></div><div class="flex gap-1.5"><button onclick="window.toggleHistDetail('hist-${idx}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px]">Details</button><button onclick="window.loadEventForEdit('${e.date}', '${escN}')" class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-[10px] font-bold border border-indigo-200">Reuse</button></div></div><div id="hist-${idx}" class="hidden mt-1 p-1.5 bg-slate-50 rounded border border-slate-100 whitespace-pre-wrap text-[10px] text-slate-600 font-mono">${e.postText}</div>`;
+                const encDate = encodeURIComponent(e.date);
+                const encName = encodeURIComponent(e.eventName);
+                d.innerHTML = `<div class="flex justify-between items-center"><div><b class="text-indigo-900">${e.date}</b>: <span class="font-bold text-gray-800">${e.eventName}</span> <span class="text-gray-400 font-normal">📍 ${e.location || 'No Location'}</span></div><div class="flex gap-1.5"><button onclick="window.toggleHistDetail('hist-${idx}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px]">Details</button><button onclick="window.loadEventForEdit('${encDate}', '${encName}')" class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-[10px] font-bold border border-indigo-200">Reuse</button></div></div><div id="hist-${idx}" class="hidden mt-1 p-1.5 bg-slate-50 rounded border border-slate-100 whitespace-pre-wrap text-[10px] text-slate-600 font-mono">${e.postText}</div>`;
                 list.appendChild(d);
             });
             document.getElementById('emptyHistoryMessage')?.classList.toggle('hidden', eventsToRender.length > 0);
+        };
+
+        window.toggleHistDetail = (id) => {
+            document.getElementById(id)?.classList.toggle('hidden');
         };
 
         window.renderScheduleList = () => {
@@ -926,11 +1009,11 @@
             all.forEach(e => {
                 const p = window.getPeriodForDate(e.date);
                 const isMatchFilter = (fP === 'all' || fP === 'all_inc_past' || p === fP) && e.eventName.toLowerCase().includes(fN);
-                if (fP === 'all_inc_past') {
-                    if (isMatchFilter) upcoming.push(e);
-                } else {
-                    if (e.date < nowStr || e.isCleared) past.push(e); 
-                    else if (isMatchFilter) upcoming.push(e);
+                const isHiddenFromSchedule = e.isCleared || (e.date < nowStr && fP !== 'all_inc_past');
+                if (isHiddenFromSchedule) {
+                    past.push(e);
+                } else if (isMatchFilter) {
+                    upcoming.push(e);
                 }
             });
 
@@ -946,8 +1029,8 @@
             Object.keys(grp).sort().forEach(dKey => {
                 const p = window.getPeriodForDate(dKey);
                 if (p !== lastP) { 
-                    const div = document.createElement('div'); div.className = 'period-divider'; const escP = p.replace(/'/g, "\\'");
-                    div.innerHTML = `<span>${p} Period</span><div class="flex gap-1.5 items-center justify-end"><button onclick="window.copyMonthVenueSummary('${escP}', 'WET')" class="border border-white/40 px-2.5 py-1 rounded bg-white/10 hover:bg-white/25 text-white font-bold text-[10px] transition shadow-sm">💦 WET Post</button><button onclick="window.copyMonthVenueSummary('${escP}', 'SWIMS')" class="border border-white/40 px-2.5 py-1 rounded bg-white/10 hover:bg-white/25 text-white font-bold text-[10px] transition shadow-sm">🏖️ SWIMS Post</button></div>`;
+                    const div = document.createElement('div'); div.className = 'period-divider'; const escP = encodeURIComponent(p);
+                    div.innerHTML = `<span>${p} Period</span><div class="flex gap-1.5 items-center justify-end"><button onclick="window.copyMonthVenueSummary(decodeURIComponent('${escP}'), 'WET')" class="border border-white/40 px-2.5 py-1 rounded bg-white/10 hover:bg-white/25 text-white font-bold text-[10px] transition shadow-sm">💦 WET Post</button><button onclick="window.copyMonthVenueSummary(decodeURIComponent('${escP}'), 'SWIMS')" class="border border-white/40 px-2.5 py-1 rounded bg-white/10 hover:bg-white/25 text-white font-bold text-[10px] transition shadow-sm">🏖️ SWIMS Post</button></div>`;
                     container.appendChild(div); lastP = p; 
                 }
                 const gDiv = document.createElement('div'); gDiv.className = 'event-group';
@@ -955,20 +1038,25 @@
                 const list = gDiv.querySelector('.list');
                 
                 grp[dKey].forEach(e => {
-                    const escN = e.eventName.replace(/'/g, "\\'"), eventKey = `${e.date}|${e.eventName}`, isSelected = selectedEventKeys.has(eventKey);
-                    const idPost = `post-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, ''), idTags = `tags-${e.date}-${escN}`.replace(/[^a-z0-9]/gi, '');
-                    const card = document.createElement('div'); card.className = `scheduled-event-card ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''}`;
+                    const encD = encodeURIComponent(e.date);
+                    const encN = encodeURIComponent(e.eventName);
+                    const eventKey = `${e.date}|${e.eventName}`;
+                    const isSelected = selectedEventKeys.has(eventKey);
+                    const idPost = `post-${e.date}-${e.eventName}`.replace(/[^a-z0-9]/gi, '');
+                    const idTags = `tags-${e.date}-${e.eventName}`.replace(/[^a-z0-9]/gi, '');
+                    const card = document.createElement('div'); 
+                    card.className = `scheduled-event-card ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''}`;
                     const postRaw = e.postText || '';
                     const displayPost = postRaw.startsWith('🌕Full Moon Week') ? postRaw.replace(/^🌕Full Moon Week - Day \d+🌕/, `🌕Full Moon Week - Day ${e.dayNumber}🌕`) : `🌕Full Moon Week - Day ${e.dayNumber}🌕\n${postRaw}`;
                     const stageObj = window.getEventStageObj(e), hasGfx = e.mediaStatus === 'done';
 
                     card.innerHTML = `<div class="flex flex-row gap-3 items-stretch w-full">
                         <div class="w-8 sm:w-10 flex-none bg-slate-100 border border-slate-200 p-1 flex flex-col justify-between items-center select-none rounded-lg" onclick="event.stopPropagation()">
-                            <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="window.toggleEventSelection('${e.date}','${escN}',this.checked)" class="w-4 h-4 cursor-pointer accent-indigo-600 rounded my-0.5">
-                            <button onclick="window.moveEvent('${e.date}','${escN}','top')" title="Move Top" class="order-btn-svg">${ICONS.top}</button>
-                            <button onclick="window.moveEvent('${e.date}','${escN}','up')" title="Move Up" class="order-btn-svg">${ICONS.up}</button>
-                            <button onclick="window.moveEvent('${e.date}','${escN}','down')" title="Move Down" class="order-btn-svg">${ICONS.down}</button>
-                            <button onclick="window.moveEvent('${e.date}','${escN}','bottom')" title="Move Bottom" class="order-btn-svg">${ICONS.bottom}</button>
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="window.toggleEventSelection('${encD}','${encN}',this.checked)" class="w-4 h-4 cursor-pointer accent-indigo-600 rounded my-0.5">
+                            <button onclick="window.moveEvent('${encD}','${encN}','top')" title="Move Top" class="order-btn-svg">${ICONS.top}</button>
+                            <button onclick="window.moveEvent('${encD}','${encN}','up')" title="Move Up" class="order-btn-svg">${ICONS.up}</button>
+                            <button onclick="window.moveEvent('${encD}','${encN}','down')" title="Move Down" class="order-btn-svg">${ICONS.down}</button>
+                            <button onclick="window.moveEvent('${encD}','${encN}','bottom')" title="Move Bottom" class="order-btn-svg">${ICONS.bottom}</button>
                         </div>
                         <div class="flex-grow flex flex-col justify-between min-w-0">
                             <div class="flex flex-col flex-grow min-w-0">
@@ -976,13 +1064,13 @@
                                     <h3 class="text-indigo-600 font-extrabold text-xs sm:text-sm">${e.eventName}</h3>
                                     <span class="text-[11px] sm:text-xs font-bold text-gray-700 font-mono">📍 ${e.location}</span>
                                 </div>
-                                <textarea id="${idPost}" onclick="event.stopPropagation()" onblur="window.updateText('${e.date}','${escN}',this.value,'postText')" class="w-full flex-grow text-[10px] border border-slate-200 rounded-lg p-2 shadow-inner leading-relaxed focus:ring-1 focus:ring-indigo-500 min-h-[100px]">${displayPost}</textarea>
+                                <textarea id="${idPost}" onclick="event.stopPropagation()" onblur="window.updateText('${encD}','${encN}',this.value,'postText')" class="w-full flex-grow text-[10px] border border-slate-200 rounded-lg p-2 shadow-inner leading-relaxed focus:ring-1 focus:ring-indigo-500 min-h-[100px]">${displayPost}</textarea>
                             </div>
                             <div class="flex items-center justify-between gap-1 mt-1.5 pt-1 border-t border-gray-100" onclick="event.stopPropagation()">
-                                <button onclick="window.loadEventForEdit('${e.date}','${escN}')" title="Edit Event Details" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-bold shadow-sm transition">EDIT</button>
+                                <button onclick="window.loadEventForEdit('${encD}','${encN}')" title="Edit Event Details" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-bold shadow-sm transition">EDIT</button>
                                 <div class="flex items-center gap-1.5">
-                                    <button onclick="window.cycleEventTextStatus('${e.date}','${escN}')" class="px-2.5 py-0.5 rounded-full text-[9px] font-bold transition flex items-center gap-1 border ${stageObj.bg}"><span>${stageObj.dot}</span> <span>${stageObj.label}</span></button>
-                                    <button onclick="window.toggleEventGfxStatus('${e.date}','${escN}')" class="px-2.5 py-0.5 rounded-lg text-[9px] font-bold transition flex items-center gap-1 border ${hasGfx ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-200 text-slate-700 border-slate-300'}">${ICONS.camera} <span>${hasGfx ? 'GFX' : 'NO GFX'}</span></button>
+                                    <button onclick="window.cycleEventTextStatus('${encD}','${encN}')" class="px-2.5 py-0.5 rounded-full text-[9px] font-bold transition flex items-center gap-1 border ${stageObj.bg}"><span>${stageObj.dot}</span> <span>${stageObj.label}</span></button>
+                                    <button onclick="window.toggleEventGfxStatus('${encD}','${encN}')" class="px-2.5 py-0.5 rounded-lg text-[9px] font-bold transition flex items-center gap-1 border ${hasGfx ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-200 text-slate-700 border-slate-300'}">${ICONS.camera} <span>${hasGfx ? 'GFX' : 'NO GFX'}</span></button>
                                 </div>
                             </div>
                         </div>
@@ -992,12 +1080,12 @@
                                     <button onclick="window.copyToClipboard(document.getElementById('${idPost}').value)" title="Copy Post" class="p-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition shadow-sm">${ICONS.post}</button>
                                     <button onclick="window.copyToClipboard(document.getElementById('${idTags}').value)" title="Copy Story Tags" class="p-1.5 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition shadow-sm">${ICONS.tags}</button>
                                 </div>
-                                <textarea id="${idTags}" onclick="event.stopPropagation()" onblur="window.updateText('${e.date}','${escN}',this.value,'tagsOnly')" class="w-full flex-grow text-[10px] border border-slate-200 rounded-lg p-2 shadow-inner font-mono leading-relaxed focus:ring-1 focus:ring-emerald-500 min-h-[100px]">${e.tagsOnly || ''}</textarea>
+                                <textarea id="${idTags}" onclick="event.stopPropagation()" onblur="window.updateText('${encD}','${encN}',this.value,'tagsOnly')" class="w-full flex-grow text-[10px] border border-slate-200 rounded-lg p-2 shadow-inner font-mono leading-relaxed focus:ring-1 focus:ring-emerald-500 min-h-[100px]">${e.tagsOnly || ''}</textarea>
                             </div>
                             <div class="flex items-center justify-end gap-1.5 sm:gap-2 mt-1.5 pt-1 border-t border-gray-100">
-                                <button onclick="window.duplicateEvent('${e.date}','${escN}')" title="Duplicate Event" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition shadow-sm">${ICONS.duplicate}</button>
-                                <button onclick="window.openMoveDateModal('${e.date}','${escN}')" title="Move Date" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition shadow-sm">${ICONS.move}</button>
-                                <button onclick="window.handleDeleteScheduledEvent('${e.date}','${escN}')" title="Delete Event" class="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition shadow-sm">${ICONS.delete}</button>
+                                <button onclick="window.duplicateEvent('${encD}','${encN}')" title="Duplicate Event" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition shadow-sm">${ICONS.duplicate}</button>
+                                <button onclick="window.openMoveDateModal('${encD}','${encN}')" title="Move Date" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition shadow-sm">${ICONS.move}</button>
+                                <button onclick="window.handleDeleteScheduledEvent('${encD}','${encN}')" title="Delete Event" class="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition shadow-sm">${ICONS.delete}</button>
                             </div>
                         </div>
                     </div>`;
@@ -1008,15 +1096,19 @@
             window.renderHistory(past);
         };
 
-        window.duplicateEvent = async (date, name) => {
+        window.duplicateEvent = async (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
             const eventObj = eventSchedule.find(e => e.date === date && e.eventName === name); if (!eventObj) return;
             const newName = `${eventObj.eventName} (Copy)`;
             eventSchedule.push({ ...eventObj, eventName: newName });
-            await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-            window.loadEventForEdit(date, newName);
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            window.loadEventForEdit(encodeURIComponent(date), encodeURIComponent(newName));
         };
 
-        window.openMoveDateModal = (date, name) => {
+        window.openMoveDateModal = (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
             activeMoveTarget = { date, name };
             document.getElementById('moveDateModalEventName').textContent = `${name} (${date})`;
             document.getElementById('moveDateInput').value = date;
@@ -1029,14 +1121,16 @@
             const idx = eventSchedule.findIndex(e => e.date === activeMoveTarget.date && e.eventName === activeMoveTarget.name);
             if (idx > -1) {
                 eventSchedule[idx].date = newDate;
-                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
                 document.getElementById('moveDateModal').classList.remove('active');
                 activeMoveTarget = null;
                 window.renderScheduleList();
             }
         };
 
-        window.loadEventForEdit = (date, name) => {
+        window.loadEventForEdit = (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
             const e = eventSchedule.find(ev => ev.date === date && ev.eventName === name); if (!e) return;
             document.getElementById('inputIsoDate').value = e.date || ""; 
             document.getElementById('inputEventName').value = e.eventName || ""; 
@@ -1053,18 +1147,37 @@
             window.handleClick(false);
         };
 
-        window.loadEventFromHistory = (e) => { if (e) window.loadEventForEdit(e.date, e.eventName); };
+        window.loadEventFromHistory = (e) => { 
+            if (e) window.loadEventForEdit(encodeURIComponent(e.date), encodeURIComponent(e.eventName)); 
+        };
 
-        window.updateText = async function(date, name, val, field) {
+        window.updateText = async function(encDate, encName, val, field) {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
             const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
             const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, ''); 
             eventSchedule[idx][field] = cleanVal;
             if (field === 'postText') { const b = cleanVal.split('\n\n'); if (b.length >= 2) eventSchedule[idx].description = b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim(); }
-            await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        window.handleDeleteScheduledEvent = async (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const confirmed = await window.safeConfirm("Delete Event", `Are you sure you want to permanently delete "${name}" on ${date}?`);
+            if (confirmed) {
+                eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name));
+                selectedEventKeys.delete(`${date}|${name}`);
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            }
         };
 
         window.toggleFindReplacePanel = () => { document.getElementById('findReplacePanel')?.classList.toggle('hidden'); };
-        window.toggleEventSelection = (date, name, isChecked) => {
+        
+        window.toggleEventSelection = (encDate, encName, isChecked) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
             const key = `${date}|${name}`;
             if (isChecked) selectedEventKeys.add(key); else selectedEventKeys.delete(key);
             window.renderScheduleList();
@@ -1094,7 +1207,7 @@
             if (await window.safeConfirm("Bulk Delete", `Are you sure you want to delete ${selectedEventKeys.size} selected event(s)?`)) {
                 eventSchedule = eventSchedule.filter(e => !selectedEventKeys.has(`${e.date}|${e.eventName}`));
                 selectedEventKeys.clear();
-                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
                 window.renderScheduleList();
             }
         };
@@ -1122,7 +1235,7 @@
             });
 
             if (modifiedAny) {
-                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
                 window.renderScheduleList();
                 document.getElementById('bulkFindInput').value = '';
                 document.getElementById('bulkReplaceInput').value = '';
@@ -1195,7 +1308,8 @@
             list.innerHTML = '';
             Object.entries(nameTagDatabase).filter(([n, d]) => (n.toLowerCase().includes(s) || d.tag.toLowerCase().includes(s)) && (!f || d.category === f)).sort().forEach(([n, d]) => {
                 const li = document.createElement('li'); li.className = 'compact-list-item flex justify-between items-center';
-                li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span><div class="flex gap-2"><button onclick="window.editTag('${n.replace(/'/g, "\\'")}')" class="text-indigo-500 font-bold">Edit</button><button onclick="window.deleteTag('${n.replace(/'/g, "\\'")}')" class="text-red-500 font-bold">✕</button></div>`;
+                const escN = encodeURIComponent(n);
+                li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span><div class="flex gap-2"><button onclick="window.editTag(decodeURIComponent('${escN}'))" class="text-indigo-500 font-bold">Edit</button><button onclick="window.deleteTag(decodeURIComponent('${escN}'))" class="text-red-500 font-bold">✕</button></div>`;
                 list.appendChild(li);
             });
         };
@@ -1204,15 +1318,17 @@
             const s = (document.getElementById('quickDbSearch')?.value || '').toLowerCase(), res = document.getElementById('quickDbSearchResults');
             if(!res) return; res.innerHTML = ''; if(!s) return;
             Object.entries(nameTagDatabase).filter(([n, d]) => n.toLowerCase().includes(s) || d.tag.toLowerCase().includes(s)).sort().forEach(([n, d]) => {
-                const escN = n.replace(/'/g, "\\'"), d2 = document.createElement('div');
+                const escN = encodeURIComponent(n);
+                const d2 = document.createElement('div');
                 d2.className = 'p-1.5 flex justify-between items-center text-[10px] text-emerald-900 border-b border-emerald-50 last:border-0';
-                d2.innerHTML = `<span><b>${n}</b> <span class="text-emerald-600/70">${d.tag}</span></span><div class="flex items-center gap-1.5"><span class="text-[8px] bg-emerald-100 px-1 rounded font-bold uppercase">${d.category}</span><button onclick="window.editTag('${escN}')" class="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold hover:bg-emerald-700 transition">Edit</button></div>`;
+                d2.innerHTML = `<span><b>${n}</b> <span class="text-emerald-600/70">${d.tag}</span></span><div class="flex items-center gap-1.5"><span class="text-[8px] bg-emerald-100 px-1 rounded font-bold uppercase">${d.category}</span><button onclick="window.editTag(decodeURIComponent('${escN}'))" class="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold hover:bg-emerald-700 transition">Edit</button></div>`;
                 res.appendChild(d2);
             });
         };
 
         window.renderSnippetSelect = () => { const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const s1 = document.getElementById('snippetSelect'), s2 = document.getElementById('editorSnippetSelect'); if (s1) s1.innerHTML = html; if (s2) s2.innerHTML = html; };
         window.renderGlobalTags = () => { const el = document.getElementById('defaultTagsInput'); if (el) el.value = globalTagsString; };
+        
         window.renderPeriodFilter = () => {
             const sel = document.getElementById('schedulePeriodFilter');
             if (sel) {
@@ -1349,7 +1465,7 @@
                     if (idx > -1) { result.order = eventSchedule[idx].order || 0; eventSchedule[idx] = result; }
                     else { result.order = eventSchedule.filter(e => e.date === d).reduce((max, e) => Math.max(max, e.order || 0), -1) + 1; eventSchedule.push(result); }
                 }
-                await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
                 window.showTab('scheduler');
             } else {
                 const { fullRes, uniqueTagsList, valid } = await processSingle(targetDate);
@@ -1370,33 +1486,57 @@
         window.saveQuickTag = async function() { 
             const n = document.getElementById('quickName').value.trim(), tInput = document.getElementById('quickTag').value.trim(), c = document.getElementById('quickCategory').value; if (!n || !tInput) return; 
             nameTagDatabase[n] = { tag: window.cleanTagInput(tInput), category: c }; 
-            if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { 
+            if (await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { 
                 window.renderNameMap(); 
                 document.getElementById('quickName').value = ""; document.getElementById('quickTag').value = ""; document.getElementById('quickDbSearch').value = "";
                 window.renderQuickDbSearch();
             } 
         };
 
-        window.editTag = (n) => { const d = nameTagDatabase[n]; if(!d) return; document.getElementById('newName').value = n; document.getElementById('newTag').value = d.tag; document.getElementById('newCategory').value = d.category; currentTagEdit = n; document.getElementById('cancelTagEditBtn')?.classList.remove('hidden'); window.openSettingsModal(); };
-        window.cancelTagEdit = () => { document.getElementById('newName').value = ""; document.getElementById('newTag').value = ""; currentTagEdit = null; document.getElementById('cancelTagEditBtn')?.classList.add('hidden'); };
-        window.deleteTag = async (n) => { if(await window.safeConfirm("Delete Tag", n)) { delete nameTagDatabase[n]; await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); window.renderNameMap(); } };
+        window.editTag = (n) => { 
+            const d = nameTagDatabase[n]; if(!d) return; 
+            document.getElementById('newName').value = n; 
+            document.getElementById('newTag').value = d.tag; 
+            document.getElementById('newCategory').value = d.category; 
+            currentTagEdit = n; 
+            document.getElementById('cancelTagEditBtn')?.classList.remove('hidden'); 
+            window.openSettingsModal(); 
+        };
+
+        window.cancelTagEdit = () => { 
+            document.getElementById('newName').value = ""; 
+            document.getElementById('newTag').value = ""; 
+            currentTagEdit = null; 
+            document.getElementById('cancelTagEditBtn')?.classList.add('hidden'); 
+        };
+
+        window.deleteTag = async (n) => { 
+            if(await window.safeConfirm("Delete Tag", n)) { 
+                delete nameTagDatabase[n]; 
+                await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); 
+                window.renderNameMap(); 
+            } 
+        };
 
         window.addNameMapEntry = async () => { 
             const n = document.getElementById('newName').value.trim(), tInput = document.getElementById('newTag').value.trim(); if (!n || !tInput) return; 
-            if(currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit]; 
-            nameTagDatabase[n] = { tag: window.cleanTagInput(tInput), category: document.getElementById('newCategory').value }; 
-            if (await window.saveDataToSupabase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { window.cancelTagEdit(); window.renderNameMap(); } 
+            if (currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit];
+            nameTagDatabase[n] = { tag: window.cleanTagInput(tInput), category: document.getElementById('newCategory').value };
+            await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+            window.renderNameMap();
+            window.cancelTagEdit();
         };
 
-        window.saveSnippet = async () => { const n = document.getElementById('snippetName').value.trim(), c = document.getElementById('snippetContent').value.trim(); if (!n || !c) return; textSnippets[n] = c; await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); };
-        window.loadSnippet = () => { const k = document.getElementById('snippetSelect').value; if (textSnippets[k]) { document.getElementById('snippetName').value = k; document.getElementById('snippetContent').value = textSnippets[k]; } };
-        window.deleteSnippet = async () => { const k = document.getElementById('snippetSelect').value; if(k && await window.safeConfirm("Delete Snippet", `Delete ${k}?`)) { delete textSnippets[k]; await window.saveDataToSupabase(DB_CONFIG.SNIPPETS_KEY, textSnippets); window.renderSnippetSelect(); } };
-        window.saveGlobalHashtags = async () => { const input = document.getElementById('defaultTagsInput'); if (input) { globalTagsString = input.value.trim(); await window.saveDataToSupabase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString); } };
-        window.searchIGDirectly = () => { const n = document.getElementById('newName').value.trim(); if (n) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(n)}`, '_blank'); };
-        window.searchIGInline = () => { const n = document.getElementById('quickName').value.trim(); if (n) window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(n)}`, '_blank'); };
-        window.toggleHistDetail = (id) => { document.getElementById(id)?.classList.toggle('hidden'); };
-        window.handleDeleteScheduledEvent = async (date, name) => { if (await window.safeConfirm("Delete Event", `Delete ${name}?`)) { eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name)); await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); window.renderScheduleList(); } };
-        
+        window.searchIGInline = () => {
+            const q = document.getElementById('quickName').value.trim();
+            if (q) window.open(`https://www.instagram.com/explore/tags/${encodeURIComponent(q.replace(/\s+/g, ''))}/`, '_blank');
+        };
+
+        window.searchIGDirectly = () => {
+            const q = document.getElementById('newName').value.trim();
+            if (q) window.open(`https://www.instagram.com/explore/tags/${encodeURIComponent(q.replace(/\s+/g, ''))}/`, '_blank');
+        };
+
         window.copyDayEventNames = (date) => {
             const dayEvents = window.calculateSequentialDays(eventSchedule).filter(e => e.date === date); if (dayEvents.length === 0) return;
             const eventsText = dayEvents.map(e => `🔹 ${e.eventName}\n📍 ${window.findTagForLocation(e.location) ? `${e.location} ${window.findTagForLocation(e.location)}` : e.location}`).join('\n\n');
@@ -1404,10 +1544,23 @@
             window.copyToClipboard([`🌕 FULL MOON WEEK • DAY ${dayEvents[0].dayNumber} 🌕`,`🗓️ DATE: ${window.formatDateFriendly(date).toUpperCase()}`,``,`✨ TODAY'S EVENTS ✨`,``,eventsText,``,hashes].join('\n'));
         };
 
-        window.copyDayTagsOnly = (date) => { const unique = [...new Set(window.calculateSequentialDays(eventSchedule).filter(e => e.date === date).map(e => window.findTagForLocation(e.location)).filter(Boolean))]; if (unique.length > 0) window.copyToClipboard(unique.join('\n')); };
-        window.findTagForLocation = (loc) => { if (!loc) return ""; const low = loc.toLowerCase(); for (const [n, d] of Object.entries(nameTagDatabase).sort((a,b) => b[0].length - a[0].length)) { if (new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'i').test(low)) return d.tag || ""; } return ""; };
+        window.copyDayTagsOnly = (date) => { 
+            const unique = [...new Set(window.calculateSequentialDays(eventSchedule).filter(e => e.date === date).map(e => window.findTagForLocation(e.location)).filter(Boolean))]; 
+            if (unique.length > 0) window.copyToClipboard(unique.join('\n')); 
+        };
 
-        window.moveEvent = async function(date, name, direction) { 
+        window.findTagForLocation = (loc) => { 
+            if (!loc) return ""; 
+            const low = loc.toLowerCase(); 
+            for (const [n, d] of Object.entries(nameTagDatabase).sort((a,b) => b[0].length - a[0].length)) { 
+                if (new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'i').test(low)) return d.tag || ""; 
+            } 
+            return ""; 
+        };
+
+        window.moveEvent = async function(encDate, encName, direction) { 
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
             const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0)); 
             dayEvents.forEach((e, i) => e.order = i); 
             const idx = dayEvents.findIndex(e => e.eventName === name); if (idx === -1) return; 
@@ -1419,12 +1572,22 @@
             else return;
 
             dayEvents.sort((a,b) => (a.order || 0) - (b.order || 0)).forEach((e, i) => e.order = i);
-            await window.saveDataToSupabase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
             window.renderScheduleList(); 
         };
 
-        window.exportFullDatabase = () => { const blob = new Blob([JSON.stringify({ nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString, ts: new Date().toISOString() }, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Backup_${window.getLocalDateString(new Date())}.json`; a.click(); };
-        window.createCloudSnapshot = async () => { if (await window.saveDataToFirebase(DB_CONFIG.BACKUP_KEY, { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString })) alert("Snapshot created."); };
+        window.exportFullDatabase = () => { 
+            const blob = new Blob([JSON.stringify({ nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString, ts: new Date().toISOString() }, null, 2)], { type: 'application/json' }); 
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); 
+            a.download = `Backup_${window.getLocalDateString(new Date())}.json`; a.click(); 
+        };
+
+        window.createCloudSnapshot = async () => { 
+            if (await window.saveDataToFirebase(DB_CONFIG.BACKUP_KEY, { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString })) {
+                alert("Snapshot created."); 
+            }
+        };
+
         window.importFullDatabase = async () => {
             const raw = document.getElementById('restoreInput').value.trim(); if (!raw) return;
             if (await window.safeConfirm("RESTORE", "Overwriting all data. OK?")) {
@@ -1437,7 +1600,52 @@
             }
         };
 
-        window.insertSnippet = () => { const k = document.getElementById('editorSnippetSelect').value; if (textSnippets[k]) { const a = document.getElementById('rawDescription'), s = a.selectionStart, e = a.selectionEnd; a.value = a.value.substring(0, s) + textSnippets[k] + a.value.substring(e); a.focus(); } };
+        window.saveGlobalHashtags = async () => {
+            const el = document.getElementById('defaultTagsInput');
+            if (el) {
+                globalTagsString = el.value.trim();
+                await window.saveDataToFirebase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString);
+            }
+        };
+
+        window.loadSnippet = () => {
+            const k = document.getElementById('snippetSelect').value;
+            if (k && textSnippets[k]) {
+                document.getElementById('snippetName').value = k;
+                document.getElementById('snippetContent').value = textSnippets[k];
+            }
+        };
+
+        window.saveSnippet = async () => {
+            const n = document.getElementById('snippetName').value.trim();
+            const c = document.getElementById('snippetContent').value.trim();
+            if (n && c) {
+                textSnippets[n] = c;
+                await window.saveDataToFirebase(DB_CONFIG.SNIPPETS_KEY, textSnippets);
+                window.renderSnippetSelect();
+            }
+        };
+
+        window.deleteSnippet = async () => {
+            const n = document.getElementById('snippetName').value.trim();
+            if (n && textSnippets[n]) {
+                delete textSnippets[n];
+                await window.saveDataToFirebase(DB_CONFIG.SNIPPETS_KEY, textSnippets);
+                document.getElementById('snippetName').value = '';
+                document.getElementById('snippetContent').value = '';
+                window.renderSnippetSelect();
+            }
+        };
+
+        window.insertSnippet = () => { 
+            const k = document.getElementById('editorSnippetSelect').value; 
+            if (textSnippets[k]) { 
+                const a = document.getElementById('rawDescription'), s = a.selectionStart, e = a.selectionEnd; 
+                a.value = a.value.substring(0, s) + textSnippets[k] + a.value.substring(e); 
+                a.focus(); 
+                window.handleDescriptionInput();
+            } 
+        };
 
         async function initializeFirebase() {
             window.loadLocalBackup();
@@ -1453,7 +1661,6 @@
 
                 await signInAnonymously(auth);
 
-                // 1. Fetch Event Schedule chunks
                 try {
                     const schedSnaps = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
                     const chunks = [];
@@ -1478,7 +1685,6 @@
                     console.error("Error loading schedule chunks:", e);
                 }
 
-                // 2. Fetch Name Tag Database
                 try {
                     const tagSnap = await getDoc(doc(db, DB_CONFIG.INSTA_DB_KEY, 'main'));
                     if (tagSnap.exists() && tagSnap.data().data) {
@@ -1487,7 +1693,6 @@
                     }
                 } catch(e) {}
 
-                // 3. Fetch Snippets
                 try {
                     const snipSnap = await getDoc(doc(db, DB_CONFIG.SNIPPETS_KEY, 'main'));
                     if (snipSnap.exists() && snipSnap.data().data) {
@@ -1496,7 +1701,6 @@
                     }
                 } catch(e) {}
 
-                // 4. Fetch Global Tags
                 try {
                     const globSnap = await getDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'));
                     if (globSnap.exists() && globSnap.data().tags) {
@@ -1505,7 +1709,6 @@
                     }
                 } catch(e) {}
 
-                // 5. Fallback Snapshot recovery if schedule is still empty
                 if (eventSchedule.length === 0) {
                     try {
                         const snapDoc = await getDoc(doc(db, DB_CONFIG.BACKUP_KEY, 'main'));
