@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Full Moon Week Scheduler</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌕</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { primary: '#4f46e5', secondary: '#10b981', background: '#f9fafb', accent: '#f59e0b', danger: '#ef4444' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { overflow-x: hidden; width: 100%; position: relative; }
+        textarea { font-size: 0.875rem; line-height: 1.5; resize: vertical; outline: none; }
+        #rawDescription { min-height: 180px; }
+        .tab-button.active { border-bottom: 3px solid #ef4444 !important; color: #ef4444 !important; font-weight: 600 !important; background-color: #f1f5f9 !important; }
+        .compact-list-item { padding: 0.15rem 0; font-size: 0.75rem; }
+        .settings-grid-container-custom { display: grid; grid-template-columns: 35% 65%; gap: 1.5rem; }
+        @media (max-width: 768px) { .settings-grid-container-custom { grid-template-columns: 1fr; } }
+        .schedule-container { background-color: #eef2ff !important; }
+        .tag-box-bg { background-color: #f0fdf4 !important; } 
+        .snippet-box-bg { background-color: #fdf2f8 !important; } 
+        .history-box-bg { background-color: #f8fafc !important; }
+        .add-entry-bg { background-color: #ecfdf5 !important; }
+        .modal { transition: opacity 0.2s ease-in-out; pointer-events: none; opacity: 0; z-index: 100; }
+        .modal.active { pointer-events: auto; opacity: 1; }
+        .scheduled-event-card { padding: 0.6rem !important; font-size: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; background: white; transition: box-shadow 0.2s; }
+        .scheduled-event-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .event-group { border: 2px solid #ca8a04; padding: 0.6rem; margin-bottom: 1.25rem; background-color: #fef9c3; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; }
+        .tag-pill { display: inline-block; padding: 3px 10px; margin: 3px; border-radius: 9999px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid #cbd5e1; background: white; color: #475569; }
+        .tag-pill:hover { background: #e2e8f0; border-color: #94a3b8; }
+        .tag-pill.active { background: #4f46e5; color: white; border-color: #4f46e5; }
+        .active-tag-pill { display: inline-flex; align-items: center; padding: 2px 8px; margin: 2px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+        .active-tag-pill.excluded { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; border-color: #e2e8f0; }
+        .order-btn-svg { display: flex; align-items: center; justify-content: center; width: 100%; height: 24px; border-radius: 4px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; transition: all 0.15s ease; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .order-btn-svg:hover { background: #e2e8f0; color: #0f172a; border-color: #64748b; transform: scale(1.05); }
+        .period-divider { background: #4f46e5; color: white; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 900; text-transform: uppercase; margin: 20px 0 10px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+        details summary::-webkit-details-marker { display:none; }
+        details summary { list-style: none; }
+    </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        window.fb = { initializeApp, getAuth, signInAnonymously, getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, getStorage, ref, uploadBytes, getDownloadURL };
+    </script>
+</head>
+<body class="bg-background min-h-screen p-2 sm:p-6 font-sans max-w-full">
+    
+    <div class="max-w-7xl mx-auto w-full">
+        <div class="sticky top-0 z-50 bg-background pb-3 pt-1">
+            <header class="text-center mb-1 p-1 bg-white rounded-xl shadow-sm border border-gray-100 flex justify-between items-center px-4">
+                <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">Full Moon Week Scheduler</h1>
+                <div class="flex items-center gap-2">
+                    <span id="liveStatusBadge" title="Live Sync Active" class="inline-flex items-center justify-center w-5 h-5 bg-emerald-50 rounded-full border border-emerald-200">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    </span>
+                    <button onclick="window.openSettingsModal()" title="Settings" class="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition flex items-center gap-1 font-bold text-xs">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="flex border-b border-gray-200 bg-white rounded-t-xl shadow-sm overflow-hidden w-full">
+                <button id="tab-scheduler-btn" onclick="window.showTab('scheduler')" class="tab-button active flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Schedule</button>
+                <button id="tab-editor-btn" onclick="window.showTab('editor')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Event</button>
+                <button id="tab-calendar-btn" onclick="window.showTab('calendar')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">Calendar</button>
+                <button id="tab-history-btn" onclick="window.showTab('history')" class="tab-button flex-1 py-1 text-xs sm:text-sm text-center transition hover:bg-gray-50">History</button>
+            </div>
+        </div>
+
+        <div id="tab-scheduler-content" class="tab-content">
+             <div class="schedule-container p-4 rounded-xl shadow-lg border border-indigo-100 max-w-full">
+                <div class="flex flex-col gap-3 mb-4">
+                    <div class="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+                        <h2 class="text-2xl font-bold text-indigo-900">Upcoming Schedule</h2>
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <input type="text" id="scheduleNameFilter" oninput="window.renderScheduleList()" placeholder="Filter by name..." class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none flex-grow">
+                            <select id="schedulePeriodFilter" onchange="window.renderScheduleList()" class="p-1.5 border rounded text-xs bg-white text-indigo-900 outline-none min-w-[140px]">
+                                <option value="all">All Upcoming Periods</option>
+                                <option value="all_inc_past">Show All (Including Past)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-50/80 p-2.5 rounded-lg border border-indigo-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer font-bold text-indigo-900 text-xs select-none">
+                            <input type="checkbox" id="selectAllFilteredCheckbox" onchange="window.toggleSelectAllFiltered(this.checked)" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+                            <span>Select All Filtered (<span id="selectedCountDisplay">0</span> selected)</span>
+                        </label>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button onclick="window.toggleFindReplacePanel()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 shadow-sm">🔍 Batch Find & Replace</button>
+                            <button id="bulkDeleteBtn" onclick="window.bulkDeleteSelected()" disabled class="bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white px-2.5 py-1 rounded text-[10px] font-bold transition shadow-sm">🗑️ Delete Selected</button>
+                        </div>
+                    </div>
+
+                    <div id="findReplacePanel" class="hidden bg-white p-3 rounded-lg border border-indigo-200 shadow-sm space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-xs font-bold text-indigo-900 uppercase">Batch Find & Replace</h4>
+                            <span class="text-[10px] text-gray-400">Fix typos or change venues across multiple events</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <input type="text" id="bulkFindInput" placeholder="Text to find..." class="p-1.5 border rounded text-xs outline-none focus:border-indigo-500">
+                            <input type="text" id="bulkReplaceInput" placeholder="Replace with..." class="p-1.5 border rounded text-xs outline-none focus:border-indigo-500">
+                            <select id="bulkTargetFieldSelect" class="p-1.5 border rounded text-xs bg-white outline-none">
+                                <option value="all">All Fields (Name, Location, Text)</option>
+                                <option value="eventName">Event Name Only</option>
+                                <option value="location">Location Only</option>
+                                <option value="postText">Post Text Only</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-1">
+                            <button onclick="window.toggleFindReplacePanel()" class="px-2.5 py-1 text-gray-500 text-[10px] font-medium border rounded hover:bg-gray-50">Cancel</button>
+                            <button onclick="window.applyFindReplace('selected')" class="px-2.5 py-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-[10px] font-bold rounded">Replace in Selected</button>
+                            <button onclick="window.applyFindReplace('filtered')" class="px-2.5 py-1 bg-indigo-600 text-white hover:bg-indigo-700 text-[10px] font-bold rounded">Replace All Filtered (<span id="filteredCountDisplay">0</span>)</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="scheduledEventsContainer" class="space-y-4 w-full"></div>
+                <p id="emptyScheduleMessage" class="text-center text-gray-400 italic py-12">No matching events found.</p>
+            </div>
+        </div>
+
+        <div id="tab-editor-content" class="tab-content hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 shadow-sm">
+                        <div class="flex justify-between items-center mb-3">
+                            <h2 class="text-base font-bold text-gray-800">Event Details</h2>
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="window.resetEditorFields()" class="px-2.5 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition border border-slate-300 shadow-sm">✨ New Event</button>
+                                <button onclick="window.openHistoryReuseModal()" class="px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 shadow-sm">
+                                    <span id="editorReuseIcon"></span>
+                                    <span>Reuse Event</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 p-2 bg-slate-100 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold uppercase text-slate-600">Status:</span>
+                                <button type="button" id="editorStatusCycleBtn" onclick="window.cycleEditorTextStatus()" class="px-2.5 py-1 rounded-full text-xs font-bold transition shadow-sm border flex items-center gap-1.5 bg-slate-200 text-slate-800 border-slate-300">
+                                    <span id="editorStatusDot">⚪</span> <span id="editorStatusText">DRAFT</span>
+                                </button>
+                            </div>
+                            <button type="button" id="editorGfxToggleBtn" onclick="window.toggleEditorGfxStatus()" class="px-2.5 py-1 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 bg-slate-200 text-slate-700 border-slate-300 shadow-sm">
+                                <span id="editorGfxIcon"></span>
+                                <span id="editorGfxText">NO GFX</span>
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center space-x-2 flex-grow">
+                                    <label class="text-xs font-bold text-gray-700 whitespace-nowrap">🗓 Date:</label>
+                                    <input type="date" id="inputIsoDate" class="border border-gray-300 rounded-lg p-1.5 text-xs flex-grow" oninput="window.triggerDebouncedParse()">
+                                </div>
+                                <button onclick="window.autoDetectDateFromDesc()" class="px-2.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded text-[10px] font-bold whitespace-nowrap shadow-sm flex items-center gap-1">⚡ Detect Date</button>
+                            </div>
+
+                            <input type="text" id="inputEventName" placeholder="🎉 EVENT NAME" class="w-full border border-gray-300 rounded-lg p-2 text-sm" oninput="window.updateSuggestedTags(); window.triggerDebouncedParse();">
+                            
+                            <div class="flex items-center gap-1.5">
+                                <input type="text" id="inputLocation" placeholder="📍 LOCATION" class="w-full border border-gray-300 rounded-lg p-2 text-sm" oninput="window.updateSuggestedTags(); window.triggerDebouncedParse();">
+                                <button id="autoDetectVenueBtn" onclick="window.autoDetectVenueFromDesc()" class="px-2.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded text-[10px] font-bold whitespace-nowrap shadow-sm flex items-center gap-1">⚡ Detect Venue</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg shadow-inner">
+                            <h3 class="text-[10px] font-bold text-indigo-800 uppercase mb-2">Recurring Options</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                                <select id="recurringType" onchange="window.toggleRecurringUI()" class="p-1.5 border rounded text-xs w-full bg-white">
+                                    <option value="none">One-off Event</option>
+                                    <option value="weekly">Weekly (FM +/- 3 days)</option>
+                                    <option value="relative">FM Relative Offset</option>
+                                </select>
+                                <div id="weeklyUI" class="hidden">
+                                    <select id="recurringDay" class="p-1.5 border rounded text-xs w-full bg-white">
+                                        <option value="1">Every Monday</option><option value="2">Every Tuesday</option><option value="3">Every Wednesday</option><option value="4">Every Thursday</option><option value="5">Every Friday</option><option value="6">Every Saturday</option><option value="0">Every Sunday</option>
+                                    </select>
+                                </div>
+                                <div id="relativeUI" class="hidden flex items-center space-x-1">
+                                    <input type="number" id="recurringOffset" value="0" class="p-1.5 border rounded text-xs w-16" placeholder="+/-">
+                                    <span class="text-[10px] text-indigo-600">days from FM</span>
+                                </div>
+                            </div>
+                            <div id="recurringActionUI" class="hidden">
+                                <button onclick="window.previewRecurring()" class="w-full bg-indigo-600 text-white text-[10px] font-bold py-1.5 rounded shadow-sm hover:bg-indigo-700 transition">Preview Generated Dates</button>
+                                <div id="recurringPreview" class="mt-2 text-[9px] text-indigo-700 flex flex-wrap gap-1"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                             <div class="flex justify-between items-center mb-1">
+                                <label class="text-sm font-bold text-gray-800">Description</label>
+                                <select id="editorSnippetSelect" onchange="window.insertSnippet()" class="text-[10px] border rounded p-1 bg-white">
+                                    <option value="">+ Insert Snippet</option>
+                                </select>
+                             </div>
+                             <textarea id="rawDescription" class="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Paste party details here..." oninput="window.handleDescriptionInput();"></textarea>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg shadow-inner">
+                            <h3 class="text-[10px] font-bold text-emerald-800 uppercase mb-2">Quick Add Tag to DB</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                                <input type="text" id="quickName" placeholder="Name" class="p-1.5 border rounded text-xs w-full">
+                                <div class="flex space-x-1">
+                                    <input type="text" id="quickTag" placeholder="@handle or URL" class="flex-grow p-1.5 border rounded text-xs min-w-0">
+                                    <button onclick="window.searchIGInline()" class="px-2 bg-pink-600 text-white rounded text-[10px] font-bold">IG</button>
+                                </div>
+                            </div>
+                            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                                <select id="quickCategory" class="flex-1 p-1.5 border rounded text-xs bg-white">
+                                    <option value="DJ">DJ</option><option value="Venue">Venue</option><option value="Presenter">Presenter</option><option value="Artist">Artist</option><option value="Label">Label</option><option value="Other">Other</option>
+                                </select>
+                                <button onclick="window.saveQuickTag()" class="flex-1 bg-secondary text-white rounded text-xs font-bold py-1.5 shadow-sm">Save to DB</button>
+                            </div>
+                            <div class="mt-2 pt-2 border-t border-emerald-200">
+                                <input type="text" id="quickDbSearch" oninput="window.renderQuickDbSearch()" placeholder="🔍 Check if tag exists in DB..." class="w-full p-1.5 border rounded text-xs bg-white outline-none">
+                                <div id="quickDbSearchResults" class="mt-1 max-h-28 overflow-y-auto text-[10px] text-emerald-800 divide-y divide-emerald-100 bg-white/50 rounded"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-semibold text-gray-600 uppercase">Extra Hashtags</label>
+                                <button onclick="window.stripHashtagsFromDescription()" class="px-2 py-0.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded text-[9px] font-bold shadow-sm transition">🧹 Strip Hashtags from Desc</button>
+                            </div>
+                            <input type="text" id="extraHashtagsInput" oninput="window.refreshTagPillStates(); window.triggerDebouncedParse();" placeholder="Type or click suggestions below..." class="w-full border border-gray-300 rounded-lg p-2 text-sm mb-2">
+                            <div id="suggestedTagsContainer" class="flex flex-wrap items-center min-h-[32px] bg-gray-50 p-2 rounded border border-dashed border-gray-200">
+                                <span class="text-[10px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-indigo-50 p-2 rounded-xl shadow-inner flex flex-col sm:flex-row items-center justify-between border border-indigo-100">
+                        <div class="flex space-x-1.5 w-full justify-end">
+                            <button id="mainSaveBtn" onclick="window.handleClick(true)" class="px-4 py-1.5 bg-accent text-white text-xs font-bold rounded-full shadow-md hover:bg-amber-600 transition">SAVE TO LIST</button>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-bold text-gray-400 uppercase">Post Text Preview</label>
+                                <div id="detectedTagsManager" class="flex flex-wrap justify-end"></div>
+                            </div>
+                            <textarea id="calendarOutput" class="w-full border-0 p-0 text-sm focus:ring-0 min-h-[250px]" readonly placeholder="Output will appear here..."></textarea>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Story Tags</label>
+                            <textarea id="tagsOnlyOutput" class="w-full border-0 p-0 text-sm focus:ring-0 min-h-[120px]" readonly placeholder="@tags..."></textarea>
+                        </div>
+                        
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
+                            <h3 class="text-xs font-bold text-blue-800 uppercase mb-2 border-b border-blue-200 pb-1">Full Moon Guide (2026 & 2027)</h3>
+                            <div class="grid grid-cols-2 gap-4 text-[10px] text-blue-800 font-sans leading-relaxed">
+                                <div class="space-y-1">
+                                    <h4 class="font-bold text-blue-900 border-b border-blue-200/60 pb-0.5">2026</h4>
+                                    <div>26 Sep: 24SEP-28SEP</div>
+                                    <div>27 Oct: 25OCT-29OCT (Ok)</div>
+                                    <div>24 Nov: 22NOV-26NOV</div>
+                                    <div>24 Dec: 22DEC-26DEC</div>
+                                    <div>31 Dec: 29DEC-2JAN</div>
+                                </div>
+                                <div class="space-y-1">
+                                    <h4 class="font-bold text-blue-900 border-b border-blue-200/60 pb-0.5">2027</h4>
+                                    <div>22 Jan: 20JAN-24JAN</div>
+                                    <div>22 Feb: 20FEB-24FEB</div>
+                                    <div>22 Mar: 20MAR-24MAR</div>
+                                    <div>21 Apr: 19APR-23APR</div>
+                                    <div>21 May: 19MAY-23MAY</div>
+                                    <div>19 Jun: 17JUN-21JUN</div>
+                                    <div>20 Jul: 18JUL-22JUL</div>
+                                    <div>17 Aug: 15AUG-19AUG</div>
+                                    <div>15 Sep: 13SEP-17SEP</div>
+                                    <div>16 Oct: 14OCT-18OCT</div>
+                                    <div>13 Nov: 11NOV-15NOV</div>
+                                    <div>13 Dec: 11DEC-15DEC</div>
+                                    <div>31 Dec: 29DEC-2JAN</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-calendar-content" class="tab-content hidden">
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-full">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b pb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Full Moon Calendar View</h2>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex bg-slate-100 p-0.5 rounded-lg text-xs font-bold border border-slate-200">
+                            <button id="calendarTabUpcoming" onclick="window.setCalendarFilterTab('upcoming')" class="px-3 py-1.5 rounded-md bg-white text-indigo-600 shadow-sm">Upcoming</button>
+                            <button id="calendarTabPast" onclick="window.setCalendarFilterTab('past')" class="px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-900">Past Archives</button>
+                        </div>
+                        <button onclick="window.showEmbedCode('')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-md transition flex items-center gap-1.5">🔗 EMBED</button>
+                    </div>
+                </div>
+                <div id="calendarSummaryList" class="space-y-6 w-full"></div>
+                <p id="emptyCalendarMessage" class="text-center text-gray-400 italic py-12">No data to display.</p>
+            </div>
+        </div>
+        
+        <div id="tab-history-content" class="tab-content hidden">
+             <div class="bg-white p-3 rounded-xl shadow-lg border border-gray-100 history-box-bg max-w-full">
+                <h2 class="text-lg font-bold text-gray-500 mb-2">Posting History</h2>
+                <div id="historyEventsList" class="space-y-1 w-full"></div>
+                <p id="emptyHistoryMessage" class="text-center text-gray-400 italic py-12">History is empty.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="window.closeSettingsModal()">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl max-sm:w-full mx-4 w-[850px] max-h-[88vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">⚙️ Settings & System Tools</h2>
+                <button onclick="window.closeSettingsModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+            </div>
+            <div class="settings-grid-container-custom">
+                <div class="space-y-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 tag-box-bg">
+                        <h3 class="text-sm font-bold mb-3">Tag Database</h3>
+                        <div class="space-y-2 mb-3">
+                            <input type="text" id="nameSearch" oninput="window.renderNameMap()" placeholder="Search tags..." class="w-full p-2 border rounded-lg text-xs">
+                            <select id="categoryFilter" onchange="window.renderNameMap()" class="w-full p-2 border rounded-lg text-xs bg-white">
+                                <option value="">All Categories</option><option value="DJ">DJ</option><option value="Venue">Venue</option><option value="Presenter">Presenter</option><option value="Artist">Artist</option><option value="Label">Label</option><option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="max-h-60 overflow-y-auto pr-1">
+                            <ul id="databaseList" class="divide-y divide-gray-200"></ul>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-100 p-4 rounded-xl border border-emerald-200 add-entry-bg">
+                        <h3 class="text-xs font-bold text-emerald-800 uppercase mb-2">Add / Edit Tag</h3>
+                        <div class="space-y-2">
+                            <input type="text" id="newName" placeholder="Display Name" class="w-full p-2 border rounded text-xs">
+                            <div class="flex space-x-2">
+                                <input type="text" id="newTag" placeholder="@handle or URL" class="flex-grow p-2 border rounded text-xs min-w-0">
+                                <button onclick="window.searchIGDirectly()" class="px-3 bg-pink-600 text-white rounded text-[10px] font-bold whitespace-nowrap">Search IG</button>
+                            </div>
+                            <select id="newCategory" class="w-full p-2 border rounded text-xs bg-white">
+                                <option value="DJ">DJ</option><option value="Venue">Venue</option><option value="Presenter">Presenter</option><option value="Artist">Artist</option><option value="Label">Label</option><option value="Other">Other</option>
+                            </select>
+                            <div class="flex space-x-2">
+                                <button onclick="window.addNameMapEntry()" class="flex-1 py-1.5 bg-secondary text-white rounded font-bold text-xs">Save Tag</button>
+                                <button id="cancelTagEditBtn" onclick="window.cancelTagEdit()" class="hidden flex-1 py-1.5 bg-gray-400 text-white rounded font-bold text-xs">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-6 flex flex-col">
+                    <div class="bg-red-50 p-4 rounded-xl border border-red-200 shadow-sm">
+                        <h3 class="text-sm font-bold text-red-900 mb-2">Database Safety</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button onclick="window.exportFullDatabase()" class="bg-red-600 text-white p-2 rounded text-xs font-bold shadow-sm hover:bg-red-700">EXPORT TO JSON</button>
+                            <button onclick="window.createCloudSnapshot()" class="bg-accent text-white p-2 rounded text-xs font-bold shadow-sm hover:bg-amber-600">CLONE TO BACKUP</button>
+                        </div>
+                        <div class="mt-2 flex gap-2">
+                            <button onclick="window.restoreFromCloudSnapshot()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded text-[10px] font-bold shadow-sm">⚡ RECOVER FROM CLOUD SNAPSHOT</button>
+                        </div>
+                        <div class="mt-3 border-t border-red-200 pt-3">
+                            <textarea id="restoreInput" class="w-full border rounded p-2 text-[9px] h-14 bg-white outline-none" placeholder="Paste JSON backup data here..."></textarea>
+                            <button onclick="window.importFullDatabase()" class="w-full bg-gray-800 text-white py-1 rounded mt-1.5 text-[10px] font-bold">RESTORE & OVERWRITE EVERYTHING</button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm snippet-box-bg">
+                        <h3 class="text-sm font-bold mb-3">Snippets</h3>
+                        <div>
+                            <select id="snippetSelect" onchange="window.loadSnippet()" class="w-full p-2 border rounded mb-2 text-xs bg-white">
+                                <option value="">--- Load Snippet ---</option>
+                            </select>
+                            <textarea id="snippetContent" placeholder="Snippet content..." class="w-full border rounded p-2 text-xs mb-2" rows="3"></textarea>
+                            <div class="flex space-x-2">
+                                <input type="text" id="snippetName" placeholder="Snippet Name" class="flex-1 p-2 border rounded text-xs">
+                                <button onclick="window.saveSnippet()" class="px-3 py-1.5 bg-gray-500 text-white rounded text-xs">Save</button>
+                                <button onclick="window.deleteSnippet()" class="px-3 py-1.5 bg-red-500 text-white rounded text-xs">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 class="text-sm font-bold mb-2">Global Hashtags</h3>
+                        <textarea id="defaultTagsInput" onblur="window.saveGlobalHashtags()" class="w-full border rounded p-2 text-xs" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="window.closeModal()">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4" onclick="event.stopPropagation()">
+            <h3 id="modalTitle" class="text-lg font-bold text-red-600 mb-2">Confirm Action</h3>
+            <p id="modalMessage" class="text-sm text-gray-600 mb-6">Are you sure?</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="window.closeModal(false)" class="px-4 py-2 text-gray-500 font-medium">Cancel</button>
+                <button id="modalConfirmBtn" onclick="window.closeModal(true)" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="embedModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="document.getElementById('embedModal').classList.remove('active')">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4 w-[500px]" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Embed Code for <span id="embedPeriodName" class="text-indigo-600"></span></h3>
+            <p class="text-xs text-gray-500 mb-4">Copy this code and paste it into your website's HTML to display a live, auto-updating schedule.</p>
+            <textarea id="embedCodeText" class="w-full border rounded p-3 text-[10px] font-mono h-24 mb-4 bg-gray-50" readonly></textarea>
+            <div class="flex justify-end space-x-3">
+                <button onclick="document.getElementById('embedModal').classList.remove('active')" class="px-4 py-2 text-gray-500 font-medium text-sm border rounded">Close</button>
+                <button onclick="window.copyToClipboard(document.getElementById('embedCodeText').value); document.getElementById('embedModal').classList.remove('active')" class="px-4 py-2 bg-indigo-600 text-white rounded font-bold text-sm">Copy Code</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="reuseHistoryModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="document.getElementById('reuseHistoryModal').classList.remove('active')">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4 w-[650px] max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-base font-bold text-indigo-900 flex items-center gap-1.5">
+                    <span id="reuseModalTitleIcon"></span>
+                    <span>Reuse Event</span>
+                </h3>
+                <button onclick="document.getElementById('reuseHistoryModal').classList.remove('active')" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+            </div>
+            
+            <div class="flex items-center gap-2 mb-3">
+                <input type="text" id="reuseModalSearchInput" oninput="window.renderReuseModalList()" placeholder="🔍 Search events by name or location..." class="flex-grow p-2 border rounded-lg text-xs outline-none focus:border-indigo-500">
+                <div class="flex bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
+                    <button id="reuseTabPast" onclick="window.setReuseFilterTab('past')" class="px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-sm">Past Events</button>
+                    <button id="reuseTabUpcoming" onclick="window.setReuseFilterTab('upcoming')" class="px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-900">Upcoming Events</button>
+                </div>
+            </div>
+            <div id="reuseModalList" class="overflow-y-auto space-y-2 flex-grow pr-1"></div>
+        </div>
+    </div>
+
+    <div id="moveDateModal" class="modal fixed inset-0 flex items-center justify-center bg-black/50" onclick="document.getElementById('moveDateModal').classList.remove('active')">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-sm:w-full mx-4 w-[380px]" onclick="event.stopPropagation()">
+            <h3 class="text-base font-bold text-indigo-900 mb-1">Move Event Date</h3>
+            <p id="moveDateModalEventName" class="text-xs text-gray-500 mb-4 italic"></p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">New Target Date:</label>
+                    <input type="date" id="moveDateInput" class="w-full border rounded p-2 text-xs">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="document.getElementById('moveDateModal').classList.remove('active')" class="px-3 py-1.5 text-xs text-gray-500 border rounded">Cancel</button>
+                    <button onclick="window.confirmMoveEventDate()" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded">Move Date</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ICONS = {
+            top: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M17 11l-5-5-5 5m10 7l-5-5-5 5"/></svg>`,
+            up: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg>`,
+            down: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>`,
+            bottom: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M17 13l-5 5-5-5m10-7l-5 5-5-5"/></svg>`,
+            post: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="5" ry="5"/><path d="M12 8v8m-4-4h8"/></svg>`,
+            tags: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 18v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="3.5"/></svg>`,
+            duplicate: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`,
+            move: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>`,
+            delete: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`,
+            camera: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 2h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+            reuse: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3"/></svg>`
+        };
+
+        const DB_CONFIG = { 
+            INSTA_DB_KEY: 'name_tag_database', 
+            EVENT_DB_KEY: 'event_templates', 
+            SNIPPETS_KEY: 'text_snippets', 
+            SCHEDULE_DB_KEY: 'event_schedule', 
+            GLOBAL_TAGS_KEY: 'global_tags', 
+            EXTRA_TAGS_KEY: 'event_extra_tags', 
+            BACKUP_KEY: 'database_backup_snapshots' 
+        };
+        
+        const PEAK_DATES = [ 
+            { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: 'January 2026' }, 
+            { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' }, 
+            { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' }, 
+            { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' }, 
+            { date: '2026-07-31', name: 'July 2026' }, { date: '2026-08-28', name: 'August 2026' }, 
+            { date: '2026-09-26', name: 'September 2026' }, { date: '2026-10-27', name: 'October 2026' }, 
+            { date: '2026-11-24', name: 'November 2026' }, { date: '2026-12-24', name: 'December 2026' }, 
+            { date: '2026-12-31', name: 'NYE 2026' },
+            { date: '2027-01-22', name: 'January 2027' }, { date: '2027-02-22', name: 'February 2027' }, 
+            { date: '2027-03-22', name: 'March 2027' }, { date: '2027-04-21', name: 'April 2027' }, 
+            { date: '2027-05-21', name: 'May 2027' }, { date: '2027-06-19', name: 'June 2027' }, 
+            { date: '2027-07-20', name: 'July 2027' }, { date: '2027-08-17', name: 'August 2027' }, 
+            { date: '2027-09-15', name: 'September 2027' }, { date: '2027-10-16', name: 'October 2027' }, 
+            { date: '2027-11-13', name: 'November 2027' }, { date: '2027-12-13', name: 'December 2027' }, 
+            { date: '2027-12-31', name: 'NYE 2027' }
+        ];
+        
+        const STATUS_STAGES = [
+            { key: 'draft', label: 'DRAFT', dot: '⚪', bg: 'bg-slate-100 text-slate-800 border-slate-300' },
+            { key: 'ready', label: 'READY', dot: '🟢', bg: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+            { key: 'feed', label: 'FEED', dot: '🔵', bg: 'bg-blue-100 text-blue-800 border-blue-300' },
+            { key: 'story', label: 'STORY', dot: '🟣', bg: 'bg-purple-100 text-purple-800 border-purple-300' },
+            { key: 'posted', label: 'POSTED', dot: '🔴', bg: 'bg-rose-100 text-rose-800 border-rose-300' }
+        ];
+
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBGESFzwqoO9lQivws195udUCo6MXnHeHc",
+            authDomain: "full-moon-week.firebaseapp.com",
+            projectId: "full-moon-week",
+            storageBucket: "full-moon-week.firebasestorage.app",
+            messagingSenderId: "1064130029135",
+            appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
+            measurementId: "G-3SS3BJQCRN"
+        };
+        let db = null, auth = null, storage = null;
+        let nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [];
+        let globalTagsString = "", eventExtraTags = {}, isSaving = false;
+        let resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
+        let selectedEventKeys = new Set();
+        let activeMoveTarget = null;
+        let reuseModalTab = 'past'; 
+        let calendarModalTab = 'upcoming'; 
+        let currentEditorStatus = 'draft';
+        let currentEditorGfx = false;
+        let currentEditorFlyerUrl = null;
+        let currentEditorIsVideo = false;
+        let currentVenueMatchIndex = -1;
+        let debounceParseTimer = null;
+
+        const CACHE_KEYS = {
+            SCHEDULE: 'fmw_cache_schedule',
+            TAGS: 'fmw_cache_tags',
+            GLOBAL: 'fmw_cache_global',
+            SNIPPETS: 'fmw_cache_snippets',
+            EVENTS: 'fmw_cache_events'
+        };
+
+        window.saveLocalBackup = () => {
+            try {
+                if (eventSchedule && eventSchedule.length > 0) localStorage.setItem(CACHE_KEYS.SCHEDULE, JSON.stringify(eventSchedule));
+                if (Object.keys(nameTagDatabase).length > 0) localStorage.setItem(CACHE_KEYS.TAGS, JSON.stringify(nameTagDatabase));
+                if (globalTagsString) localStorage.setItem(CACHE_KEYS.GLOBAL, globalTagsString);
+                if (Object.keys(textSnippets).length > 0) localStorage.setItem(CACHE_KEYS.SNIPPETS, JSON.stringify(textSnippets));
+            } catch(e) {}
+        };
+
+        window.loadLocalBackup = () => {
+            try {
+                const s = localStorage.getItem(CACHE_KEYS.SCHEDULE);
+                if (s && eventSchedule.length === 0) { const parsed = JSON.parse(s); if (Array.isArray(parsed) && parsed.length > 0) eventSchedule.push(...parsed); }
+                const t = localStorage.getItem(CACHE_KEYS.TAGS);
+                if (t && Object.keys(nameTagDatabase).length === 0) Object.assign(nameTagDatabase, JSON.parse(t));
+                const g = localStorage.getItem(CACHE_KEYS.GLOBAL);
+                if (g && !globalTagsString) globalTagsString = g;
+                const sn = localStorage.getItem(CACHE_KEYS.SNIPPETS);
+                if (sn && Object.keys(textSnippets).length === 0) Object.assign(textSnippets, JSON.parse(sn));
+            } catch(e) {}
+        };
+
+        window.getLocalDateString = (d) => { if (!(d instanceof Date)) d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+        window.formatDateFriendly = (iso) => { if (!iso) return 'TBD Date'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); };
+        window.getEventDescription = (e) => { if (!e) return ""; if (e.description) return e.description; if (!e.postText) return ""; const b = e.postText.split('\n\n'); return b.length > 1 ? b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim() : e.postText.trim(); };
+        window.getPeriodForDate = (iso) => { const evD = new Date(iso + 'T00:00:00'); for (let p of PEAK_DATES) { if (Math.abs(evD - new Date(p.date + 'T00:00:00')) / 8.64e7 <= 10) return p.name; } return "Other"; };
+
+        window.saveDataToFirebase = async (table, data) => {
+            if (!db) return false;
+            const isCritical = [DB_CONFIG.INSTA_DB_KEY, DB_CONFIG.SCHEDULE_DB_KEY, DB_CONFIG.EVENT_DB_KEY].includes(table);
+            const isEmpty = !data || (typeof data === 'object' && Object.keys(data).length === 0) || (Array.isArray(data) && data.length === 0);
+            if (isCritical && isEmpty) return false; 
+            isSaving = true;
+
+            const { doc, setDoc, getDocs, collection, deleteDoc } = window.fb;
+            try {
+                if (table === DB_CONFIG.SCHEDULE_DB_KEY) {
+                    const CHUNK_SIZE = 40;
+                    const totalChunks = Math.max(1, Math.ceil(data.length / CHUNK_SIZE));
+                    for (let i = 0; i < totalChunks; i++) {
+                        const chunk = data.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+                        const chunkId = `chunk_${String(i).padStart(3, '0')}`;
+                        await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, chunkId), {
+                            chunkIndex: i,
+                            events: chunk,
+                            updatedAt: new Date().toISOString()
+                        });
+                    }
+                    await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, 'meta'), {
+                        totalChunks,
+                        totalEvents: data.length,
+                        updatedAt: new Date().toISOString()
+                    });
+
+                    try {
+                        const snap = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
+                        for (const d of snap.docs) {
+                            if (d.id === 'main') {
+                                await deleteDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, d.id));
+                            } else if (d.id.startsWith('chunk_')) {
+                                const idx = parseInt(d.id.replace('chunk_', ''), 10);
+                                if (!isNaN(idx) && idx >= totalChunks) {
+                                    await deleteDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, d.id));
+                                }
+                            }
+                        }
+                    } catch(cleanErr) {
+                        console.warn("Chunk cleanup notice:", cleanErr);
+                    }
+                } else if (table === DB_CONFIG.GLOBAL_TAGS_KEY) {
+                    await setDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'), {
+                        tags: data,
+                        updatedAt: new Date().toISOString()
+                    });
+                } else {
+                    await setDoc(doc(db, table, 'main'), {
+                        data: data,
+                        updatedAt: new Date().toISOString()
+                    });
+                }
+                isSaving = false;
+                window.saveLocalBackup();
+                return true;
+            } catch(err) {
+                console.error(`Firebase save error on ${table}:`, err);
+                isSaving = false;
+                return false;
+            }
+        };
+
+        window.saveDataToSupabase = window.saveDataToFirebase;
+
+        window.restoreFromCloudSnapshot = async () => {
+            if (!db) return;
+            try {
+                const { doc, getDoc } = window.fb;
+                const snap = await getDoc(doc(db, DB_CONFIG.BACKUP_KEY, 'main'));
+                if (snap.exists() && snap.data().data) {
+                    const snapshotData = snap.data().data;
+                    if (snapshotData.eventSchedule && snapshotData.eventSchedule.length > 0) {
+                        eventSchedule.length = 0;
+                        eventSchedule.push(...snapshotData.eventSchedule);
+                        await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                    }
+                    if (snapshotData.nameTagDatabase && Object.keys(snapshotData.nameTagDatabase).length > 0) {
+                        Object.assign(nameTagDatabase, snapshotData.nameTagDatabase);
+                        await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+                    }
+                    if (snapshotData.globalTagsString) {
+                        globalTagsString = snapshotData.globalTagsString;
+                        await window.saveDataToFirebase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString);
+                    }
+                    window.saveLocalBackup();
+                    window.renderScheduleList();
+                    window.renderNameMap();
+                }
+            } catch(e) {
+                console.error("Cloud restore failed:", e);
+            }
+        };
+
+        window.getEventStageObj = (e) => {
+            let key = e ? e.textStatus : null;
+            if (!key && e) {
+                if (e.postStatus === 'done') key = 'posted';
+                else if (e.storyStatus === 'done') key = 'story';
+                else if (e.isDraft) key = 'draft';
+                else key = 'ready';
+            }
+            if (!key) key = currentEditorStatus || 'draft';
+            return STATUS_STAGES.find(s => s.key === key) || STATUS_STAGES[0];
+        };
+
+        window.updateEditorStatusUI = () => {
+            const stageObj = STATUS_STAGES.find(s => s.key === currentEditorStatus) || STATUS_STAGES[0];
+            const dot = document.getElementById('editorStatusDot');
+            const text = document.getElementById('editorStatusText');
+            const btn = document.getElementById('editorStatusCycleBtn');
+            if (dot) dot.textContent = stageObj.dot;
+            if (text) text.textContent = stageObj.label;
+            if (btn) btn.className = `px-2.5 py-1 rounded-full text-xs font-bold transition shadow-sm border flex items-center gap-1.5 ${stageObj.bg}`;
+        };
+
+        window.cycleEditorTextStatus = () => {
+            const curIdx = STATUS_STAGES.findIndex(s => s.key === currentEditorStatus);
+            const nextObj = STATUS_STAGES[(curIdx + 1) % STATUS_STAGES.length];
+            currentEditorStatus = nextObj.key;
+            window.updateEditorStatusUI();
+            window.triggerDebouncedParse();
+        };
+
+        window.updateEditorGfxUI = () => {
+            const btn = document.getElementById('editorGfxToggleBtn');
+            const text = document.getElementById('editorGfxText');
+            if (text) text.textContent = currentEditorGfx ? 'GFX' : 'NO GFX';
+            if (btn) {
+                btn.className = `px-2.5 py-1 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${currentEditorGfx ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-200 text-slate-700 border-slate-300'}`;
+            }
+        };
+
+        window.toggleEditorGfxStatus = () => {
+            currentEditorGfx = !currentEditorGfx;
+            window.updateEditorGfxUI();
+            window.triggerDebouncedParse();
+        };
+
+        window.toggleEventGfxStatus = async (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+            if (idx === -1) return;
+            eventSchedule[idx].mediaStatus = eventSchedule[idx].mediaStatus === 'done' ? 'pending' : 'done';
+            window.renderScheduleList();
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        window.cycleEventTextStatus = async (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); 
+            if (idx === -1) return;
+            const currentObj = window.getEventStageObj(eventSchedule[idx]);
+            const nextStageObj = STATUS_STAGES[(STATUS_STAGES.findIndex(s => s.key === currentObj.key) + 1) % STATUS_STAGES.length];
+            eventSchedule[idx].textStatus = nextStageObj.key;
+            eventSchedule[idx].isDraft = nextStageObj.key === 'draft';
+            eventSchedule[idx].postStatus = nextStageObj.key === 'posted' ? 'done' : 'pending';
+            eventSchedule[idx].storyStatus = (nextStageObj.key === 'story' || nextStageObj.key === 'posted') ? 'done' : 'pending';
+            if (nextStageObj.key !== 'posted') eventSchedule[idx].isCleared = false;
+            window.renderScheduleList();
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        window.triggerDebouncedParse = () => {
+            if (debounceParseTimer) clearTimeout(debounceParseTimer);
+            debounceParseTimer = setTimeout(() => { window.handleClick(false); }, 300);
+        };
+
+        window.handleDescriptionInput = () => {
+            const descEl = document.getElementById('rawDescription');
+            const extraEl = document.getElementById('extraHashtagsInput');
+            if (descEl && extraEl) {
+                const text = descEl.value;
+                const foundHashtags = text.match(/#\w+/g) || [];
+                if (foundHashtags.length > 0) {
+                    let currentExtra = extraEl.value.match(/#\w+/g) || [];
+                    let merged = [...new Set([...currentExtra.map(t=>t.toLowerCase()), ...foundHashtags.map(t=>t.toLowerCase())])];
+                    let sorted = merged.sort((a,b) => b.length - a.length);
+                    let cleaned = sorted.filter((tag, idx) => !sorted.slice(0, idx).some(longer => longer.startsWith(tag)));
+                    extraEl.value = cleaned.reverse().join(' ');
+                }
+            }
+            window.updateSuggestedTags();
+            window.triggerDebouncedParse();
+        };
+
+        window.stripHashtagsFromDescription = () => {
+            const descEl = document.getElementById('rawDescription');
+            if (descEl) {
+                descEl.value = descEl.value.replace(/#\w+/g, '').replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n\n').trim();
+                window.handleDescriptionInput();
+            }
+        };
+
+        window.resetEditorFields = () => {
+            document.getElementById('inputIsoDate').value = window.getLocalDateString(new Date());
+            document.getElementById('inputEventName').value = "";
+            document.getElementById('inputLocation').value = "";
+            document.getElementById('rawDescription').value = "";
+            document.getElementById('extraHashtagsInput').value = "";
+            document.getElementById('calendarOutput').value = "";
+            document.getElementById('tagsOnlyOutput').value = "";
+            currentExclusions = [];
+            currentEditorStatus = 'draft';
+            currentEditorGfx = false;
+            currentEditorFlyerUrl = null;
+            currentEditorIsVideo = false;
+            window.updateEditorStatusUI();
+            window.updateEditorGfxUI();
+            window.updateSuggestedTags();
+            window.triggerDebouncedParse();
+        };
+
+        window.getVenuePriority = (locationStr = "") => {
+            const loc = locationStr.toLowerCase();
+            if (loc.includes('wet pool party') || loc.includes('wet')) return 1;
+            if (loc.includes('swims')) return 2;
+            return 99;
+        };
+
+        window.calculateSequentialDays = (events) => { 
+            const s = [...events].sort((a,b) => {
+                const dateDiff = (new Date(a.date + 'T00:00:00') - new Date(b.date + 'T00:00:00'));
+                if (dateDiff !== 0) return dateDiff;
+                const prioA = window.getVenuePriority(a.location);
+                const prioB = window.getVenuePriority(b.location);
+                if (prioA !== prioB) return prioA - prioB;
+                return (a.order || 0) - (b.order || 0);
+            });
+
+            let day = 1, last = null; 
+            return s.map(e => { 
+                const cur = new Date(e.date + 'T00:00:00'); 
+                if (last) { 
+                    const diff = Math.ceil(Math.abs(cur - last) / (8.64e7)); 
+                    if (diff > 7) day = 1; else if (diff > 0) day += diff; 
+                } 
+                last = cur; 
+                return { ...e, dayNumber: day }; 
+            }); 
+        };
+
+        window.safeConfirm = (title, message) => { 
+            const m = document.getElementById('deleteModal'); 
+            if (!m) return Promise.resolve(true); 
+            document.getElementById('modalTitle').textContent = title; 
+            document.getElementById('modalMessage').textContent = message; 
+            m.classList.add('active'); 
+            return new Promise((resolve) => { resolveModalPromise = resolve; }); 
+        };
+
+        window.closeModal = (conf) => { 
+            const m = document.getElementById('deleteModal'); 
+            if (m) m.classList.remove('active'); 
+            if (resolveModalPromise) { 
+                resolveModalPromise(conf); 
+                resolveModalPromise = null; 
+            } 
+        };
+
+        window.copyToClipboard = (txt) => { 
+            if (!txt) return; 
+            const el = document.createElement('textarea'); 
+            el.value = txt; 
+            document.body.appendChild(el); 
+            el.select(); 
+            document.execCommand('copy'); 
+            document.body.removeChild(el); 
+        };
+
+        window.openSettingsModal = () => { const m = document.getElementById('settingsModal'); if (m) { m.classList.add('active'); window.renderNameMap(); window.renderSnippetSelect(); window.renderGlobalTags(); } };
+        window.closeSettingsModal = () => { const m = document.getElementById('settingsModal'); if (m) m.classList.remove('active'); };
+        window.openHistoryReuseModal = () => { const m = document.getElementById('reuseHistoryModal'); if (m) { m.classList.add('active'); window.renderReuseModalList(); } };
+
+        window.copyMonthVenueSummary = (periodName, venueType) => {
+            const all = window.calculateSequentialDays(eventSchedule);
+            const filtered = all.filter(e => {
+                if (window.getPeriodForDate(e.date) !== periodName) return false;
+                const loc = (e.location || '').toLowerCase();
+                return venueType === 'WET' ? loc.includes('wet') : loc.includes('swims');
+            });
+            if (filtered.length === 0) return;
+
+            const dates = filtered.map(e => new Date(e.date + 'T00:00:00')).sort((a,b) => a - b);
+            const formatShort = (d) => `${String(d.getDate()).padStart(2,'0')}${d.toLocaleString('en-US',{month:'short'}).toUpperCase()}`;
+            const dateRangeStr = dates[0].getTime() === dates[dates.length-1].getTime() ? formatShort(dates[0]) : `${formatShort(dates[0])}-${formatShort(dates[dates.length-1])}`;
+
+            let scheduleSection = "✨ EVENT SCHEDULE ✨\n";
+            const lineCounts = {};
+            const eventLinesMap = filtered.map(e => {
+                const desc = window.getEventDescription(e);
+                const rawLines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                const uniqueInEvent = [...new Set(rawLines)];
+                uniqueInEvent.forEach(line => {
+                    if (line.startsWith('🌕Full Moon') || line.startsWith('🗓 DATE:') || line.startsWith('🎉 EVENT:') || line.startsWith('📍 LOCATION:')) return;
+                    lineCounts[line] = (lineCounts[line] || 0) + 1;
+                });
+                return { event: e, lines: uniqueInEvent };
+            });
+
+            const numEvents = filtered.length;
+            const commonLinesSet = new Set();
+            eventLinesMap.forEach(item => {
+                item.lines.forEach(line => {
+                    if (line.startsWith('#') || (numEvents > 1 && (lineCounts[line] || 0) >= Math.ceil(numEvents / 2))) commonLinesSet.add(line);
+                });
+            });
+
+            const eventsByDate = filtered.reduce((acc, e) => { (acc[e.date] = acc[e.date] || []).push(e); return acc; }, {});
+
+            Object.keys(eventsByDate).sort().forEach(date => {
+                const dayEvents = eventsByDate[date];
+                scheduleSection += `DAY ${dayEvents[0].dayNumber} - ${formatShort(new Date(date + 'T00:00:00'))}: ${dayEvents[0].eventName}\n`;
+                dayEvents.forEach(e => {
+                    const itemMap = eventLinesMap.find(m => m.event === e);
+                    if (itemMap) {
+                        const uniqueLines = itemMap.lines.filter(l => !commonLinesSet.has(l) && !l.startsWith('🌕') && !l.startsWith('🗓') && !l.startsWith('🎉') && !l.startsWith('📍'));
+                        if (uniqueLines.length > 0) scheduleSection += uniqueLines.map(l => `  • ${l}`).join('\n') + '\n';
+                    }
+                });
+            });
+
+            const commonLines = [...commonLinesSet];
+            const commonProse = commonLines.filter(l => !l.startsWith('#'));
+            const commonHashtags = [];
+            filtered.forEach(e => { (e.postText || '').match(/#\w+/g)?.forEach(h => commonHashtags.push(h)); });
+            const uniqueHashtags = [...new Set(commonHashtags.map(h => h.toLowerCase()))].join(' ');
+
+            let textToCopy = venueType === 'WET'
+                ? `🗓 DATE: ${dateRangeStr}\n🎉 EVENT: FULL MOON WEEK at WET!\n📍 LOCATION: Next to WET Hostel @wethostel\n\n💦WET! Pool Party @WETPoolParty has become the 🔝BIGGEST and 🔝BEST Pre-Party AT Full Moon Party - 120 hours nonstop!\n\nThe MAIN preparty & afterparty for 🌕FULL MOON PARTY, 🌴Jungle Experience @jungleexperiencekohphangan, 🌊Waterfall Festival @waterfallfestivalphangan and more!\n\n🎟️Discounted packages to Jungle, Waterfall and all major events!\n💰SAVES up to 500 Baht💰:\n\n- Ticket to Events\n- Taxi to Events\n- Bucket at WET!\n- Cocktail at Events\n\nPlus the legendary ☁🫧FOAM PARTY Recovery Afterparty🫧☁ and the AI-powered 💦🎤 KARAOKE POOL PARTY🎶💦\n\n${scheduleSection.trim()}\n\n${commonProse.join('\n\n')}\n\n🆓FREE to all 🤗FRIENDLY PEOPLE🤗! Follow & Tag us on social media for a 🆓FREE SHOT too!\n\nOpen 24 HOURS for Full Moon Week, perfect for afternoon 💦swim & chill, 🍹pre-gaming every major event, taking a break late night, or even a 🌄sunrise beer & 💦swim!\n\nTop 🎧DJs (including our legendary residents B14CKPE4R1S @_b14ckpe4r1s_ and HIPPAPA @real_hippapa), great 🔊sound system, 🍺multiple bars, 💦pool, garden, 🎱games📓, and more!\n\n${uniqueHashtags}`
+                : `🗓 DATE: ${dateRangeStr}\n🎉 EVENT: FULL MOON WEEK at SWIMS!\n📍 LOCATION: SWIMS: a Social Beach Resort @SWIMSResort\n\n${scheduleSection.trim()}\n\n${commonProse.join('\n\n')}\n\n${uniqueHashtags}`;
+
+            window.copyToClipboard(textToCopy.replace(/\n{3,}/g, '\n\n').trim());
+        };
+
+        window.setReuseFilterTab = (tab) => {
+            reuseModalTab = tab;
+            document.getElementById('reuseTabPast').className = tab === 'past' ? "px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-sm" : "px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-900";
+            document.getElementById('reuseTabUpcoming').className = tab === 'upcoming' ? "px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-sm" : "px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-900";
+            window.renderReuseModalList();
+        };
+
+        window.renderReuseModalList = () => {
+            const list = document.getElementById('reuseModalList'); if (!list) return;
+            const search = (document.getElementById('reuseModalSearchInput')?.value || '').toLowerCase();
+            const nowStr = window.getLocalDateString(new Date());
+            const all = window.calculateSequentialDays(eventSchedule);
+            
+            let filtered = all.filter(e => {
+                const matchesSearch = e.eventName.toLowerCase().includes(search) || (e.location && e.location.toLowerCase().includes(search));
+                const isPast = e.date < nowStr || e.isCleared || (e.postStatus === 'done' && e.storyStatus === 'done');
+                return matchesSearch && (reuseModalTab === 'past' ? isPast : !isPast);
+            });
+            filtered.sort((a,b) => reuseModalTab === 'past' ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date));
+
+            list.innerHTML = filtered.length === 0 ? `<p class="text-center text-gray-400 italic py-6 text-xs">No matching ${reuseModalTab} events found.</p>` : '';
+            filtered.forEach(e => {
+                const item = document.createElement('div');
+                item.className = 'p-2.5 border rounded-lg bg-slate-50 hover:bg-indigo-50/50 transition cursor-pointer flex justify-between items-center text-xs';
+                item.onclick = () => { window.loadEventFromHistory(e); document.getElementById('reuseHistoryModal').classList.remove('active'); };
+                item.innerHTML = `<div><span class="font-bold text-indigo-900">${e.eventName}</span><span class="text-gray-400 font-normal ml-1 font-mono">📍 ${e.location || 'No venue'}</span><span class="text-[10px] text-slate-400 block">${e.date}</span></div><button class="px-2.5 py-1 bg-indigo-600 text-white rounded text-[10px] font-bold shadow-sm">Import</button>`;
+                list.appendChild(item);
+            });
+        };
+
+        window.clearPostedForDay = async (dKey) => {
+            const postedEvents = eventSchedule.filter(e => e.date === dKey && (e.textStatus === 'posted' || e.postStatus === 'done'));
+            if (postedEvents.length === 0) {
+                const allDayEvents = eventSchedule.filter(e => e.date === dKey && !e.isCleared);
+                if (allDayEvents.length === 0) return;
+                const confirmAll = await window.safeConfirm(
+                    "Clear Day Events", 
+                    `None of the events on ${dKey} are marked 'POSTED' (🔴). Would you like to clear all ${allDayEvents.length} event(s) for this day to History?`
+                );
+                if (confirmAll) {
+                    allDayEvents.forEach(e => { e.isCleared = true; e.textStatus = 'posted'; e.postStatus = 'done'; });
+                    await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                    window.renderScheduleList();
+                }
+                return;
+            }
+
+            const confirmed = await window.safeConfirm(
+                "Clear Posted Events", 
+                `Move ${postedEvents.length} posted event(s) on ${dKey} from the schedule to History?`
+            );
+            if (confirmed) {
+                postedEvents.forEach(e => { e.isCleared = true; });
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            }
+        };
+
+        window.autoDetectDateFromDesc = () => {
+            const desc = document.getElementById('rawDescription')?.value || ''; if (!desc) return;
+            const months = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+            const m = desc.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i) || desc.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?\b/i) || desc.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
+            if (m) {
+                let yr = new Date().getFullYear(), mo, dy;
+                if (m[3]) { yr = parseInt(m[1]); mo = parseInt(m[2]); dy = parseInt(m[3]); }
+                else if (months[m[2]?.toLowerCase().slice(0,3)]) { dy = parseInt(m[1]); mo = months[m[2].toLowerCase().slice(0,3)]; }
+                else if (months[m[1]?.toLowerCase().slice(0,3)]) { mo = months[m[1].toLowerCase().slice(0,3)]; dy = parseInt(m[2]); }
+                if (mo && dy) { document.getElementById('inputIsoDate').value = `${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`; window.triggerDebouncedParse(); }
+            }
+        };
+
+        window.autoDetectVenueFromDesc = () => {
+            const desc = document.getElementById('rawDescription')?.value || ''; if (!desc) return;
+            const matches = [];
+            Object.entries(nameTagDatabase).forEach(([n, d]) => { if ((d.category === 'Venue' || d.category === 'Presenter') && new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi').test(desc)) matches.push(n); });
+            if (matches.length > 0) {
+                currentVenueMatchIndex = (currentVenueMatchIndex + 1) % matches.length;
+                document.getElementById('inputLocation').value = matches[currentVenueMatchIndex];
+                window.updateSuggestedTags();
+                window.triggerDebouncedParse();
+            }
+        };
+
+        window.renderHistory = (past = null) => {
+            const list = document.getElementById('historyEventsList'); if (!list) return; list.innerHTML = '';
+            let eventsToRender = past || window.calculateSequentialDays(eventSchedule).filter(e => e.date < window.getLocalDateString(new Date()) || e.isCleared || (e.postStatus === 'done' && e.storyStatus === 'done'));
+            eventsToRender.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((e, idx) => {
+                const d = document.createElement('div'); d.className = 'p-1.5 border rounded-lg mb-1 bg-white text-[11px] shadow-sm hover:border-slate-300 transition';
+                const encDate = encodeURIComponent(e.date);
+                const encName = encodeURIComponent(e.eventName);
+                d.innerHTML = `<div class="flex justify-between items-center"><div><b class="text-indigo-900">${e.date}</b>: <span class="font-bold text-gray-800">${e.eventName}</span> <span class="text-gray-400 font-normal">📍 ${e.location || 'No Location'}</span></div><div class="flex gap-1.5"><button onclick="window.toggleHistDetail('hist-${idx}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px]">Details</button><button onclick="window.loadEventForEdit('${encDate}', '${encName}')" class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-[10px] font-bold border border-indigo-200">Reuse</button></div></div><div id="hist-${idx}" class="hidden mt-1 p-1.5 bg-slate-50 rounded border border-slate-100 whitespace-pre-wrap text-[10px] text-slate-600 font-mono">${e.postText}</div>`;
+                list.appendChild(d);
+            });
+            document.getElementById('emptyHistoryMessage')?.classList.toggle('hidden', eventsToRender.length > 0);
+        };
+
+        window.toggleHistDetail = (id) => {
+            document.getElementById(id)?.classList.toggle('hidden');
+        };
+
+        window.renderScheduleList = () => {
+            const container = document.getElementById('scheduledEventsContainer'); if (!container) return;
+            const fP = document.getElementById('schedulePeriodFilter')?.value || 'all', fN = (document.getElementById('scheduleNameFilter')?.value || '').toLowerCase(), nowStr = window.getLocalDateString(new Date());
+            container.innerHTML = '';
+            const all = window.calculateSequentialDays(eventSchedule), upcoming = [], past = [];
+            all.forEach(e => {
+                const p = window.getPeriodForDate(e.date);
+                const isMatchFilter = (fP === 'all' || fP === 'all_inc_past' || p === fP) && e.eventName.toLowerCase().includes(fN);
+                const isHiddenFromSchedule = e.isCleared || (e.date < nowStr && fP !== 'all_inc_past');
+                if (isHiddenFromSchedule) {
+                    past.push(e);
+                } else if (isMatchFilter) {
+                    upcoming.push(e);
+                }
+            });
+
+            const filteredDisplay = document.getElementById('filteredCountDisplay');
+            if (filteredDisplay) filteredDisplay.textContent = upcoming.length;
+            window.updateBulkSelectionUI(upcoming);
+
+            const emptyMsg = document.getElementById('emptyScheduleMessage');
+            if (emptyMsg) emptyMsg.classList.toggle('hidden', upcoming.length > 0);
+
+            const grp = upcoming.reduce((acc, e) => { (acc[e.date] = acc[e.date] || []).push(e); return acc; }, {});
+            let lastP = "";
+            Object.keys(grp).sort().forEach(dKey => {
+                const p = window.getPeriodForDate(dKey);
+                if (p !== lastP) { 
+                    const div = document.createElement('div'); div.className = 'period-divider'; const escP = encodeURIComponent(p);
+                    div.innerHTML = `<span>${p} Period</span><div class="flex gap-1.5 items-center justify-end"><button onclick="window.copyMonthVenueSummary(decodeURIComponent('${escP}'), 'WET')" class="border border-white/40 px-2.5 py-1 rounded bg-white/10 hover:bg-white/25 text-white font-bold text-[10px] transition shadow-sm">💦 WET Post</button><button onclick="window.copyMonthVenueSummary(decodeURIComponent('${escP}'), 'SWIMS')" class="border border-white/40 px-2.5 py-1 rounded bg-white/10 hover:bg-white/25 text-white font-bold text-[10px] transition shadow-sm">🏖️ SWIMS Post</button></div>`;
+                    container.appendChild(div); lastP = p; 
+                }
+                const gDiv = document.createElement('div'); gDiv.className = 'event-group';
+                gDiv.innerHTML = `<h3 class="text-xs font-black text-black mb-2 border-b-2 border-black pb-1 flex justify-between items-center uppercase tracking-tighter"><span>🗓 ${dKey}</span> <div class="flex gap-1.5 items-center"><button onclick="window.copyDayEventNames('${dKey}')" class="border-2 border-black px-2.5 py-1 rounded shadow-sm bg-white hover:bg-gray-100 text-black font-bold text-[10px] transition">Day Post</button><button onclick="window.copyDayTagsOnly('${dKey}')" class="border-2 border-black px-2.5 py-1 rounded shadow-sm bg-white hover:bg-gray-100 text-black font-bold text-[10px] transition">Day Tags</button><button onclick="window.clearPostedForDay('${dKey}')" class="border-2 border-red-600 px-2.5 py-1 rounded shadow-sm bg-red-50 hover:bg-red-100 text-red-700 font-bold text-[10px] transition flex items-center gap-1"><span>🗑️</span><span>Clear Posted</span></button></div></h3><div class="list space-y-2"></div>`;
+                const list = gDiv.querySelector('.list');
+                
+                grp[dKey].forEach(e => {
+                    const encD = encodeURIComponent(e.date);
+                    const encN = encodeURIComponent(e.eventName);
+                    const eventKey = `${e.date}|${e.eventName}`;
+                    const isSelected = selectedEventKeys.has(eventKey);
+                    const idPost = `post-${e.date}-${e.eventName}`.replace(/[^a-z0-9]/gi, '');
+                    const idTags = `tags-${e.date}-${e.eventName}`.replace(/[^a-z0-9]/gi, '');
+                    const card = document.createElement('div'); 
+                    card.className = `scheduled-event-card ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''}`;
+                    const postRaw = e.postText || '';
+                    const displayPost = postRaw.startsWith('🌕Full Moon Week') ? postRaw.replace(/^🌕Full Moon Week - Day \d+🌕/, `🌕Full Moon Week - Day ${e.dayNumber}🌕`) : `🌕Full Moon Week - Day ${e.dayNumber}🌕\n${postRaw}`;
+                    const stageObj = window.getEventStageObj(e), hasGfx = e.mediaStatus === 'done';
+                    const idMediaInp = `media-${e.date}-${e.eventName}`.replace(/[^a-z0-9]/gi, '');
+
+                    card.innerHTML = `<div class="flex flex-row gap-3 items-stretch w-full">
+                        <div class="w-8 sm:w-10 flex-none bg-slate-100 border border-slate-200 p-1 flex flex-col justify-between items-center select-none rounded-lg" onclick="event.stopPropagation()">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="window.toggleEventSelection('${encD}','${encN}',this.checked)" class="w-4 h-4 cursor-pointer accent-indigo-600 rounded my-0.5">
+                            <button onclick="window.moveEvent('${encD}','${encN}','top')" title="Move Top" class="order-btn-svg">${ICONS.top}</button>
+                            <button onclick="window.moveEvent('${encD}','${encN}','up')" title="Move Up" class="order-btn-svg">${ICONS.up}</button>
+                            <button onclick="window.moveEvent('${encD}','${encN}','down')" title="Move Down" class="order-btn-svg">${ICONS.down}</button>
+                            <button onclick="window.moveEvent('${encD}','${encN}','bottom')" title="Move Bottom" class="order-btn-svg">${ICONS.bottom}</button>
+                        </div>
+                        <div class="flex-grow flex flex-col justify-between min-w-0">
+                            <div class="flex flex-col flex-grow min-w-0">
+                                <div class="mb-1 flex items-center justify-between flex-wrap gap-1">
+                                    <h3 class="text-indigo-600 font-extrabold text-xs sm:text-sm">${e.eventName}</h3>
+                                    <span class="text-[11px] sm:text-xs font-bold text-gray-700 font-mono">📍 ${e.location}</span>
+                                </div>
+                                <textarea id="${idPost}" onclick="event.stopPropagation()" onblur="window.updateText('${encD}','${encN}',this.value,'postText')" class="w-full flex-grow text-[10px] border border-slate-200 rounded-lg p-2 shadow-inner leading-relaxed focus:ring-1 focus:ring-indigo-500 min-h-[100px]">${displayPost}</textarea>
+                            </div>
+                            <div class="flex items-center justify-between gap-1 mt-1.5 pt-1 border-t border-gray-100" onclick="event.stopPropagation()">
+                                <button onclick="window.loadEventForEdit('${encD}','${encN}')" title="Edit Event Details" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-bold shadow-sm transition">EDIT</button>
+                                <div class="flex items-center gap-1.5">
+                                    <button onclick="window.cycleEventTextStatus('${encD}','${encN}')" class="px-2.5 py-0.5 rounded-full text-[9px] font-bold transition flex items-center gap-1 border ${stageObj.bg}"><span>${stageObj.dot}</span> <span>${stageObj.label}</span></button>
+                                    <button onclick="window.toggleEventGfxStatus('${encD}','${encN}')" class="px-2.5 py-0.5 rounded-lg text-[9px] font-bold transition flex items-center gap-1 border ${hasGfx ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-200 text-slate-700 border-slate-300'}">${ICONS.camera} <span>${hasGfx ? 'GFX' : 'NO GFX'}</span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="w-24 sm:w-32 flex-none flex flex-col justify-between bg-slate-50 border border-slate-200 rounded-lg p-1.5" onclick="event.stopPropagation()">
+                            <input type="file" id="${idMediaInp}" accept="image/*,video/*" class="hidden" onchange="if(this.files[0]) window.uploadEventMedia('${encD}','${encN}',this.files[0])">
+                            ${e.flyerUrl ? `
+                                <div class="relative group flex-grow rounded overflow-hidden bg-slate-900 flex items-center justify-center min-h-[85px]">
+                                    ${e.isVideo
+                                        ? `<video src="${e.flyerUrl}" class="max-h-28 w-full object-contain" muted loop autoplay playsinline></video>`
+                                        : `<img src="${e.flyerUrl}" class="max-h-28 w-full object-contain" alt="GFX">`
+                                    }
+                                    <div class="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1 p-1">
+                                        <a href="${e.flyerUrl}" target="_blank" download class="w-full text-center px-1.5 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-bold">Open / Save</a>
+                                        <button onclick="document.getElementById('${idMediaInp}').click()" class="w-full px-1.5 py-0.5 bg-white text-slate-900 rounded text-[9px] font-bold">Replace</button>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div onclick="document.getElementById('${idMediaInp}').click()" class="flex-grow border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded flex flex-col items-center justify-center text-center p-1 cursor-pointer transition min-h-[85px]">
+                                    <span class="text-base">🖼️</span>
+                                    <span class="text-[9px] font-bold text-slate-600 leading-tight mt-0.5">Add Image / Video</span>
+                                </div>
+                            `}
+                            <div class="mt-1 text-center">
+                                <button onclick="document.getElementById('${idMediaInp}').click()" class="w-full py-0.5 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[9px] font-bold text-slate-700 transition">${e.flyerUrl ? (e.isVideo ? '🎬 Video' : '🖼️ Flyer') : '+ Upload'}</button>
+                            </div>
+                        </div>
+                        <div class="w-32 sm:w-44 flex-none flex flex-col justify-between" onclick="event.stopPropagation()">
+                            <div class="flex flex-col flex-grow">
+                                <div class="flex justify-between items-center mb-1">
+                                    <button onclick="window.copyToClipboard(document.getElementById('${idPost}').value)" title="Copy Post" class="p-1.5 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition shadow-sm">${ICONS.post}</button>
+                                    <button onclick="window.copyToClipboard(document.getElementById('${idTags}').value)" title="Copy Story Tags" class="p-1.5 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition shadow-sm">${ICONS.tags}</button>
+                                </div>
+                                <textarea id="${idTags}" onclick="event.stopPropagation()" onblur="window.updateText('${encD}','${encN}',this.value,'tagsOnly')" class="w-full flex-grow text-[10px] border border-slate-200 rounded-lg p-2 shadow-inner font-mono leading-relaxed focus:ring-1 focus:ring-emerald-500 min-h-[100px]">${e.tagsOnly || ''}</textarea>
+                            </div>
+                            <div class="flex items-center justify-end gap-1.5 sm:gap-2 mt-1.5 pt-1 border-t border-gray-100">
+                                <button onclick="window.duplicateEvent('${encD}','${encN}')" title="Duplicate Event" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition shadow-sm">${ICONS.duplicate}</button>
+                                <button onclick="window.openMoveDateModal('${encD}','${encN}')" title="Move Date" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition shadow-sm">${ICONS.move}</button>
+                                <button onclick="window.handleDeleteScheduledEvent('${encD}','${encN}')" title="Delete Event" class="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition shadow-sm">${ICONS.delete}</button>
+                            </div>
+                        </div>
+                    </div>`;
+                    list.appendChild(card);
+                });
+                container.appendChild(gDiv);
+            });
+            window.renderHistory(past);
+        };
+
+        window.uploadEventMedia = async (encDate, encName, file) => {
+            if (!file || !storage) return;
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+            if (idx === -1) return;
+            try {
+                const { ref, uploadBytes, getDownloadURL } = window.fb;
+                const isVideo = file.type.startsWith('video/');
+                const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+                const safeName = `${date}_${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.${ext}`;
+                const storageRef = ref(storage, `flyers/${safeName}`);
+                await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(storageRef);
+                eventSchedule[idx].flyerUrl = url;
+                eventSchedule[idx].isVideo = isVideo;
+                eventSchedule[idx].mediaStatus = 'done';
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            } catch (err) {
+                console.error("Media upload error:", err);
+            }
+        };
+
+        window.loadEventForEdit = (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const e = eventSchedule.find(ev => ev.date === date && ev.eventName === name); if (!e) return;
+            document.getElementById('inputIsoDate').value = e.date || ""; 
+            document.getElementById('inputEventName').value = e.eventName || ""; 
+            document.getElementById('inputLocation').value = e.location || ""; 
+            document.getElementById('rawDescription').value = window.getEventDescription(e); 
+            document.getElementById('extraHashtagsInput').value = e.extraTags || ""; 
+            currentExclusions = e.excludedNames || []; 
+            currentEditorStatus = e.textStatus || (e.isDraft ? 'draft' : 'ready');
+            currentEditorGfx = e.mediaStatus === 'done';
+            currentEditorFlyerUrl = e.flyerUrl || null;
+            currentEditorIsVideo = Boolean(e.isVideo);
+            window.updateEditorStatusUI();
+            window.updateEditorGfxUI();
+            window.toggleRecurringUI(); 
+            window.showTab('editor'); 
+            window.handleClick(false);
+        };
+
+        window.loadEventFromHistory = (e) => { 
+            if (e) window.loadEventForEdit(encodeURIComponent(e.date), encodeURIComponent(e.eventName)); 
+        };
+
+        window.updateText = async function(encDate, encName, val, field) {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name); if (idx === -1) return;
+            const cleanVal = val.replace(/^🌕Full Moon Week - Day \d+🌕\n/, ''); 
+            eventSchedule[idx][field] = cleanVal;
+            if (field === 'postText') { const b = cleanVal.split('\n\n'); if (b.length >= 2) eventSchedule[idx].description = b.slice(1, b[b.length-1].trim().startsWith('#') ? b.length-1 : b.length).join('\n\n').trim(); }
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+        };
+
+        window.handleDeleteScheduledEvent = async (encDate, encName) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const confirmed = await window.safeConfirm("Delete Event", `Are you sure you want to permanently delete "${name}" on ${date}?`);
+            if (confirmed) {
+                eventSchedule = eventSchedule.filter(e => !(e.date === date && e.eventName === name));
+                selectedEventKeys.delete(`${date}|${name}`);
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            }
+        };
+
+        window.toggleFindReplacePanel = () => { document.getElementById('findReplacePanel')?.classList.toggle('hidden'); };
+        
+        window.toggleEventSelection = (encDate, encName, isChecked) => {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const key = `${date}|${name}`;
+            if (isChecked) selectedEventKeys.add(key); else selectedEventKeys.delete(key);
+            window.renderScheduleList();
+        };
+
+        window.toggleSelectAllFiltered = (isChecked) => {
+            const fP = document.getElementById('schedulePeriodFilter')?.value || 'all', fN = (document.getElementById('scheduleNameFilter')?.value || '').toLowerCase(), nowStr = window.getLocalDateString(new Date());
+            window.calculateSequentialDays(eventSchedule).forEach(e => {
+                const isM = (fP === 'all' || window.getPeriodForDate(e.date) === fP) && e.eventName.toLowerCase().includes(fN);
+                if (!(e.date < nowStr || (e.postStatus === 'done' && e.storyStatus === 'done')) && isM) {
+                    const key = `${e.date}|${e.eventName}`;
+                    if (isChecked) selectedEventKeys.add(key); else selectedEventKeys.delete(key);
+                }
+            });
+            window.renderScheduleList();
+        };
+
+        window.updateBulkSelectionUI = (upcomingList = []) => {
+            const countDisplay = document.getElementById('selectedCountDisplay'), deleteBtn = document.getElementById('bulkDeleteBtn'), selectAllCb = document.getElementById('selectAllFilteredCheckbox');
+            if (countDisplay) countDisplay.textContent = selectedEventKeys.size;
+            if (deleteBtn) { deleteBtn.disabled = selectedEventKeys.size === 0; deleteBtn.textContent = `🗑️ Delete Selected (${selectedEventKeys.size})`; }
+            if (selectAllCb) selectAllCb.checked = upcomingList.length > 0 && upcomingList.every(e => selectedEventKeys.has(`${e.date}|${e.eventName}`));
+        };
+
+        window.bulkDeleteSelected = async () => {
+            if (selectedEventKeys.size === 0) return;
+            if (await window.safeConfirm("Bulk Delete", `Are you sure you want to delete ${selectedEventKeys.size} selected event(s)?`)) {
+                eventSchedule = eventSchedule.filter(e => !selectedEventKeys.has(`${e.date}|${e.eventName}`));
+                selectedEventKeys.clear();
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            }
+        };
+
+        window.applyFindReplace = async (mode) => {
+            const findText = (document.getElementById('bulkFindInput')?.value || '').trim(), replaceText = document.getElementById('bulkReplaceInput')?.value || '', targetField = document.getElementById('bulkTargetFieldSelect')?.value || 'all';
+            if (!findText) return;
+            const fP = document.getElementById('schedulePeriodFilter')?.value || 'all', fN = (document.getElementById('scheduleNameFilter')?.value || '').toLowerCase(), nowStr = window.getLocalDateString(new Date());
+            const targets = window.calculateSequentialDays(eventSchedule).filter(e => {
+                const isM = (fP === 'all' || window.getPeriodForDate(e.date) === fP) && e.eventName.toLowerCase().includes(fN);
+                const isUpcoming = !(e.date < nowStr || (e.postStatus === 'done' && e.storyStatus === 'done'));
+                return isUpcoming && isM && (mode !== 'selected' || selectedEventKeys.has(`${e.date}|${e.eventName}`));
+            });
+
+            if (targets.length === 0) return;
+            const reg = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            let modifiedAny = false;
+
+            targets.forEach(t => {
+                const idx = eventSchedule.findIndex(e => e.date === t.date && e.eventName === t.eventName); if (idx === -1) return;
+                const ev = eventSchedule[idx];
+                if ((targetField === 'all' || targetField === 'eventName') && reg.test(ev.eventName)) { ev.eventName = ev.eventName.replace(reg, replaceText); modifiedAny = true; }
+                if ((targetField === 'all' || targetField === 'location') && ev.location && reg.test(ev.location)) { ev.location = ev.location.replace(reg, replaceText); modifiedAny = true; }
+                if ((targetField === 'all' || targetField === 'postText') && ev.postText && reg.test(ev.postText)) { ev.postText = ev.postText.replace(reg, replaceText); modifiedAny = true; }
+            });
+
+            if (modifiedAny) {
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+                document.getElementById('bulkFindInput').value = '';
+                document.getElementById('bulkReplaceInput').value = '';
+                window.toggleFindReplacePanel();
+            }
+        };
+
+        window.showEmbedCode = (periodName) => {
+            const modal = document.getElementById('embedModal'), embedPeriodName = document.getElementById('embedPeriodName');
+            embedPeriodName.textContent = periodName || "Auto-Updating Calendar Widget";
+            document.getElementById('embedCodeText').value = periodName
+                ? `<iframe src="https://loren-6q.github.io/Full-Moon-Week-Schedule/embed.html?period=${encodeURIComponent(periodName)}" width="100%" height="500" style="border:none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>`
+                : `<iframe src="https://loren-6q.github.io/Full-Moon-Week-Schedule/embed.html" width="100%" height="500" style="border:none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>`;
+            modal.classList.add('active');
+        };
+
+        window.setCalendarFilterTab = (tab) => {
+            calendarModalTab = tab;
+            document.getElementById('calendarTabUpcoming').className = tab === 'upcoming' ? "px-3 py-1.5 rounded-md bg-white text-indigo-600 shadow-sm" : "px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-900";
+            document.getElementById('calendarTabPast').className = tab === 'past' ? "px-3 py-1.5 rounded-md bg-white text-indigo-600 shadow-sm" : "px-3 py-1.5 rounded-md text-slate-500 hover:text-slate-900";
+            window.renderCalendarSummary();
+        };
+
+        window.renderCalendarSummary = () => {
+            const list = document.getElementById('calendarSummaryList'); if (!list) return; list.innerHTML = '';
+            const all = window.calculateSequentialDays(eventSchedule); if (all.length === 0) { document.getElementById('emptyCalendarMessage').classList.remove('hidden'); return; }
+            const nowStr = window.getLocalDateString(new Date()), filteredAll = all.filter(e => calendarModalTab === 'upcoming' ? e.date >= nowStr : e.date < nowStr);
+
+            if (filteredAll.length === 0) {
+                document.getElementById('emptyCalendarMessage').classList.remove('hidden');
+                document.getElementById('emptyCalendarMessage').textContent = `No ${calendarModalTab} calendar events found.`;
+                return;
+            }
+            document.getElementById('emptyCalendarMessage').classList.add('hidden');
+
+            const grp = {}; PEAK_DATES.forEach(p => grp[p.name] = []);
+            filteredAll.forEach(e => { const p = window.getPeriodForDate(e.date); if (grp[p]) grp[p].push(e); });
+
+            const periodKeys = Object.keys(grp).filter(pName => grp[pName].length > 0);
+            periodKeys.sort((aName, bName) => {
+                const dateA = PEAK_DATES.find(p => p.name === aName)?.date || '9999-99-99';
+                const dateB = PEAK_DATES.find(p => p.name === bName)?.date || '9999-99-99';
+                return calendarModalTab === 'upcoming' ? new Date(dateA) - new Date(dateB) : new Date(dateB) - new Date(dateA);
+            });
+
+            periodKeys.forEach(pName => { 
+                const d = document.createElement('details'); d.className = 'group border rounded-lg bg-gray-50 mb-2 shadow-sm overflow-hidden'; 
+                const eventsByDate = grp[pName].reduce((acc, e) => { (acc[e.date] = acc[e.date] || []).push(e); return acc; }, {});
+                let plainText = `🌕 ${pName} Schedule 🌕\n\n`, eventsHtml = `<div class="p-3 bg-white border-t space-y-4">`;
+
+                Object.keys(eventsByDate).sort().forEach(date => {
+                    const dayEvents = eventsByDate[date], dObj = new Date(date + 'T00:00:00');
+                    const dFormatted = `${String(dObj.getDate()).padStart(2,'0')}${dObj.toLocaleString('en-US',{month:'short'}).toUpperCase()}${String(dObj.getFullYear()).slice(-2)}`;
+                    const dayHeader = `⭐// DAY ${dayEvents[0].dayNumber} - ${dFormatted} \\\\⭐`;
+                    plainText += `${dayHeader}\n`;
+                    eventsHtml += `<div><h5 class="text-[11px] font-black text-gray-800 tracking-tighter mb-1">${dayHeader}</h5><div class="space-y-0.5 ml-2 border-l-2 border-indigo-50 pl-2">`;
+                    dayEvents.forEach(e => { plainText += `· ${e.eventName} @ ${e.location}\n`; eventsHtml += `<div class="text-[12px] text-gray-600 font-medium">${e.eventName} <span class="text-gray-400 italic font-normal">@ ${e.location}</span></div>`; });
+                    plainText += `\n`; eventsHtml += `</div></div>`;
+                });
+                eventsHtml += `</div>`;
+
+                d.innerHTML = `<summary class="font-bold p-3 cursor-pointer list-none flex justify-between items-center hover:bg-gray-100 transition-colors"><div class="flex items-center gap-3"><span class="text-sm text-gray-800">${pName}</span><span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${grp[pName].length} events</span></div><button onclick="event.preventDefault(); event.stopPropagation(); window.copyToClipboard(decodeURIComponent('${encodeURIComponent(plainText)}'))" class="text-[9px] bg-secondary text-white px-2 py-1 rounded font-bold shadow-sm hover:bg-emerald-600 transition">COPY MONTH</button></summary>${eventsHtml}`; 
+                list.appendChild(d); 
+            });
+        };
+
+        window.renderNameMap = () => {
+            const list = document.getElementById('databaseList'); if (!list) return;
+            const s = document.getElementById('nameSearch').value.toLowerCase(), f = document.getElementById('categoryFilter').value;
+            list.innerHTML = '';
+            Object.entries(nameTagDatabase).filter(([n, d]) => (n.toLowerCase().includes(s) || d.tag.toLowerCase().includes(s)) && (!f || d.category === f)).sort().forEach(([n, d]) => {
+                const li = document.createElement('li'); li.className = 'compact-list-item flex justify-between items-center';
+                const escN = encodeURIComponent(n);
+                li.innerHTML = `<span><b>${n}</b> <span class="text-gray-400">${d.tag}</span></span><div class="flex gap-2"><button onclick="window.editTag(decodeURIComponent('${escN}'))" class="text-indigo-500 font-bold">Edit</button><button onclick="window.deleteTag(decodeURIComponent('${escN}'))" class="text-red-500 font-bold">✕</button></div>`;
+                list.appendChild(li);
+            });
+        };
+
+        window.renderQuickDbSearch = () => {
+            const s = (document.getElementById('quickDbSearch')?.value || '').toLowerCase(), res = document.getElementById('quickDbSearchResults');
+            if(!res) return; res.innerHTML = ''; if(!s) return;
+            Object.entries(nameTagDatabase).filter(([n, d]) => n.toLowerCase().includes(s) || d.tag.toLowerCase().includes(s)).sort().forEach(([n, d]) => {
+                const escN = encodeURIComponent(n);
+                const d2 = document.createElement('div');
+                d2.className = 'p-1.5 flex justify-between items-center text-[10px] text-emerald-900 border-b border-emerald-50 last:border-0';
+                d2.innerHTML = `<span><b>${n}</b> <span class="text-emerald-600/70">${d.tag}</span></span><div class="flex items-center gap-1.5"><span class="text-[8px] bg-emerald-100 px-1 rounded font-bold uppercase">${d.category}</span><button onclick="window.editTag(decodeURIComponent('${escN}'))" class="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold hover:bg-emerald-700 transition">Edit</button></div>`;
+                res.appendChild(d2);
+            });
+        };
+
+        window.renderSnippetSelect = () => { const html = '<option value="">--- Load Snippet ---</option>' + Object.keys(textSnippets).sort().map(k => `<option value="${k}">${k}</option>`).join(''); const s1 = document.getElementById('snippetSelect'), s2 = document.getElementById('editorSnippetSelect'); if (s1) s1.innerHTML = html; if (s2) s2.innerHTML = html; };
+        window.renderGlobalTags = () => { const el = document.getElementById('defaultTagsInput'); if (el) el.value = globalTagsString; };
+        
+        window.renderPeriodFilter = () => {
+            const sel = document.getElementById('schedulePeriodFilter');
+            if (sel) {
+                const opts = ['<option value="all">All Upcoming Periods</option>', '<option value="all_inc_past">Show All (Including Past)</option>'];
+                PEAK_DATES.forEach(p => opts.push(`<option value="${p.name}">${p.name}</option>`));
+                sel.innerHTML = opts.join('');
+            }
+        };
+
+        window.updateSuggestedTags = () => {
+            const container = document.getElementById('suggestedTagsContainer'); if (!container) return;
+            const eventName = (document.getElementById('inputEventName')?.value || "").trim().toLowerCase(), location = (document.getElementById('inputLocation')?.value || "").trim().toLowerCase(), candidates = new Set();
+            const globalHashtagsSet = new Set((globalTagsString.match(/#\w+/g) || []).map(t => t.toLowerCase()));
+
+            Object.keys(eventExtraTags).forEach(key => { if (eventName.includes(key.toLowerCase()) || location.includes(key.toLowerCase())) { eventExtraTags[key].split(/[, ]+/).forEach(t => { if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim()); }); } });
+            eventSchedule.forEach(e => { if (e.eventName?.toLowerCase() === eventName || e.location?.toLowerCase() === location) { if (e.extraTags) e.extraTags.split(/[, ]+/).forEach(t => { if (t.trim()) candidates.add(t.trim().startsWith('#') ? t.trim() : '#' + t.trim()); }); } });
+
+            const unique = [...candidates].filter(t => !globalHashtagsSet.has(t.toLowerCase())).sort();
+            container.innerHTML = '<span class="text-[10px] text-gray-400 uppercase tracking-widest w-full mb-1">Suggestions:</span>';
+            if (unique.length === 0) { container.innerHTML += '<span class="text-[10px] text-gray-300 italic py-1">No matches...</span>'; return; }
+            unique.forEach(tag => { const pill = document.createElement('div'); pill.className = 'tag-pill'; pill.textContent = tag; pill.onclick = () => window.toggleHashtag(tag); container.appendChild(pill); });
+            window.refreshTagPillStates();
+        };
+
+        window.toggleHashtag = (tag) => {
+            const input = document.getElementById('extraHashtagsInput'); if (!input) return;
+            const tags = input.value.toLowerCase().match(/#\w+/g) || [];
+            if (tags.includes(tag.toLowerCase())) input.value = input.value.replace(new RegExp(tag, 'gi'), '').replace(/  +/g, ' ').trim();
+            else input.value = (input.value.trim() + " " + tag).trim();
+            window.refreshTagPillStates();
+            window.triggerDebouncedParse();
+        };
+
+        window.refreshTagPillStates = () => {
+            const input = document.getElementById('extraHashtagsInput'); if (!input) return;
+            const tags = input.value.toLowerCase().match(/#\w+/g) || [];
+            document.querySelectorAll('.tag-pill').forEach(pill => { pill.classList.toggle('active', tags.includes(pill.textContent.toLowerCase())); });
+        };
+
+        window.showTab = (tab) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tab}-content`)?.classList.remove('hidden');
+            document.getElementById(`tab-${tab}-btn`)?.classList.add('active');
+            if (tab === 'scheduler') window.renderScheduleList();
+            else if (tab === 'calendar') window.renderCalendarSummary();
+            else if (tab === 'history') window.renderHistory();
+            else if (tab === 'editor') window.updateSuggestedTags();
+        };
+
+        window.toggleRecurringUI = () => {
+            const type = document.getElementById('recurringType').value, wUI = document.getElementById('weeklyUI'), rUI = document.getElementById('relativeUI'), aUI = document.getElementById('recurringActionUI'), saveBtn = document.getElementById('mainSaveBtn'), dInput = document.getElementById('inputIsoDate').parentElement;
+            if(wUI) wUI.classList.toggle('hidden', type !== 'weekly'); if(rUI) rUI.classList.toggle('hidden', type !== 'relative'); if(aUI) aUI.classList.toggle('hidden', type === 'none');
+            if(dInput) { dInput.classList.toggle('opacity-30', type !== 'none'); dInput.style.pointerEvents = type === 'none' ? 'auto' : 'none'; }
+            if(saveBtn) saveBtn.textContent = type === 'none' ? "SAVE TO LIST" : "SAVE ALL TO LIST";
+        };
+
+        window.previewRecurring = () => {
+            const type = document.getElementById('recurringType').value, name = document.getElementById('inputEventName').value.trim(); if (!name) return;
+            const now = window.getLocalDateString(new Date()); pendingRecurringDates = [];
+            PEAK_DATES.forEach(peak => {
+                const [y, m, d] = peak.date.split('-').map(n => parseInt(n)), fmD = new Date(y, m-1, d, 0, 0, 0);
+                if (type === 'weekly') {
+                    const target = parseInt(document.getElementById('recurringDay').value);
+                    for (let i = -3; i <= 3; i++) { const check = new Date(fmD); check.setDate(fmD.getDate() + i); const iso = window.getLocalDateString(check); if (check.getDay() === target && iso >= now) pendingRecurringDates.push(iso); }
+                } else if (type === 'relative') {
+                    const target = new Date(fmD); target.setDate(fmD.getDate() + (parseInt(document.getElementById('recurringOffset').value) || 0)); const iso = window.getLocalDateString(target); if (iso >= now) pendingRecurringDates.push(iso);
+                }
+            });
+            pendingRecurringDates = [...new Set(pendingRecurringDates)].sort();
+            document.getElementById('recurringPreview').innerHTML = pendingRecurringDates.map(d => `<div class='bg-indigo-100 px-1 rounded text-[10px]'>${d}</div>`).join('');
+            window.handleClick(false); 
+        };
+
+        window.cleanTagInput = (input) => {
+            let t = input.trim(); if (!t) return "";
+            if (t.includes('instagram.com/')) { try { t = t.split('instagram.com/')[1].split('/')[0].split('?')[0]; } catch(e) {} }
+            return '@' + t.replace(/^@/, '');
+        };
+
+        window.handleClick = async function(save) {
+            let name = (document.getElementById('inputEventName')?.value || "").trim(), loc = (document.getElementById('inputLocation')?.value || "").trim(), desc = (document.getElementById('rawDescription')?.value || "").trim(), xtra = (document.getElementById('extraHashtagsInput')?.value || "").trim();
+            if (save && (!name || !desc)) return;
+
+            const displayParseName = name || "EVENT NAME", displayParseLoc = loc || "LOCATION", displayParseDesc = desc || "";
+
+            const processSingle = async (date) => {
+                const candidate = { date: date, eventName: displayParseName, order: 0 };
+                const tempSchedule = [...eventSchedule.filter(e => !(e.date === date && e.eventName === displayParseName)), candidate];
+                const match = window.calculateSequentialDays(tempSchedule).find(e => e.date === date && e.eventName === displayParseName);
+                const dayNum = match ? match.dayNumber : 'X';
+
+                const allMatches = [];
+                Object.entries(nameTagDatabase).forEach(([n, d]) => {
+                    if (!n || !d.tag) return;
+                    const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi'); 
+                    let m; while ((m = reg.exec(displayParseDesc)) !== null) {
+                        allMatches.push({ name: n, tag: d.tag, index: m.index, length: n.length, isPreTagged: displayParseDesc.substring(m.index + m.length, m.index + m.length + 70).toLowerCase().includes(d.tag.toLowerCase()) });
+                    }
+                });
+                allMatches.sort((a,b) => b.length - a.length || a.index - b.index);
+                const valid = []; const occ = new Set();
+                allMatches.forEach(m => { let ov = false; for(let i=m.index;i<m.index+m.length;i++){if(occ.has(i))ov=true;} if(!ov){valid.push(m); for(let i=m.index;i<m.index+m.length;i++)occ.add(i);} });
+                
+                const firstOccurrences = {};
+                valid.forEach(m => { if (!currentExclusions.includes(m.name) && (firstOccurrences[m.tag] === undefined || m.index < firstOccurrences[m.tag])) firstOccurrences[m.tag] = m.index; });
+
+                let inj = displayParseDesc; 
+                [...valid].sort((a,b) => b.index - a.index).forEach(m => {
+                    if (currentExclusions.includes(m.name)) { if(m.isPreTagged){ const s = m.index + m.length, b = inj.substring(s, s+60), p = b.toLowerCase().indexOf(m.tag.toLowerCase()); if(p!==-1) inj = inj.substring(0, s+p) + inj.substring(s+p+m.tag.length); } }
+                    else if (!m.isPreTagged && m.index === firstOccurrences[m.tag]) inj = inj.substring(0, m.index+m.length) + " " + m.tag + inj.substring(m.index+m.length); 
+                });
+
+                const bodyHashesSet = new Set((inj.match(/#\w+/g) || []).map(t => t.toLowerCase()));
+                const hashes = [...new Set(((globalTagsString + " " + xtra).match(/#\w+/g) || []).map(t => t.toLowerCase()))].filter(h => !bodyHashesSet.has(h)).join(' ');
+                const fullRes = `🌕Full Moon Week - Day ${dayNum}🌕\n🗓 DATE: ${window.formatDateFriendly(date)}\n🎉 EVENT: ${displayParseName}\n📍 LOCATION: ${displayParseLoc}\n\n${inj}${hashes ? "\n\n" + hashes : ""}`;
+                const uniqueTagsList = [...new Set([...valid].sort((a,b) => a.index - b.index).filter(v => !currentExclusions.includes(v.name)).map(v => v.tag))];
+
+                return { 
+                    result: { 
+                        eventName: displayParseName, date, location: displayParseLoc, postText: fullRes, description: inj, tagsOnly: uniqueTagsList.join('\n'), extraTags: xtra, order: 0, excludedNames: currentExclusions, textStatus: currentEditorStatus, isDraft: currentEditorStatus === 'draft', postStatus: currentEditorStatus === 'posted' ? 'done' : 'pending', storyStatus: (currentEditorStatus === 'story' || currentEditorStatus === 'posted') ? 'done' : 'pending', mediaStatus: currentEditorGfx ? 'done' : 'pending', flyerUrl: currentEditorFlyerUrl || null, isVideo: currentEditorIsVideo 
+                    }, 
+                    fullRes, valid, uniqueTagsList 
+                };
+            };
+
+            const targetDate = document.getElementById('inputIsoDate').value || window.getLocalDateString(new Date());
+            
+            if (save) {
+                const dates = document.getElementById('recurringType').value === 'none' ? [targetDate] : pendingRecurringDates;
+                for (const d of dates) { 
+                    const { result } = await processSingle(d); 
+                    const idx = eventSchedule.findIndex(e => e.date === d && e.eventName === displayParseName); 
+                    if (idx > -1) { result.order = eventSchedule[idx].order || 0; eventSchedule[idx] = result; }
+                    else { result.order = eventSchedule.filter(e => e.date === d).reduce((max, e) => Math.max(max, e.order || 0), -1) + 1; eventSchedule.push(result); }
+                }
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
+                window.showTab('scheduler');
+            } else {
+                const { fullRes, uniqueTagsList, valid } = await processSingle(targetDate);
+                document.getElementById('calendarOutput').value = fullRes;
+                document.getElementById('tagsOnlyOutput').value = uniqueTagsList.join('\n');
+                
+                const tMan = document.getElementById('detectedTagsManager'); if(tMan) {
+                    tMan.innerHTML = ''; [...new Set(valid.map(m => m.name))].forEach(n => {
+                        const pill = document.createElement('div'), exc = currentExclusions.includes(n);
+                        pill.className = `active-tag-pill cursor-pointer ${exc?'excluded':''}`; pill.innerHTML = `${n} ${exc?'+':'✕'}`;
+                        pill.onclick = () => { if(exc) currentExclusions = currentExclusions.filter(x=>x!==n); else currentExclusions.push(n); window.handleClick(false); };
+                        tMan.appendChild(pill);
+                    });
+                }
+            }
+        };
+
+        window.saveQuickTag = async function() { 
+            const n = document.getElementById('quickName').value.trim(), tInput = document.getElementById('quickTag').value.trim(), c = document.getElementById('quickCategory').value; if (!n || !tInput) return; 
+            nameTagDatabase[n] = { tag: window.cleanTagInput(tInput), category: c }; 
+            if (await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase)) { 
+                window.renderNameMap(); 
+                document.getElementById('quickName').value = ""; document.getElementById('quickTag').value = ""; document.getElementById('quickDbSearch').value = "";
+                window.renderQuickDbSearch();
+            } 
+        };
+
+        window.editTag = (n) => { 
+            const d = nameTagDatabase[n]; if(!d) return; 
+            document.getElementById('newName').value = n; 
+            document.getElementById('newTag').value = d.tag; 
+            document.getElementById('newCategory').value = d.category; 
+            currentTagEdit = n; 
+            document.getElementById('cancelTagEditBtn')?.classList.remove('hidden'); 
+            window.openSettingsModal(); 
+        };
+
+        window.cancelTagEdit = () => { 
+            document.getElementById('newName').value = ""; 
+            document.getElementById('newTag').value = ""; 
+            currentTagEdit = null; 
+            document.getElementById('cancelTagEditBtn')?.classList.add('hidden'); 
+        };
+
+        window.deleteTag = async (n) => { 
+            if(await window.safeConfirm("Delete Tag", n)) { 
+                delete nameTagDatabase[n]; 
+                await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); 
+                window.renderNameMap(); 
+            } 
+        };
+
+        window.addNameMapEntry = async () => { 
+            const n = document.getElementById('newName').value.trim(), tInput = document.getElementById('newTag').value.trim(); if (!n || !tInput) return; 
+            if (currentTagEdit && currentTagEdit !== n) delete nameTagDatabase[currentTagEdit];
+            nameTagDatabase[n] = { tag: window.cleanTagInput(tInput), category: document.getElementById('newCategory').value };
+            await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase);
+            window.renderNameMap();
+            window.cancelTagEdit();
+        };
+
+        window.searchIGInline = () => {
+            const q = document.getElementById('quickName').value.trim();
+            if (q) window.open(`https://www.instagram.com/explore/tags/${encodeURIComponent(q.replace(/\s+/g, ''))}/`, '_blank');
+        };
+
+        window.searchIGDirectly = () => {
+            const q = document.getElementById('newName').value.trim();
+            if (q) window.open(`https://www.instagram.com/explore/tags/${encodeURIComponent(q.replace(/\s+/g, ''))}/`, '_blank');
+        };
+
+        window.copyDayEventNames = (date) => {
+            const dayEvents = window.calculateSequentialDays(eventSchedule).filter(e => e.date === date); if (dayEvents.length === 0) return;
+            const eventsText = dayEvents.map(e => `🔹 ${e.eventName}\n📍 ${window.findTagForLocation(e.location) ? `${e.location} ${window.findTagForLocation(e.location)}` : e.location}`).join('\n\n');
+            const hashes = [...new Set((globalTagsString.match(/#\w+/g) || []).map(t => t.toLowerCase()))].join(' ');
+            window.copyToClipboard([`🌕 FULL MOON WEEK • DAY ${dayEvents[0].dayNumber} 🌕`,`🗓️ DATE: ${window.formatDateFriendly(date).toUpperCase()}`,``,`✨ TODAY'S EVENTS ✨`,``,eventsText,``,hashes].join('\n'));
+        };
+
+        window.copyDayTagsOnly = (date) => { 
+            const unique = [...new Set(window.calculateSequentialDays(eventSchedule).filter(e => e.date === date).map(e => window.findTagForLocation(e.location)).filter(Boolean))]; 
+            if (unique.length > 0) window.copyToClipboard(unique.join('\n')); 
+        };
+
+        window.findTagForLocation = (loc) => { 
+            if (!loc) return ""; 
+            const low = loc.toLowerCase(); 
+            for (const [n, d] of Object.entries(nameTagDatabase).sort((a,b) => b[0].length - a[0].length)) { 
+                if (new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'i').test(low)) return d.tag || ""; 
+            } 
+            return ""; 
+        };
+
+        window.moveEvent = async function(encDate, encName, direction) { 
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const dayEvents = eventSchedule.filter(e => e.date === date).sort((a, b) => (a.order || 0) - (b.order || 0)); 
+            dayEvents.forEach((e, i) => e.order = i); 
+            const idx = dayEvents.findIndex(e => e.eventName === name); if (idx === -1) return; 
+
+            if (direction === 'top') dayEvents[idx].order = -999;
+            else if (direction === 'bottom') dayEvents[idx].order = 999;
+            else if (direction === 'up' && idx > 0) { const temp = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx - 1].order; dayEvents[idx - 1].order = temp; }
+            else if (direction === 'down' && idx < dayEvents.length - 1) { const temp = dayEvents[idx].order; dayEvents[idx].order = dayEvents[idx + 1].order; dayEvents[idx + 1].order = temp; }
+            else return;
+
+            dayEvents.sort((a,b) => (a.order || 0) - (b.order || 0)).forEach((e, i) => e.order = i);
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); 
+            window.renderScheduleList(); 
+        };
+
+        window.exportFullDatabase = () => { 
+            const blob = new Blob([JSON.stringify({ nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString, ts: new Date().toISOString() }, null, 2)], { type: 'application/json' }); 
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); 
+            a.download = `Backup_${window.getLocalDateString(new Date())}.json`; a.click(); 
+        };
+
+        window.createCloudSnapshot = async () => { 
+            if (await window.saveDataToFirebase(DB_CONFIG.BACKUP_KEY, { nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString })) {
+                alert("Snapshot created."); 
+            }
+        };
+
+        window.importFullDatabase = async () => {
+            const raw = document.getElementById('restoreInput').value.trim(); if (!raw) return;
+            if (await window.safeConfirm("RESTORE", "Overwriting all data. OK?")) {
+                try {
+                    const p = JSON.parse(raw);
+                    if(p.nameTagDatabase) nameTagDatabase = p.nameTagDatabase; if(p.eventDatabase) eventDatabase = p.eventDatabase; if(p.textSnippets) textSnippets = p.textSnippets; if(p.eventSchedule) eventSchedule = p.eventSchedule; if(p.globalTagsString) globalTagsString = p.globalTagsString;
+                    await window.saveDataToFirebase(DB_CONFIG.INSTA_DB_KEY, nameTagDatabase); await window.saveDataToFirebase(DB_CONFIG.EVENT_DB_KEY, eventDatabase); await window.saveDataToFirebase(DB_CONFIG.SNIPPETS_KEY, textSnippets); await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule); await window.saveDataToFirebase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString);
+                    location.reload();
+                } catch (e) {}
+            }
+        };
+
+        window.saveGlobalHashtags = async () => {
+            const el = document.getElementById('defaultTagsInput');
+            if (el) {
+                globalTagsString = el.value.trim();
+                await window.saveDataToFirebase(DB_CONFIG.GLOBAL_TAGS_KEY, globalTagsString);
+            }
+        };
+
+        window.loadSnippet = () => {
+            const k = document.getElementById('snippetSelect').value;
+            if (k && textSnippets[k]) {
+                document.getElementById('snippetName').value = k;
+                document.getElementById('snippetContent').value = textSnippets[k];
+            }
+        };
+
+        window.saveSnippet = async () => {
+            const n = document.getElementById('snippetName').value.trim();
+            const c = document.getElementById('snippetContent').value.trim();
+            if (n && c) {
+                textSnippets[n] = c;
+                await window.saveDataToFirebase(DB_CONFIG.SNIPPETS_KEY, textSnippets);
+                window.renderSnippetSelect();
+            }
+        };
+
+        window.deleteSnippet = async () => {
+            const n = document.getElementById('snippetName').value.trim();
+            if (n && textSnippets[n]) {
+                delete textSnippets[n];
+                await window.saveDataToFirebase(DB_CONFIG.SNIPPETS_KEY, textSnippets);
+                document.getElementById('snippetName').value = '';
+                document.getElementById('snippetContent').value = '';
+                window.renderSnippetSelect();
+            }
+        };
+
+        window.insertSnippet = () => { 
+            const k = document.getElementById('editorSnippetSelect').value; 
+            if (textSnippets[k]) { 
+                const a = document.getElementById('rawDescription'), s = a.selectionStart, e = a.selectionEnd; 
+                a.value = a.value.substring(0, s) + textSnippets[k] + a.value.substring(e); 
+                a.focus(); 
+                window.handleDescriptionInput();
+            } 
+        };
+
+        async function initializeFirebase() {
+            window.loadLocalBackup();
+            if (!window.fb) {
+                setTimeout(initializeFirebase, 200);
+                return;
+            }
+            try {
+                const { initializeApp, getAuth, signInAnonymously, getFirestore, getStorage, doc, getDoc, getDocs, collection } = window.fb;
+                const app = initializeApp(FIREBASE_CONFIG);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
+
+                await signInAnonymously(auth);
+
+                try {
+                    const schedSnaps = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
+                    const chunks = [];
+                    schedSnaps.forEach(d => {
+                        if (d.id.startsWith('chunk_')) {
+                            chunks.push(d.data());
+                        } else if (d.id === 'main' && d.data().events) {
+                            chunks.push({ chunkIndex: 0, events: d.data().events });
+                        }
+                    });
+                    chunks.sort((a, b) => (a.chunkIndex || 0) - (b.chunkIndex || 0));
+                    const allEvents = [];
+                    chunks.forEach(c => {
+                        if (Array.isArray(c.events)) allEvents.push(...c.events);
+                    });
+                    if (allEvents.length > 0) {
+                        eventSchedule.length = 0;
+                        eventSchedule.push(...allEvents);
+                        window.renderScheduleList();
+                    }
+                } catch(e) {
+                    console.error("Error loading schedule chunks:", e);
+                }
+
+                try {
+                    const tagSnap = await getDoc(doc(db, DB_CONFIG.INSTA_DB_KEY, 'main'));
+                    if (tagSnap.exists() && tagSnap.data().data) {
+                        Object.assign(nameTagDatabase, tagSnap.data().data);
+                        window.renderNameMap();
+                    }
+                } catch(e) {}
+
+                try {
+                    const snipSnap = await getDoc(doc(db, DB_CONFIG.SNIPPETS_KEY, 'main'));
+                    if (snipSnap.exists() && snipSnap.data().data) {
+                        Object.assign(textSnippets, snipSnap.data().data);
+                        window.renderSnippetSelect();
+                    }
+                } catch(e) {}
+
+                try {
+                    const globSnap = await getDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'));
+                    if (globSnap.exists() && globSnap.data().tags) {
+                        globalTagsString = globSnap.data().tags;
+                        window.renderGlobalTags();
+                    }
+                } catch(e) {}
+
+                if (eventSchedule.length === 0) {
+                    try {
+                        const snapDoc = await getDoc(doc(db, DB_CONFIG.BACKUP_KEY, 'main'));
+                        if (snapDoc.exists() && snapDoc.data().data?.eventSchedule?.length > 0) {
+                            eventSchedule.push(...snapDoc.data().data.eventSchedule);
+                            window.renderScheduleList();
+                        }
+                    } catch(bErr) {}
+                }
+
+                window.saveLocalBackup();
+                window.renderPeriodFilter();
+                window.updateEditorStatusUI();
+                window.updateEditorGfxUI();
+
+                const gfxEl = document.getElementById('editorGfxIcon');
+                if (gfxEl) gfxEl.innerHTML = ICONS.camera;
+                const reuseEl = document.getElementById('editorReuseIcon');
+                if (reuseEl) reuseEl.innerHTML = ICONS.reuse;
+                const titleReuseEl = document.getElementById('reuseModalTitleIcon');
+                if (titleReuseEl) titleReuseEl.innerHTML = ICONS.reuse;
+
+                const iso = document.getElementById('inputIsoDate'); 
+                if (iso && !iso.value) iso.value = window.getLocalDateString(new Date());
+
+            } catch(err) {
+                console.error("Firebase init error:", err);
+            }
+            window.showTab('scheduler');
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeFirebase);
+        } else {
+            initializeFirebase();
+        }
+    </script>
+    <script src="https://loren-6q.github.io/WETNav/nav.js"></script>
+</body>
+</html>
