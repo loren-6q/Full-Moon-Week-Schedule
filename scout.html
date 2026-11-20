@@ -270,7 +270,7 @@
             { date: '2027-12-31', name: 'NYE 2027' }
         ];
 
-        const apiKey = "";
+        const apiKey = FIREBASE_CONFIG.apiKey;
         let db = null, auth = null, storage = null;
         let nameTagDatabase = {}, eventSchedule = [], globalTagsString = "";
         let scoutedEvents = [], uploadedImageBase64 = null, uploadedImageMime = "image/png";
@@ -439,14 +439,16 @@ Rules:
                 generationConfig: { responseMimeType: "application/json" }
             };
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) throw new Error(`Gemini API HTTP ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`Gemini API HTTP ${response.status}`);
+            }
             const data = await response.json();
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
             return JSON.parse(rawText);
