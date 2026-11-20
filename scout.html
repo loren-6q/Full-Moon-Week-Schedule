@@ -26,14 +26,14 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-        window.fb = { initializeApp, getAuth, signInAnonymously, getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, getStorage, ref, uploadString, uploadBytes, getDownloadURL };
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        window.fb = { initializeApp, getAuth, signInAnonymously, getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, getStorage, ref, uploadBytes, getDownloadURL };
     </script>
 </head>
-<body class="bg-background min-h-screen font-sans text-slate-800 p-2 sm:p-6">
-    <div class="max-w-7xl mx-auto space-y-5">
-        <!-- Header -->
-        <header class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800 p-3 sm:p-6">
+    <div class="max-w-6xl mx-auto space-y-5">
+        <!-- Top Header -->
+        <header class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div class="flex items-center gap-3">
                 <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white text-2xl shadow">
                     🔭
@@ -41,11 +41,9 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Full Moon Event Scout</h1>
-                        <span id="fbStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Connecting...
-                        </span>
+                        <span id="fbStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Connecting...</span>
                     </div>
-                    <p class="text-xs text-slate-500">Companion AI scraper & regulars radar synced live with <code class="text-indigo-600 font-bold">full-moon-week</code></p>
+                    <p class="text-xs text-slate-500">Bulk-parse Telegram, FB messages, websites & flyers directly into your Full Moon Week schedule.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -157,6 +155,9 @@
                         <p class="text-[11px] text-slate-500">Check off events you want, grab IG text & attach flyer per card, then push to FMW.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-1.5">
+                        <button id="btnResetPushed" onclick="window.resetAllPushedFlags()" class="hidden px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold rounded-xl transition">
+                            🔄 Unlock Pushed
+                        </button>
                         <button id="btnClearDismissed" onclick="window.clearPushedOrDismissed()" class="hidden px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition">
                             🧹 Clear Done
                         </button>
@@ -191,16 +192,68 @@
         <span id="toastText">Saved!</span>
     </div>
 
+    <!-- Side-by-Side Conflict Comparison Modal -->
+    <div id="conflictModal" class="modal fixed inset-0 flex items-center justify-center bg-black/60 p-3 z-50">
+        <div class="bg-white p-5 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col space-y-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-base font-black text-amber-700 flex items-center gap-2">⚠️ Event Already Exists in FMW Schedule</h3>
+                    <p class="text-xs text-slate-500">Compare the existing FMW event on the left with your new scouted version on the right.</p>
+                </div>
+                <button onclick="window.resolveConflictChoice('cancel')" class="text-slate-400 hover:text-slate-700 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 overflow-y-auto flex-grow pr-1">
+                <!-- Left: Existing FMW Event -->
+                <div class="p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50 space-y-2 flex flex-col">
+                    <div class="flex justify-between items-center">
+                        <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-800 text-[10px] font-black uppercase">Current in FMW</span>
+                        <span id="conflictOldMeta" class="text-[11px] font-mono text-slate-500"></span>
+                    </div>
+                    <div id="conflictOldTitle" class="text-sm font-black text-slate-900"></div>
+                    <div id="conflictOldLoc" class="text-xs font-bold text-slate-600"></div>
+                    <textarea id="conflictOldText" rows="12" readonly class="w-full flex-grow p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-700 leading-relaxed outline-none"></textarea>
+                </div>
+
+                <!-- Right: New Scouted Event -->
+                <div class="p-3.5 rounded-xl border-2 border-indigo-200 bg-indigo-50/30 space-y-2 flex flex-col">
+                    <div class="flex justify-between items-center">
+                        <span class="px-2 py-0.5 rounded bg-indigo-600 text-white text-[10px] font-black uppercase">New Scouted Event</span>
+                        <span id="conflictNewMeta" class="text-[11px] font-mono text-indigo-700"></span>
+                    </div>
+                    <div id="conflictNewTitle" class="text-sm font-black text-indigo-950"></div>
+                    <div id="conflictNewLoc" class="text-xs font-bold text-indigo-800"></div>
+                    <textarea id="conflictNewText" rows="12" readonly class="w-full flex-grow p-2.5 bg-white border border-indigo-200 rounded-lg text-xs font-mono text-slate-800 leading-relaxed outline-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="window.resolveConflictChoice('cancel')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+                    Cancel Push
+                </button>
+                <button onclick="window.resolveConflictChoice('duplicate')" class="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 border border-indigo-300 rounded-xl text-xs font-bold transition">
+                    ➕ Save as Duplicate
+                </button>
+                <button onclick="window.resolveConflictChoice('overwrite')" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
+                    🔄 Overwrite Existing
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const DB_CONFIG = {
-            INSTA_DB_KEY: 'name_tag_database',
-            SCHEDULE_DB_KEY: 'event_schedule',
-            GLOBAL_TAGS_KEY: 'global_tags',
-            SANDBOX_DB_KEY: 'scout_sandbox'
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBGESFzwqoO9lQivws195udUCo6MXnHeHc",
+            authDomain: "full-moon-week.firebaseapp.com",
+            projectId: "full-moon-week",
+            storageBucket: "full-moon-week.firebasestorage.app",
+            messagingSenderId: "1064130029135",
+            appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
+            measurementId: "G-3SS3BJQCRN"
         };
 
         const PEAK_DATES = [
-            { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: "January 2026" },
+            { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: 'January 2026' },
             { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' },
             { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' },
             { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' },
@@ -217,36 +270,81 @@
             { date: '2027-12-31', name: 'NYE 2027' }
         ];
 
-        const FIREBASE_CONFIG = {
-            apiKey: "AIzaSyBGESFzwqoO9lQivws195udUCo6MXnHeHc",
-            authDomain: "full-moon-week.firebaseapp.com",
-            projectId: "full-moon-week",
-            storageBucket: "full-moon-week.firebasestorage.app",
-            messagingSenderId: "1064130029135",
-            appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
-            measurementId: "G-3SS3BJQCRN"
+        const apiKey = "";
+        let db = null, auth = null, storage = null;
+        let nameTagDatabase = {}, eventSchedule = [], globalTagsString = "";
+        let scoutedEvents = [], uploadedImageBase64 = null, uploadedImageMime = "image/png";
+        let resolveConflictPromise = null;
+
+        function promptConflictComparison(oldEv, newEv) {
+            const m = document.getElementById('conflictModal');
+            if (!m) return Promise.resolve('overwrite');
+            document.getElementById('conflictOldMeta').textContent = oldEv.date || '';
+            document.getElementById('conflictOldTitle').textContent = oldEv.eventName || 'Untitled';
+            document.getElementById('conflictOldLoc').textContent = `📍 ${oldEv.location || 'No Venue'}`;
+            document.getElementById('conflictOldText').value = oldEv.postText || oldEv.description || '';
+
+            document.getElementById('conflictNewMeta').textContent = newEv.date || '';
+            document.getElementById('conflictNewTitle').textContent = newEv.eventName || 'Untitled';
+            document.getElementById('conflictNewLoc').textContent = `📍 ${newEv.location || 'No Venue'}`;
+            document.getElementById('conflictNewText').value = newEv.postText || newEv.description || '';
+
+            m.classList.add('active');
+            return new Promise((resolve) => { resolveConflictPromise = resolve; });
+        }
+
+        window.resolveConflictChoice = (choice) => {
+            const m = document.getElementById('conflictModal');
+            if (m) m.classList.remove('active');
+            if (resolveConflictPromise) {
+                resolveConflictPromise(choice);
+                resolveConflictPromise = null;
+            }
         };
 
-        let db = null;
-        let storage = null;
-        let nameTagDatabase = {};
-        let eventSchedule = [];
-        let globalTagsString = "";
-        let scoutedEvents = [];
-        let activeCardFocusIdx = -1;
-        let currentBase64Image = null;
-        let currentImageMime = "image/png";
+        async function saveScheduleToFirestore() {
+            if (!db) throw new Error("Firestore not connected");
+            const { doc, setDoc, getDocs, collection, deleteDoc } = window.fb;
+            const CHUNK_SIZE = 40;
+            const totalChunks = Math.max(1, Math.ceil(eventSchedule.length / CHUNK_SIZE));
+            for (let i = 0; i < totalChunks; i++) {
+                const chunk = eventSchedule.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+                const chunkId = `chunk_${String(i).padStart(3, '0')}`;
+                await setDoc(doc(db, 'event_schedule', chunkId), {
+                    chunkIndex: i,
+                    events: chunk,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+            await setDoc(doc(db, 'event_schedule', 'meta'), {
+                totalChunks,
+                totalEvents: eventSchedule.length,
+                updatedAt: new Date().toISOString()
+            });
+            try {
+                const snap = await getDocs(collection(db, 'event_schedule'));
+                for (const d of snap.docs) {
+                    if (d.id === 'main') {
+                        await deleteDoc(doc(db, 'event_schedule', d.id));
+                    } else if (d.id.startsWith('chunk_')) {
+                        const idx = parseInt(d.id.replace('chunk_', ''), 10);
+                        if (!isNaN(idx) && idx >= totalChunks) {
+                            await deleteDoc(doc(db, 'event_schedule', d.id));
+                        }
+                    }
+                }
+            } catch (e) {}
+            try {
+                localStorage.setItem('fmw_cache_schedule', JSON.stringify(eventSchedule));
+            } catch (e) {}
+        }
 
-        window.showToast = (msg, icon = '✅') => {
-            const t = document.getElementById('toastNotification');
+        window.showToast = (msg, icon = "✅") => {
+            const toast = document.getElementById('toastNotification');
             document.getElementById('toastText').textContent = msg;
             document.getElementById('toastIcon').textContent = icon;
-            t.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
-        };
-
-        window.getLocalDateString = (d = new Date()) => {
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3500);
         };
 
         window.getPeriodForDate = (iso) => {
@@ -258,347 +356,149 @@
             return "Other";
         };
 
-        window.formatDateFriendly = (iso) => {
-            if (!iso) return 'TBD Date';
-            return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-        };
-
-        window.openInstagramHandle = (handleOrName) => {
-            if (!handleOrName) return;
-            const clean = handleOrName.trim();
-            if (clean.startsWith('@')) {
-                window.open(`https://www.instagram.com/${clean.replace(/^@/, '')}/`, '_blank');
-            } else {
-                // Check DB first
-                const dbEntry = Object.entries(nameTagDatabase).find(([k]) => k.toLowerCase() === clean.toLowerCase());
-                if (dbEntry && dbEntry[1].tag) {
-                    window.open(`https://www.instagram.com/${dbEntry[1].tag.replace(/^@/, '')}/`, '_blank');
-                } else {
-                    window.open(`https://www.instagram.com/explore/tags/${encodeURIComponent(clean.replace(/\s+/g, ''))}/`, '_blank');
-                }
-            }
-        };
-
-        // --- STEP 3: REGULARS RADAR (WHO'S MISSING?) ---
-        window.populatePeriodSelector = () => {
-            const sel = document.getElementById('targetPeriodSelect');
-            if (!sel) return;
-            const nowStr = window.getLocalDateString();
-            const upcomingPeak = PEAK_DATES.find(p => p.date >= nowStr) || PEAK_DATES[PEAK_DATES.length - 1];
-
-            sel.innerHTML = PEAK_DATES.map(p => 
-                `<option value="${p.name}" ${p.name === upcomingPeak.name ? 'selected' : ''}>🌕 ${p.name} (${p.date})</option>`
-            ).join('');
-        };
-
-        window.renderMissingRegularsRadar = () => {
-            const targetPeriod = document.getElementById('targetPeriodSelect')?.value;
-            const missingContainer = document.getElementById('missingVenuesContainer');
-            const scheduledContainer = document.getElementById('scheduledVenuesContainer');
-            if (!missingContainer || !scheduledContainer || !targetPeriod) return;
-
-            // 1. Identify top recurring venues from entire historical schedule + DB venues
-            const venueFrequency = {};
-            eventSchedule.forEach(ev => {
-                if (!ev.location) return;
-                const locClean = ev.location.trim();
-                // Match against canonical DB venue if possible
-                let canonical = locClean;
-                for (const [name, info] of Object.entries(nameTagDatabase)) {
-                    if (info.category === 'Venue' && locClean.toLowerCase().includes(name.toLowerCase())) {
-                        canonical = name;
-                        break;
-                    }
-                }
-                venueFrequency[canonical] = (venueFrequency[canonical] || 0) + 1;
-            });
-
-            // Include any DB Venue that appeared at least twice historically, plus core staples
-            const coreStaples = ['WET Pool Party', 'SWIMS: a Social Beach Resort', 'Jungle Experience', 'Waterfall Festival', 'OXA Beach', 'Lighthouse', 'Eden Garden', 'Hollystone', "Guy's Bar"];
-            coreStaples.forEach(s => {
-                if (!venueFrequency[s]) venueFrequency[s] = 1;
-            });
-
-            const regulars = Object.entries(venueFrequency)
-                .filter(([_, count]) => count >= 2 || coreStaples.some(c => c.toLowerCase() === _.toLowerCase()))
-                .sort((a, b) => b[1] - a[1])
-                .map(([name]) => name);
-
-            // 2. Check which events are already scheduled for targetPeriod
-            const periodEvents = eventSchedule.filter(ev => window.getPeriodForDate(ev.date) === targetPeriod);
-            const scheduledSet = new Set();
-            const missingList = [];
-
-            regulars.forEach(regName => {
-                const regLow = regName.toLowerCase();
-                const regFirstWord = regLow.split(/[:\s-]/)[0];
-                const isScheduled = periodEvents.some(ev => {
-                    const evLoc = (ev.location || '').toLowerCase();
-                    const evTitle = (ev.eventName || '').toLowerCase();
-                    return evLoc.includes(regLow) || (regFirstWord.length >= 3 && (evLoc.includes(regFirstWord) || evTitle.includes(regFirstWord)));
-                });
-
-                if (isScheduled) {
-                    scheduledSet.add(regName);
-                } else {
-                    missingList.push(regName);
-                }
-            });
-
-            document.getElementById('missingCountBadge').textContent = `${missingList.length} Missing`;
-            document.getElementById('scheduledCountBadge').textContent = `${scheduledSet.size} Scheduled`;
-
-            if (missingList.length === 0) {
-                missingContainer.innerHTML = `<span class="text-xs text-emerald-700 font-bold">🎉 All regular venues are already accounted for in ${targetPeriod}!</span>`;
-            } else {
-                missingContainer.innerHTML = missingList.map(venue => {
-                    const dbMatch = Object.entries(nameTagDatabase).find(([k]) => k.toLowerCase().includes(venue.toLowerCase()) || venue.toLowerCase().includes(k.toLowerCase()));
-                    const handle = dbMatch ? dbMatch[1].tag : '';
-                    return `
-                        <button onclick="window.openInstagramHandle('${handle || venue}')" title="Open Instagram for ${venue}" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition shadow-sm">
-                            <span>🔍 ${venue}</span>
-                            ${handle ? `<span class="text-[10px] font-mono text-rose-600">${handle}</span>` : `<span class="text-[10px] text-rose-400">↗ IG</span>`}
-                        </button>
-                    `;
-                }).join('');
-            }
-
-            scheduledContainer.innerHTML = [...scheduledSet].map(venue => `
-                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                    <span>✓</span> <span>${venue}</span>
-                </span>
-            `).join('') || `<span class="text-xs text-slate-400 italic">None scheduled yet.</span>`;
-        };
-
-        // --- QUICK TAG DB LOOKUP ---
-        window.renderQuickTagLookup = () => {
-            const q = (document.getElementById('quickTagLookupInput')?.value || '').trim().toLowerCase();
-            const res = document.getElementById('quickTagLookupResults');
-            if (!res) return;
-            if (!q) {
-                res.innerHTML = '<span class="text-[10px] text-slate-400 italic">Type a DJ or venue name above...</span>';
-                return;
-            }
-            const matches = Object.entries(nameTagDatabase)
-                .filter(([n, d]) => n.toLowerCase().includes(q) || d.tag.toLowerCase().includes(q))
-                .slice(0, 15);
-
-            res.innerHTML = matches.map(([n, d]) => `
-                <button onclick="window.openInstagramHandle('${d.tag}')" class="px-2 py-1 bg-slate-100 hover:bg-indigo-100 text-slate-800 hover:text-indigo-900 rounded-lg text-[11px] font-bold flex items-center gap-1 transition">
-                    <span>${n}</span>
-                    <span class="text-indigo-600 font-mono text-[10px]">${d.tag}</span>
-                    <span class="text-[9px] text-slate-400">↗</span>
-                </button>
-            `).join('') || '<span class="text-[10px] text-slate-400 italic">No matches in Tag DB.</span>';
-        };
-
-        // --- MODE SWITCHING & IMAGE HANDLING ---
         window.setScoutMode = (mode) => {
-            document.getElementById('textInputPanel').classList.toggle('hidden', mode !== 'text');
-            document.getElementById('imageInputPanel').classList.toggle('hidden', mode !== 'image');
-            document.getElementById('modeTextBtn').className = mode === 'text' ? 'flex-1 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition' : 'flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition';
-            document.getElementById('modeImageBtn').className = mode === 'image' ? 'flex-1 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition' : 'flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition';
+            const isText = mode === 'text';
+            document.getElementById('textInputPanel').classList.toggle('hidden', !isText);
+            document.getElementById('imageInputPanel').classList.toggle('hidden', isText);
+            document.getElementById('modeTextBtn').className = isText ? "flex-1 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition" : "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition";
+            document.getElementById('modeImageBtn').className = !isText ? "flex-1 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition" : "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition";
         };
 
-        window.loadFlyerFile = (file) => {
-            if (!file || !file.type.startsWith('image/')) return;
-            currentImageMime = file.type;
+        window.handleImageUpload = (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            processImageFile(file);
+        };
+
+        function processImageFile(file) {
+            uploadedImageMime = file.type || "image/png";
             const reader = new FileReader();
             reader.onload = (e) => {
                 const dataUrl = e.target.result;
-                currentBase64Image = dataUrl.split(',')[1];
-                const imgEl = document.getElementById('flyerPreviewImg');
-                imgEl.src = dataUrl;
-                imgEl.classList.remove('hidden');
+                uploadedImageBase64 = dataUrl.split(',')[1];
+                const img = document.getElementById('flyerPreviewImg');
+                img.src = dataUrl;
+                img.classList.remove('hidden');
                 document.getElementById('imagePreviewPlaceholder').classList.add('hidden');
                 document.getElementById('btnScanImage').disabled = false;
                 window.setScoutMode('image');
             };
             reader.readAsDataURL(file);
-        };
-
-        window.handleImageUpload = (e) => {
-            if (e.target.files && e.target.files[0]) window.loadFlyerFile(e.target.files[0]);
-        };
+        }
 
         window.clearFlyerImage = () => {
-            currentBase64Image = null;
-            const imgEl = document.getElementById('flyerPreviewImg');
-            if (imgEl) {
-                imgEl.src = '';
-                imgEl.classList.add('hidden');
-            }
-            document.getElementById('imagePreviewPlaceholder')?.classList.remove('hidden');
-            const btn = document.getElementById('btnScanImage');
-            if (btn) btn.disabled = true;
-            const fileInp = document.getElementById('flyerFileInput');
-            if (fileInp) fileInp.value = '';
+            uploadedImageBase64 = null;
+            document.getElementById('flyerFileInput').value = "";
+            document.getElementById('flyerPreviewImg').classList.add('hidden');
+            document.getElementById('imagePreviewPlaceholder').classList.remove('hidden');
+            document.getElementById('btnScanImage').disabled = true;
         };
 
-        // Global Ctrl+V Paste listener: attaches to focused sandbox card if active, otherwise left panel
-        document.addEventListener('paste', (e) => {
-            const items = e.clipboardData?.items;
-            if (!items) return;
-            for (let item of items) {
-                if (item.type.startsWith('image/')) {
-                    const file = item.getAsFile();
-                    if (activeCardFocusIdx >= 0 && scoutedEvents[activeCardFocusIdx]) {
-                        window.attachFlyerToCard(activeCardFocusIdx, file);
-                    } else {
-                        window.loadFlyerFile(file);
-                    }
-                    break;
-                }
-            }
-        });
-
-        window.setLoading = (isLoading, message = "Analyzing events...") => {
-            const loader = document.getElementById('scoutLoadingState');
-            const empty = document.getElementById('scoutEmptyState');
-            const list = document.getElementById('scoutResultsList');
-            const txt = document.getElementById('scoutLoadingText');
-            if (txt) txt.textContent = message;
-            if (loader) loader.classList.toggle('hidden', !isLoading);
+        function setLoading(isLoading, text = "Analyzing...") {
+            document.getElementById('scoutLoadingState').classList.toggle('hidden', !isLoading);
+            document.getElementById('scoutLoadingText').textContent = text;
             if (isLoading) {
-                if (empty) empty.classList.add('hidden');
-                if (list) list.classList.add('hidden');
-            } else {
-                if (list) list.classList.remove('hidden');
+                document.getElementById('scoutEmptyState').classList.add('hidden');
             }
-        };
+        }
 
-        // --- GEMINI AI EXTRACTION (TEXT & VISION) ---
-        async function callGeminiScout(parts) {
-            const targetPeriod = document.getElementById('targetPeriodSelect')?.value || '';
-            const peakObj = PEAK_DATES.find(p => p.name === targetPeriod);
-            const referenceDateContext = peakObj ? `Target Full Moon Period: ${peakObj.name} (Peak Date: ${peakObj.date}).` : `Current Date: ${window.getLocalDateString()}.`;
-
+        async function callGeminiScout(userPrompt, base64Image = null, mimeType = "image/png") {
+            const todayIso = new Date().toISOString().split('T')[0];
             const knownVenues = Object.entries(nameTagDatabase)
-                .filter(([_, v]) => v.category === 'Venue' || v.category === 'Presenter')
-                .map(([k, v]) => `${k} (${v.tag})`).join(', ');
+                .filter(([, d]) => d.category === 'Venue' || d.category === 'Presenter')
+                .map(([n]) => n)
+                .slice(0, 80)
+                .join(', ');
 
-            const systemPrompt = `You are an expert Koh Phangan party & event scout for Full Moon Week.
-Extract all distinct events from the user's messy text dump (Telegram, Facebook, website) or flyer screenshot.
-${referenceDateContext}
-Known Venues in DB: ${knownVenues}
-
+            const systemPrompt = `You are an expert Koh Phangan party & event scout for Full Moon Week. Today's date is ${todayIso}.
+Extract EVERY distinct party/event from the input into a clean JSON array.
 Rules:
-1. Convert all dates to strict YYYY-MM-DD format. Infer the year and month from the target period (${peakObj ? peakObj.date : '2026'}) if only day/month or weekday is written.
-2. Match venue names to the Known Venues list whenever applicable.
-3. Extract all DJs / Artists / Performers into the "artists" array.
-4. Keep "description" clean and well-formatted with the lineup, hours, and key info.
-5. Return ONLY a valid JSON array of objects with keys: "eventName", "date", "location", "artists" (array of strings), "description".`;
+1. Convert all dates into strict YYYY-MM-DD format. If year is omitted, assume the next upcoming occurrence relative to ${todayIso}.
+2. Match venue names cleanly (Known Koh Phangan venues include: ${knownVenues}).
+3. Extract all DJs/artists listed on the lineup into the "lineup" array.
+4. Keep "rawDescription" clean and readable with promo text and lineup details.
+5. Output ONLY a valid JSON array matching this exact schema:
+[
+  {
+    "date": "YYYY-MM-DD",
+    "eventName": "Party Title",
+    "location": "Venue Name",
+    "lineup": ["DJ 1", "DJ 2"],
+    "rawDescription": "Clean promo caption & lineup"
+  }
+]`;
 
-            const apiKey = "";
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const parts = [{ text: userPrompt }];
+            if (base64Image) {
+                parts.push({ inlineData: { mimeType: mimeType, data: base64Image } });
+            }
 
             const payload = {
-                contents: [{ role: "user", parts: parts }],
+                contents: [{ role: "user", parts }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                eventName: { type: "STRING" },
-                                date: { type: "STRING" },
-                                location: { type: "STRING" },
-                                artists: { type: "ARRAY", items: { type: "STRING" } },
-                                description: { type: "STRING" }
-                            },
-                            required: ["eventName", "date", "location", "artists", "description"]
-                        }
-                    }
-                }
+                generationConfig: { responseMimeType: "application/json" }
             };
 
-            const res = await fetch(url, {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
-            if (!res.ok) {
-                const errText = await res.text();
-                throw new Error(`API Error ${res.status}: ${errText}`);
-            }
-
-            const data = await res.json();
-            const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-            return JSON.parse(rawJson);
+            if (!response.ok) throw new Error(`Gemini API HTTP ${response.status}`);
+            const data = await response.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+            return JSON.parse(rawText);
         }
 
-        function enrichWithTagDB(ev) {
-            const results = [];
-            const seenNames = new Set();
+        function enrichWithTagDB(extractedList) {
+            return (extractedList || []).map(ev => {
+                const matchedHandles = [];
+                const seenTags = new Set();
+                const searchBlob = `${ev.eventName || ''} ${ev.location || ''} ${(ev.lineup || []).join(' ')} ${ev.rawDescription || ''}`.toLowerCase();
 
-            const checkAndAdd = (rawName) => {
-                if (!rawName) return;
-                const clean = rawName.trim();
-                const low = clean.toLowerCase();
-                if (seenNames.has(low)) return;
-                seenNames.add(low);
+                Object.entries(nameTagDatabase).forEach(([name, info]) => {
+                    if (!name || !info.tag) return;
+                    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    if (new RegExp(`\\b${escaped}\\b`, 'i').test(searchBlob)) {
+                        const cleanHandle = info.tag.replace(/^@/, '');
+                        if (!seenTags.has(cleanHandle.toLowerCase())) {
+                            seenTags.add(cleanHandle.toLowerCase());
+                            matchedHandles.push({
+                                name,
+                                tag: info.tag,
+                                category: info.category || 'Other',
+                                igUrl: `https://www.instagram.com/${cleanHandle}/`
+                            });
+                        }
+                    }
+                });
 
-                const dbMatch = Object.entries(nameTagDatabase).find(([k]) => k.toLowerCase() === low || low.includes(k.toLowerCase()));
-                if (dbMatch) {
-                    results.push({ name: dbMatch[0], tag: dbMatch[1].tag, matched: true });
-                } else {
-                    results.push({ name: clean, tag: null, matched: false });
-                }
-            };
-
-            if (ev.location) checkAndAdd(ev.location);
-            if (Array.isArray(ev.artists)) ev.artists.forEach(a => checkAndAdd(a));
-
-            Object.entries(nameTagDatabase).forEach(([k, v]) => {
-                if (k.length < 3 || seenNames.has(k.toLowerCase())) return;
-                const reg = new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-                if (reg.test(ev.description || '') || reg.test(ev.eventName || '')) {
-                    seenNames.add(k.toLowerCase());
-                    results.push({ name: k, tag: v.tag, matched: true });
-                }
-            });
-
-            return results;
-        }
-
-        function mergeAndSortSandbox(newItems) {
-            newItems.forEach(item => {
-                const normalized = {
-                    id: 'sb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-                    eventName: item.eventName || 'Untitled Event',
-                    date: item.date || window.getLocalDateString(),
-                    location: item.location || '',
-                    artists: Array.isArray(item.artists) ? item.artists : [],
-                    description: item.description || '',
+                return {
+                    id: `scout_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    date: ev.date || new Date().toISOString().split('T')[0],
+                    eventName: ev.eventName || "Untitled Event",
+                    location: ev.location || "",
+                    lineup: Array.isArray(ev.lineup) ? ev.lineup : [],
+                    rawDescription: ev.rawDescription || "",
+                    matchedHandles,
                     selected: true,
                     pushed: false,
                     flyerDataUrl: null,
                     flyerUrl: null,
-                    statusNote: 'draft'
+                    isVideo: false
                 };
-                // Avoid exact duplicate in sandbox
-                const dup = scoutedEvents.some(existing => existing.date === normalized.date && existing.eventName.toLowerCase() === normalized.eventName.toLowerCase());
-                if (!dup) scoutedEvents.push(normalized);
             });
-            // Sort strictly chronologically by date, then event name
-            scoutedEvents.sort((a, b) => (a.date || '9999-99-99').localeCompare(b.date || '9999-99-99') || a.eventName.localeCompare(b.eventName));
-            saveSandboxToFirebase();
         }
 
         async function saveSandboxToFirebase() {
             if (!db) return;
             try {
                 const { doc, setDoc } = window.fb;
-                // Strip raw heavy base64 from Firestore sync if > 200KB (keep in memory for upload, store metadata/URLs in Firestore)
-                const lightweightList = scoutedEvents.map(ev => ({
-                    ...ev,
-                    flyerDataUrl: (ev.flyerDataUrl && ev.flyerDataUrl.length < 180000) ? ev.flyerDataUrl : null
-                }));
-                await setDoc(doc(db, DB_CONFIG.SANDBOX_DB_KEY, 'main'), {
-                    items: lightweightList,
+                const serializable = scoutedEvents.map(e => ({ ...e, flyerDataUrl: null }));
+                await setDoc(doc(db, 'scout_sandbox', 'main'), {
+                    events: serializable,
                     updatedAt: new Date().toISOString()
                 });
             } catch (e) {
@@ -606,59 +506,271 @@ Rules:
             }
         }
 
+        function deduplicateSandboxList(list) {
+            const unique = [];
+            const seen = new Set();
+            for (const item of list) {
+                const normName = (item.eventName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const normLoc = (item.location || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const key = `${item.date}|${normName || normLoc}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    unique.push(item);
+                }
+            }
+            return unique;
+        }
+
+        function mergeAndSortSandbox(newItems) {
+            const combined = [...scoutedEvents, ...(Array.isArray(newItems) ? newItems : [])];
+            scoutedEvents = deduplicateSandboxList(combined);
+            scoutedEvents.sort((a, b) => (a.date || '9999-99-99').localeCompare(b.date || '9999-99-99'));
+            saveSandboxToFirebase();
+            window.renderScoutedResults();
+        }
+
         window.scanTextWithAI = async () => {
-            const rawText = document.getElementById('rawScoutText')?.value.trim();
-            if (!rawText) {
+            const raw = (document.getElementById('rawScoutText')?.value || '').trim();
+            if (!raw) {
                 window.showToast("Paste some text first!", "⚠️");
                 return;
             }
-            window.setLoading(true, "Scanning text, sorting by date & matching Tag DB...");
+            setLoading(true, "Extracting events from text & sorting by date...");
             try {
-                const results = await callGeminiScout([{ text: rawText }]);
-                mergeAndSortSandbox(results || []);
-                window.renderScoutedResults();
-                window.showToast(`Added ${(results || []).length} event(s) to Sandbox!`);
+                const results = await callGeminiScout(`Extract all party/event announcements from this raw text dump:\n\n${raw}`);
+                const enriched = enrichWithTagDB(results);
+                mergeAndSortSandbox(enriched);
+                document.getElementById('rawScoutText').value = '';
+                window.showToast(`Added ${enriched.length} event(s) to Sandbox!`);
             } catch (err) {
-                window.showToast("Scan failed: " + err.message, "❌");
+                console.error(err);
+                window.showToast("Error scanning text: " + err.message, "❌");
             } finally {
-                window.setLoading(false);
+                setLoading(false);
             }
         };
 
         window.scanImageWithAI = async () => {
-            if (!currentBase64Image) return;
-            window.setLoading(true, "Reading flyer poster & extracting lineup...");
+            if (!uploadedImageBase64) return;
+            setLoading(true, "Reading flyer text & matching DJs/venues...");
             try {
-                const results = await callGeminiScout([
-                    { text: "Extract the event details, date, venue, and full DJ lineup from this party flyer." },
-                    { inlineData: { mimeType: currentImageMime, data: currentBase64Image } }
-                ]);
-                const dataUrl = `data:${currentImageMime};base64,${currentBase64Image}`;
-                const enrichedResults = (results || []).map(r => ({ ...r, flyerDataUrl: dataUrl }));
-                mergeAndSortSandbox(enrichedResults);
-                // Attach the flyer preview to the newly added items in memory
-                scoutedEvents.forEach(ev => {
-                    if (enrichedResults.some(r => r.date === ev.date && r.eventName === ev.eventName)) {
-                        ev.flyerDataUrl = dataUrl;
-                    }
-                });
-                window.renderScoutedResults();
-                window.showToast("Flyer scanned & attached to Sandbox card!");
+                const results = await callGeminiScout("Read this party flyer/poster and extract the event details and full DJ lineup.", uploadedImageBase64, uploadedImageMime);
+                const enriched = enrichWithTagDB(results);
+                if (enriched.length > 0 && uploadedImageBase64) {
+                    enriched[0].flyerDataUrl = `data:${uploadedImageMime};base64,${uploadedImageBase64}`;
+                    enriched[0].isVideo = uploadedImageMime.startsWith('video/');
+                }
+                mergeAndSortSandbox(enriched);
+                window.clearFlyerImage();
+                window.showToast(`Extracted ${enriched.length} event(s) from flyer!`);
             } catch (err) {
-                window.showToast("Flyer scan failed: " + err.message, "❌");
+                console.error(err);
+                window.showToast("Error reading flyer: " + err.message, "❌");
             } finally {
-                window.setLoading(false);
+                setLoading(false);
             }
         };
-        // --- PER-CARD SANDBOX ACTIONS ---
-        window.toggleSandboxCheck = (idx, checked) => {
-            if (!scoutedEvents[idx]) return;
-            scoutedEvents[idx].selected = checked;
-            saveSandboxToFirebase();
-            window.renderScoutedResults();
+
+        window.attachFlyerToCard = (idx, file) => {
+            if (!file || !scoutedEvents[idx]) return;
+            const isVideo = file.type.startsWith('video/');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                scoutedEvents[idx].flyerDataUrl = e.target.result;
+                scoutedEvents[idx].flyerUrl = null;
+                scoutedEvents[idx].isVideo = isVideo;
+                window.renderScoutedResults();
+                window.showToast(`Attached ${isVideo ? 'video' : 'flyer'} to "${scoutedEvents[idx].eventName}"`, "🖼️");
+            };
+            reader.readAsDataURL(file);
         };
 
-        window.removeSandboxCard = (idx) => {
+        window.extractTextFromCardFlyer = async (idx) => {
+            const ev = scoutedEvents[idx];
+            if (!ev || !ev.flyerDataUrl || ev.isVideo) return;
+            setLoading(true, `Reading flyer for "${ev.eventName}"...`);
+            try {
+                const [header, b64] = ev.flyerDataUrl.split(',');
+                const mime = header.match(/:(.*?);/)?.[1] || 'image/png';
+                const results = await callGeminiScout("Extract the clean promo caption, lineup, and details from this event poster.", b64, mime);
+                if (results && results[0]) {
+                    if (results[0].rawDescription) ev.rawDescription = results[0].rawDescription;
+                    if (results[0].location && !ev.location) ev.location = results[0].location;
+                    const reEnriched = enrichWithTagDB([ev])[0];
+                    ev.matchedHandles = reEnriched.matchedHandles;
+                    saveSandboxToFirebase();
+                    window.renderScoutedResults();
+                    window.showToast("Flyer text & tags extracted!", "✨");
+                }
+            } catch (err) {
+                window.showToast("Flyer read error: " + err.message, "❌");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        window.autoTagCardDescription = (idx) => {
+            const ev = scoutedEvents[idx];
+            if (!ev) return;
+            let text = ev.rawDescription || '';
+            Object.entries(nameTagDatabase)
+                .sort((a, b) => b[0].length - a[0].length)
+                .forEach(([name, info]) => {
+                    if (!name || !info.tag) return;
+                    const reg = new RegExp(`(\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi');
+                    if (reg.test(text) && !text.toLowerCase().includes(info.tag.toLowerCase())) {
+                        text = text.replace(reg, `$1 ${info.tag}`);
+                    }
+                });
+            ev.rawDescription = text;
+            const reEnriched = enrichWithTagDB([ev])[0];
+            ev.matchedHandles = reEnriched.matchedHandles;
+            saveSandboxToFirebase();
+            window.renderScoutedResults();
+            window.showToast("Auto-tagged description!", "🏷️");
+        };
+
+        async function uploadFlyerToFirebaseStorage(ev) {
+            if (ev.flyerUrl) return ev.flyerUrl;
+            if (!ev.flyerDataUrl) return null;
+            if (!storage) {
+                throw new Error("Firebase Storage is not initialized.");
+            }
+            const { ref, uploadBytes, getDownloadURL } = window.fb;
+            const res = await fetch(ev.flyerDataUrl);
+            const blob = await res.blob();
+            const ext = ev.isVideo ? 'mp4' : (blob.type.split('/')[1] || 'jpg');
+            const safeName = `${ev.date}_${ev.eventName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.${ext}`;
+            const storageRef = ref(storage, `flyers/${safeName}`);
+            const uploadTask = uploadBytes(storageRef, blob, { contentType: blob.type }).then(() => getDownloadURL(storageRef));
+            const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error("Storage upload timed out. Make sure Storage Rules allow 'write: if request.auth != null;' in Firebase Console → Storage → Rules.")), 12000));
+            const downloadUrl = await Promise.race([uploadTask, timeoutTask]);
+            ev.flyerUrl = downloadUrl;
+            return downloadUrl;
+        }
+
+        async function refreshLatestScheduleFromFirestore() {
+            if (!db) return;
+            const { getDocs, collection } = window.fb;
+            const schedSnaps = await getDocs(collection(db, 'event_schedule'));
+            const chunks = [];
+            schedSnaps.forEach(d => {
+                if (d.id.startsWith('chunk_')) chunks.push(d.data());
+                else if (d.id === 'main' && d.data().events) chunks.push({ chunkIndex: 0, events: d.data().events });
+            });
+            chunks.sort((a, b) => (a.chunkIndex || 0) - (b.chunkIndex || 0));
+            const fresh = [];
+            chunks.forEach(c => { if (Array.isArray(c.events)) fresh.push(...c.events); });
+            if (fresh.length > 0) {
+                eventSchedule = fresh;
+            }
+        }
+
+        window.pushSingleToSchedule = async (idx, skipSave = false) => {
+            const ev = scoutedEvents[idx];
+            if (!ev) return false;
+            try {
+                if (!db) {
+                    throw new Error("Not connected to Firebase yet. Wait a second and try again.");
+                }
+
+                await refreshLatestScheduleFromFirestore();
+
+                let uploadedUrl = ev.flyerUrl || null;
+                if (ev.flyerDataUrl && !uploadedUrl) {
+                    window.showToast(`Uploading ${ev.isVideo ? 'video' : 'flyer'} for "${ev.eventName}"...`, "⏳");
+                    try {
+                        uploadedUrl = await uploadFlyerToFirebaseStorage(ev);
+                    } catch (storageErr) {
+                        console.error("Flyer upload failed:", storageErr);
+                        window.showToast(`Storage blocked flyer (${storageErr.message}). Saving event text without media...`, "⚠️");
+                    }
+                }
+
+                const dFriendly = new Date(ev.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                const hashes = [...new Set((globalTagsString.match(/#\w+/g) || []).map(t => t.toLowerCase()))].join(' ');
+                const desc = (ev.rawDescription || '').trim();
+                const postText = `🌕Full Moon Week - Day X🌕\n🗓 DATE: ${dFriendly}\n🎉 EVENT: ${ev.eventName}\n📍 LOCATION: ${ev.location || 'Koh Phangan'}\n\n${desc}${hashes ? '\n\n' + hashes : ''}`;
+                const tagsOnly = (ev.matchedHandles || []).map(h => h.tag).join('\n');
+                const hasMedia = Boolean(uploadedUrl);
+                const isReady = Boolean(desc && hasMedia);
+
+                const newScheduleObj = {
+                    eventName: ev.eventName,
+                    date: ev.date,
+                    location: ev.location || 'Koh Phangan',
+                    postText,
+                    description: desc,
+                    tagsOnly,
+                    extraTags: '',
+                    order: eventSchedule.filter(e => e.date === ev.date).length,
+                    excludedNames: [],
+                    textStatus: isReady ? 'ready' : 'draft',
+                    isDraft: !isReady,
+                    postStatus: 'pending',
+                    storyStatus: 'pending',
+                    mediaStatus: hasMedia ? 'done' : 'pending',
+                    flyerUrl: uploadedUrl,
+                    isVideo: Boolean(ev.isVideo),
+                    isCleared: false
+                };
+
+                const existingIdx = eventSchedule.findIndex(e =>
+                    e.date === ev.date &&
+                    (e.eventName.toLowerCase() === ev.eventName.toLowerCase() ||
+                    (ev.location && e.location && e.location.toLowerCase() === ev.location.toLowerCase()))
+                );
+
+                if (existingIdx > -1) {
+                    const choice = await promptConflictComparison(eventSchedule[existingIdx], newScheduleObj);
+                    if (choice === 'cancel') return false;
+                    if (choice === 'overwrite') {
+                        newScheduleObj.order = eventSchedule[existingIdx].order || 0;
+                        eventSchedule[existingIdx] = newScheduleObj;
+                    } else if (choice === 'duplicate') {
+                        newScheduleObj.eventName = `${newScheduleObj.eventName} (2)`;
+                        eventSchedule.push(newScheduleObj);
+                    }
+                } else {
+                    eventSchedule.push(newScheduleObj);
+                }
+
+                ev.pushed = true;
+                ev.selected = false;
+
+                if (!skipSave) {
+                    await saveScheduleToFirestore();
+                    await saveSandboxToFirebase();
+                    window.renderScoutedResults();
+                    window.renderMissingRegularsRadar();
+                    window.showToast(`Pushed "${ev.eventName}" (${ev.date}) to FMW!`, "🚀");
+                }
+                return true;
+            } catch (err) {
+                console.error("Push error:", err);
+                window.showToast("Push failed: " + err.message, "❌");
+                return false;
+            }
+        };
+
+        window.pushCheckedToSchedule = async () => {
+            const indices = scoutedEvents.map((e, i) => (e.selected && !e.pushed ? i : -1)).filter(i => i !== -1);
+            if (indices.length === 0) return;
+            let pushedCount = 0;
+            for (const i of indices) {
+                const ok = await window.pushSingleToSchedule(i, true);
+                if (ok) pushedCount++;
+            }
+            if (pushedCount > 0) {
+                await saveScheduleToFirestore();
+                await saveSandboxToFirebase();
+                window.renderScoutedResults();
+                window.renderMissingRegularsRadar();
+                window.showToast(`Pushed ${pushedCount} event(s) to FMW!`, "🚀");
+            }
+        };
+
+        window.removeSandboxItem = (idx) => {
             scoutedEvents.splice(idx, 1);
             saveSandboxToFirebase();
             window.renderScoutedResults();
@@ -668,414 +780,248 @@ Rules:
             scoutedEvents = scoutedEvents.filter(e => !e.pushed);
             saveSandboxToFirebase();
             window.renderScoutedResults();
-            window.showToast("Cleared pushed items from Sandbox");
         };
 
-        window.attachFlyerToCard = (idx, file) => {
-            if (!file || (!file.type.startsWith('image/') && !file.type.startsWith('video/')) || !scoutedEvents[idx]) return;
-            const isVideo = file.type.startsWith('video/');
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                scoutedEvents[idx].flyerDataUrl = e.target.result;
-                scoutedEvents[idx].flyerUrl = null;
-                scoutedEvents[idx].isVideo = isVideo;
-                window.renderScoutedResults();
-                window.showToast(`Attached ${isVideo ? 'video' : 'flyer'} to "${scoutedEvents[idx].eventName}"`, isVideo ? "🎬" : "🖼️");
-            };
-            reader.readAsDataURL(file);
+        window.renderScoutedResults = () => {
+            const list = document.getElementById('scoutResultsList');
+            const empty = document.getElementById('scoutEmptyState');
+            const countSpan = document.getElementById('scoutedCount');
+            const checkedSpan = document.getElementById('checkedCountSpan');
+            const btnPushChecked = document.getElementById('btnAddCheckedDrafts');
+            const btnClearDone = document.getElementById('btnClearDismissed');
+            const btnResetPushed = document.getElementById('btnResetPushed');
+
+            if (!list) return;
+            countSpan.textContent = scoutedEvents.length;
+            const checkedCount = scoutedEvents.filter(e => e.selected).length;
+            const doneCount = scoutedEvents.filter(e => e.pushed).length;
+            checkedSpan.textContent = checkedCount;
+            btnPushChecked.classList.toggle('hidden', checkedCount === 0);
+            btnClearDone.classList.toggle('hidden', doneCount === 0);
+            if (btnResetPushed) btnResetPushed.classList.toggle('hidden', doneCount === 0);
+            empty.classList.toggle('hidden', scoutedEvents.length > 0);
+
+            list.innerHTML = '';
+            scoutedEvents.forEach((ev, idx) => {
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl border transition space-y-3 ${ev.pushed ? 'bg-emerald-50/40 border-emerald-200 opacity-75' : (ev.selected ? 'bg-white border-indigo-200 shadow-sm' : 'bg-slate-50 border-slate-200 opacity-70')}`;
+                const fileInputId = `cardFile_${idx}`;
+
+                const handlesHtml = (ev.matchedHandles || []).map(h =>
+                    `<a href="${h.igUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-50 text-pink-700 border border-pink-200 hover:bg-pink-100 transition">📸 ${h.tag}</a>`
+                ).join('');
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-start gap-2.5 flex-grow">
+                            <input type="checkbox" ${ev.selected ? 'checked' : ''} onchange="scoutedEvents[${idx}].selected = this.checked; saveSandboxToFirebase(); window.renderScoutedResults();" class="mt-1 w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-grow">
+                                <input type="date" value="${ev.date}" onchange="scoutedEvents[${idx}].date = this.value; mergeAndSortSandbox([]);" class="p-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-slate-50">
+                                <input type="text" value="${ev.eventName.replace(/"/g, '&quot;')}" onchange="scoutedEvents[${idx}].eventName = this.value; saveSandboxToFirebase();" placeholder="Event Name" class="p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-indigo-950">
+                                <input type="text" value="${(ev.location || '').replace(/"/g, '&quot;')}" onchange="scoutedEvents[${idx}].location = this.value; saveSandboxToFirebase();" placeholder="📍 Venue" class="p-1.5 border border-slate-200 rounded-lg text-xs text-slate-700">
+                            </div>
+                        </div>
+                        <button onclick="window.removeSandboxItem(${idx})" title="Remove" class="text-slate-400 hover:text-rose-600 text-xs font-bold px-1.5 py-1">✕</button>
+                    </div>
+
+                    ${handlesHtml ? `<div class="flex flex-wrap gap-1.5 pl-6">${handlesHtml}</div>` : ''}
+
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 pl-6">
+                        <div class="sm:col-span-8 space-y-1.5">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">IG Caption / Description</span>
+                                <button onclick="window.autoTagCardDescription(${idx})" class="text-[10px] font-bold text-indigo-600 hover:underline">🏷️ Auto-Tag</button>
+                            </div>
+                            <textarea rows="4" onchange="scoutedEvents[${idx}].rawDescription = this.value; saveSandboxToFirebase();" class="w-full p-2 border border-slate-200 rounded-xl text-xs leading-relaxed outline-none focus:border-indigo-500">${ev.rawDescription || ''}</textarea>
+                        </div>
+
+                        <div class="sm:col-span-4 flex flex-col justify-between bg-slate-50 border border-slate-200 rounded-xl p-2">
+                            <input type="file" id="${fileInputId}" accept="image/*,video/*" class="hidden" onchange="if(this.files[0]) window.attachFlyerToCard(${idx}, this.files[0])">
+                            ${(ev.flyerDataUrl || ev.flyerUrl) ? `
+                                <div class="relative flex-grow flex items-center justify-center bg-slate-900 rounded-lg overflow-hidden min-h-[90px]">
+                                    ${ev.isVideo
+                                        ? `<video src="${ev.flyerDataUrl || ev.flyerUrl}" class="max-h-28 w-full object-contain" muted loop autoplay playsinline></video>`
+                                        : `<img src="${ev.flyerDataUrl || ev.flyerUrl}" class="max-h-28 w-full object-contain" alt="Flyer">`
+                                    }
+                                </div>
+                                <div class="flex gap-1 mt-1.5">
+                                    <button onclick="document.getElementById('${fileInputId}').click()" class="flex-1 py-1 bg-white border border-slate-300 rounded text-[10px] font-bold text-slate-700 hover:bg-slate-100">Change</button>
+                                    ${!ev.isVideo && ev.flyerDataUrl ? `<button onclick="window.extractTextFromCardFlyer(${idx})" class="flex-1 py-1 bg-indigo-50 border border-indigo-200 rounded text-[10px] font-bold text-indigo-700 hover:bg-indigo-100">👁️ Read</button>` : ''}
+                                </div>
+                            ` : `
+                                <div onclick="document.getElementById('${fileInputId}').click()" class="flex-grow border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-lg flex flex-col items-center justify-center text-center p-2 cursor-pointer transition min-h-[90px]">
+                                    <span class="text-lg">🖼️</span>
+                                    <span class="text-[10px] font-bold text-slate-600 mt-1">Attach Flyer / Video</span>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end items-center gap-2 pl-6 pt-1 border-t border-slate-100">
+                        ${ev.pushed
+                            ? `<span class="text-xs font-bold text-emerald-700">✅ Pushed</span><button onclick="window.pushSingleToSchedule(${idx})" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold rounded-xl transition">🔄 Re-Push</button>`
+                            : `<button onclick="window.pushSingleToSchedule(${idx})" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">🚀 Push to FMW</button>`
+                        }
+                    </div>
+                `;
+                list.appendChild(card);
+            });
         };
 
-        window.scanCardFlyerForText = async (idx) => {
-            const ev = scoutedEvents[idx];
-            if (!ev || !ev.flyerDataUrl || ev.isVideo) return;
-            window.showToast("Reading flyer text & lineup...", "👁️");
-            try {
-                const mime = ev.flyerDataUrl.split(';')[0].split(':')[1] || 'image/png';
-                const b64 = ev.flyerDataUrl.split(',')[1];
-                const parsed = await callGeminiScout([
-                    { text: "Extract the event description, DJ lineup, entry details, and hours from this flyer." },
-                    { inlineData: { mimeType: mime, data: b64 } }
-                ]);
-                if (parsed && parsed[0]) {
-                    if (parsed[0].description) ev.description = parsed[0].description;
-                    if (parsed[0].location && !ev.location) ev.location = parsed[0].location;
-                    if (Array.isArray(parsed[0].artists) && parsed[0].artists.length > 0) {
-                        ev.artists = [...new Set([...(ev.artists || []), ...parsed[0].artists])];
-                    }
-                    saveSandboxToFirebase();
-                    window.renderScoutedResults();
-                    window.showToast("Updated card text & lineup from flyer!");
-                }
-            } catch (err) {
-                window.showToast("Could not read flyer: " + err.message, "❌");
-            }
+        window.resetAllPushedFlags = () => {
+            scoutedEvents.forEach(e => { e.pushed = false; e.selected = true; });
+            saveSandboxToFirebase();
+            window.renderScoutedResults();
+            window.showToast("Unlocked all items for re-pushing!", "🔄");
         };
 
-        async function uploadFlyerToFirebaseStorage(ev) {
-            if (ev.flyerUrl) return ev.flyerUrl;
-            if (!ev.flyerDataUrl) return null;
-            if (storage) {
-                try {
-                    const { ref, uploadString, getDownloadURL } = window.fb;
-                    const ext = ev.isVideo ? 'mp4' : 'jpg';
-                    const safeName = `${ev.date}_${ev.eventName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.${ext}`;
-                    const storageRef = ref(storage, `flyers/${safeName}`);
-                    const uploadTask = uploadString(storageRef, ev.flyerDataUrl, 'data_url').then(() => getDownloadURL(storageRef));
-                    const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error("Storage upload timeout")), 5000));
-                    const downloadUrl = await Promise.race([uploadTask, timeoutTask]);
-                    ev.flyerUrl = downloadUrl;
-                    return downloadUrl;
-                } catch (err) {
-                    console.warn("Firebase Storage not active or timed out, using inline compressed fallback:", err);
-                }
-            }
-            // Fallback: compress image so it fits safely inside Firestore without needing Cloud Storage enabled
-            if (!ev.isVideo && ev.flyerDataUrl.startsWith('data:image/')) {
-                try {
-                    return await new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const maxDim = 900;
-                            let w = img.width, h = img.height;
-                            if (w > maxDim || h > maxDim) {
-                                if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-                                else { w = Math.round(w * maxDim / h); h = maxDim; }
-                            }
-                            canvas.width = w;
-                            canvas.height = h;
-                            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                            resolve(canvas.toDataURL('image/jpeg', 0.72));
-                        };
-                        img.onerror = () => resolve(null);
-                        img.src = ev.flyerDataUrl;
-                    });
-                } catch (e) {
-                    return null;
+        window.renderQuickTagLookup = () => {
+            const q = (document.getElementById('quickTagLookupInput')?.value || '').trim().toLowerCase();
+            const res = document.getElementById('quickTagLookupResults');
+            const dbCount = document.getElementById('dbCountSpan');
+            if (dbCount) dbCount.textContent = Object.keys(nameTagDatabase).length;
+            if (!res) return;
+
+            const entries = Object.entries(nameTagDatabase)
+                .filter(([name, info]) => !q || name.toLowerCase().includes(q) || (info.tag || '').toLowerCase().includes(q))
+                .slice(0, 24);
+
+            res.innerHTML = entries.map(([name, info]) => {
+                const handle = (info.tag || '').replace(/^@/, '');
+                return `<a href="https://www.instagram.com/${handle}/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 hover:bg-pink-50 text-slate-700 hover:text-pink-700 border border-slate-200 transition">📸 ${name}</a>`;
+            }).join('');
+        };
+
+        function findIgHandleForVenue(venueName) {
+            if (!venueName) return null;
+            const low = venueName.toLowerCase().trim();
+            for (const [name, info] of Object.entries(nameTagDatabase)) {
+                if (!info.tag) continue;
+                const nLow = name.toLowerCase().trim();
+                if (nLow === low || low.includes(nLow) || nLow.includes(low)) {
+                    const clean = info.tag.replace(/^@/, '').trim();
+                    if (clean) return { handle: clean, tag: info.tag };
                 }
             }
             return null;
         }
 
-        window.renderScoutedResults = () => {
-            const list = document.getElementById('scoutResultsList');
-            const empty = document.getElementById('scoutEmptyState');
-            const countEl = document.getElementById('scoutedCount');
-            const pushCheckedBtn = document.getElementById('btnAddCheckedDrafts');
-            const checkedSpan = document.getElementById('checkedCountSpan');
-            const clearDoneBtn = document.getElementById('btnClearDismissed');
+        window.renderMissingRegularsRadar = () => {
+            const period = document.getElementById('targetPeriodSelect')?.value;
+            const missingCont = document.getElementById('missingVenuesContainer');
+            const schedCont = document.getElementById('scheduledVenuesContainer');
+            if (!period || !missingCont || !schedCont) return;
 
-            countEl.textContent = scoutedEvents.length;
-            const checkedReadyCount = scoutedEvents.filter(e => e.selected && !e.pushed).length;
-            const pushedCount = scoutedEvents.filter(e => e.pushed).length;
+            const freq = {};
+            eventSchedule.forEach(e => {
+                const loc = (e.location || '').trim();
+                if (!loc || loc.toLowerCase() === 'koh phangan' || loc.toLowerCase() === 'location') return;
+                freq[loc] = (freq[loc] || 0) + 1;
+            });
 
-            if (checkedSpan) checkedSpan.textContent = checkedReadyCount;
-            if (pushCheckedBtn) pushCheckedBtn.classList.toggle('hidden', checkedReadyCount === 0);
-            if (clearDoneBtn) clearDoneBtn.classList.toggle('hidden', pushedCount === 0);
+            const topVenues = Object.entries(freq)
+                .filter(([, count]) => count >= 2)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 22)
+                .map(([loc]) => loc);
 
-            if (scoutedEvents.length === 0) {
-                empty.classList.remove('hidden');
-                list.innerHTML = '';
-                return;
-            }
+            const scheduledThisPeriod = eventSchedule
+                .filter(e => window.getPeriodForDate(e.date) === period)
+                .map(e => (e.location || '').toLowerCase());
 
-            empty.classList.add('hidden');
+            const missing = [];
+            const scheduled = [];
 
-            list.innerHTML = scoutedEvents.map((ev, idx) => {
-                const enriched = enrichWithTagDB(ev);
-                const alreadyExists = eventSchedule.some(s => s.date === ev.date && s.eventName.toLowerCase() === ev.eventName.toLowerCase());
-                const hasFlyer = Boolean(ev.flyerDataUrl || ev.flyerUrl);
+            topVenues.forEach(v => {
+                const vLow = v.toLowerCase();
+                const isScheduled = scheduledThisPeriod.some(s => s.includes(vLow) || vLow.includes(s));
+                if (isScheduled) scheduled.push(v);
+                else missing.push(v);
+            });
 
-                const igChipsHtml = enriched.map(item => {
-                    if (item.matched && item.tag) {
-                        return `<button onclick="window.openInstagramHandle('${item.tag}')" title="Open ${item.tag} on Instagram" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 transition">
-                            <span>${item.name}</span>
-                            <span class="font-mono text-indigo-600 text-[10px]">${item.tag}</span>
-                            <span class="text-[9px]">↗</span>
-                        </button>`;
-                    } else {
-                        return `<button onclick="window.openInstagramHandle('${item.name.replace(/'/g, "\\'")}')" title="Search Instagram for ${item.name}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 hover:bg-pink-50 text-slate-700 hover:text-pink-700 border border-slate-200 transition">
-                            <span>${item.name}</span>
-                            <span class="text-[9px] text-pink-600 font-bold">IG 🔍</span>
-                        </button>`;
+            document.getElementById('missingCountBadge').textContent = `${missing.length} Missing`;
+            document.getElementById('scheduledCountBadge').textContent = `${scheduled.length} Scheduled`;
+
+            missingCont.innerHTML = missing.length === 0
+                ? `<span class="text-xs text-emerald-700 font-bold">All top regular venues are scheduled for ${period}!</span>`
+                : missing.map(v => {
+                    const ig = findIgHandleForVenue(v);
+                    if (ig) {
+                        return `<a href="https://www.instagram.com/${ig.handle}/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition">📸 ${v} <span class="text-[10px] text-rose-500">${ig.tag}</span></a>`;
                     }
+                    return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">⚠️ ${v}</span>`;
                 }).join('');
 
-                return `
-                    <div onclick="activeCardFocusIdx = ${idx}" class="p-3.5 rounded-xl border-2 ${ev.pushed ? 'border-emerald-300 bg-emerald-50/30 opacity-85' : (ev.selected ? 'border-indigo-200 bg-white shadow-sm' : 'border-slate-200 bg-slate-50/60 opacity-60')} space-y-2.5 transition">
-                        <!-- Top Bar: Checkbox, Editable Date/Title/Venue, Push & Dismiss -->
-                        <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div class="flex items-start gap-2.5 flex-grow min-w-0">
-                                <input type="checkbox" ${ev.selected ? 'checked' : ''} onchange="window.toggleSandboxCheck(${idx}, this.checked)" class="mt-1 w-4 h-4 rounded accent-indigo-600 cursor-pointer flex-none">
-                                <div class="space-y-1 flex-grow min-w-0">
-                                    <div class="flex flex-wrap items-center gap-1.5">
-                                        <input type="date" value="${ev.date}" onchange="scoutedEvents[${idx}].date = this.value; mergeAndSortSandbox([]); window.renderScoutedResults();" class="px-1.5 py-0.5 rounded bg-indigo-600 text-white font-mono text-[10px] font-bold outline-none cursor-pointer">
-                                        <input type="text" value="${ev.eventName.replace(/"/g, '&quot;')}" onchange="scoutedEvents[${idx}].eventName = this.value; saveSandboxToFirebase();" class="text-sm font-black text-slate-900 bg-transparent border-b border-transparent focus:border-indigo-400 outline-none flex-grow min-w-[140px]">
-                                        ${alreadyExists ? `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">In FMW</span>` : ''}
-                                    </div>
-                                    <div class="flex items-center gap-1 text-xs font-bold text-slate-600">
-                                        <span>📍</span>
-                                        <input type="text" value="${(ev.location || '').replace(/"/g, '&quot;')}" placeholder="Venue..." onchange="scoutedEvents[${idx}].location = this.value; saveSandboxToFirebase(); window.renderScoutedResults();" class="bg-transparent border-b border-transparent focus:border-indigo-400 outline-none w-full">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center gap-1.5 flex-none">
-                                <button onclick="window.addScoutedEventToFirebase(${idx})" ${ev.pushed ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1 ${ev.pushed ? 'bg-emerald-600 text-white cursor-default' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}">
-                                    ${ev.pushed ? '✓ In FMW' : '🚀 Push to FMW'}
-                                </button>
-                                <button onclick="window.removeSandboxCard(${idx})" title="Remove from Sandbox" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition">✕</button>
-                            </div>
-                        </div>
-
-                        <!-- Step 1: Clickable IG Handles -->
-                        <div class="flex flex-wrap gap-1.5 items-center pl-6">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase mr-0.5">1. Check IG:</span>
-                            ${igChipsHtml || '<span class="text-[10px] text-slate-400 italic">No handles matched</span>'}
-                        </div>
-
-                        <!-- Step 2 & 3 Split: IG Caption Text (Left) + Flyer Uploader/Scanner (Right) -->
-                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pl-6 pt-1">
-                            <div class="sm:col-span-8 flex flex-col">
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-[10px] font-bold text-slate-500 uppercase">2. Paste / Edit IG Caption Text:</span>
-                                    ${hasFlyer ? `<button onclick="window.scanCardFlyerForText(${idx})" class="text-[10px] font-bold text-indigo-600 hover:underline">👁️ Extract Text from Flyer</button>` : ''}
-                                </div>
-                                <textarea onchange="scoutedEvents[${idx}].description = this.value; saveSandboxToFirebase();" rows="4" placeholder="Paste official Instagram caption here..." class="w-full flex-grow p-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-xs text-slate-700 leading-relaxed outline-none focus:border-indigo-400">${ev.description || ''}</textarea>
-                            </div>
-
-                            <div class="sm:col-span-4 flex flex-col">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase mb-1">3. Flyer / Video:</span>
-                                <input type="file" id="cardFlyerInput_${idx}" accept="image/*,video/*" class="hidden" onchange="if(this.files[0]) window.attachFlyerToCard(${idx}, this.files[0])">
-                                ${hasFlyer ? `
-                                    <div class="relative group rounded-lg overflow-hidden border border-emerald-300 bg-slate-900 h-28 flex items-center justify-center">
-                                        ${ev.isVideo
-                                            ? `<video src="${ev.flyerDataUrl || ev.flyerUrl}" class="max-h-full max-w-full object-contain" muted loop autoplay playsinline></video>`
-                                            : `<img src="${ev.flyerDataUrl || ev.flyerUrl}" class="max-h-full max-w-full object-contain" alt="Event Flyer">`
-                                        }
-                                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1.5">
-                                            <button onclick="document.getElementById('cardFlyerInput_${idx}').click()" class="px-2 py-1 bg-white text-slate-900 rounded text-[10px] font-bold">Replace</button>
-                                            <button onclick="scoutedEvents[${idx}].flyerDataUrl=null; scoutedEvents[${idx}].flyerUrl=null; scoutedEvents[${idx}].isVideo=false; window.renderScoutedResults();" class="px-2 py-1 bg-rose-600 text-white rounded text-[10px] font-bold">Remove</button>
-                                        </div>
-                                        <span class="absolute bottom-1 right-1 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-bold rounded">${ev.isVideo ? 'VIDEO ✓' : 'GFX Ready ✓'}</span>
-                                    </div>
-                                ` : `
-                                    <div onclick="document.getElementById('cardFlyerInput_${idx}').click()" class="h-28 border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50 hover:bg-indigo-50/40 rounded-lg p-2 flex flex-col items-center justify-center text-center cursor-pointer transition">
-                                        <span class="text-lg">🖼️</span>
-                                        <span class="text-[10px] font-bold text-slate-600">Drop Image / Video</span>
-                                        <span class="text-[9px] text-slate-400">or click card & Ctrl+V</span>
-                                    </div>
-                                `}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            schedCont.innerHTML = scheduled.map(v =>
+                `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">✓ ${v}</span>`
+            ).join('');
         };
 
-        // --- SAVE SCOUTED DRAFT + FLYER TO FIREBASE ---
-        function formatEventForSchedule(ev, hostedFlyerUrl = null) {
-            let desc = ev.description || '';
-            const detectedTags = [];
-
-            // Inject matched @tags into description
-            const matches = [];
-            Object.entries(nameTagDatabase).forEach(([n, d]) => {
-                if (!n || !d.tag) return;
-                const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi');
-                let m;
-                while ((m = reg.exec(desc)) !== null) {
-                    matches.push({ name: n, tag: d.tag, index: m.index, length: n.length, isPreTagged: desc.substring(m.index + m.length, m.index + m.length + 60).toLowerCase().includes(d.tag.toLowerCase()) });
-                }
-            });
-
-            matches.sort((a, b) => b.length - a.length || a.index - b.index);
-            const valid = [];
-            const occ = new Set();
-            matches.forEach(m => {
-                let ov = false;
-                for (let i = m.index; i < m.index + m.length; i++) if (occ.has(i)) ov = true;
-                if (!ov) {
-                    valid.push(m);
-                    for (let i = m.index; i < m.index + m.length; i++) occ.add(i);
-                }
-            });
-
-            [...valid].sort((a, b) => b.index - a.index).forEach(m => {
-                if (!m.isPreTagged) {
-                    desc = desc.substring(0, m.index + m.length) + " " + m.tag + desc.substring(m.index + m.length);
-                }
-            });
-
-            valid.sort((a, b) => a.index - b.index).forEach(v => detectedTags.push(v.tag));
-            const uniqueTags = [...new Set(detectedTags)];
-            const hashes = [...new Set((globalTagsString.match(/#\w+/g) || []).map(t => t.toLowerCase()))].join(' ');
-            const fullPost = `🌕Full Moon Week - Day X🌕\n🗓 DATE: ${window.formatDateFriendly(ev.date)}\n🎉 EVENT: ${ev.eventName}\n📍 LOCATION: ${ev.location}\n\n${desc}${hashes ? "\n\n" + hashes : ""}`;
-            const hasGfx = Boolean(hostedFlyerUrl || ev.flyerDataUrl);
-
-            return {
-                eventName: ev.eventName,
-                date: ev.date,
-                location: ev.location,
-                postText: fullPost,
-                description: desc,
-                tagsOnly: uniqueTags.join('\n'),
-                extraTags: "",
-                order: eventSchedule.filter(e => e.date === ev.date).length,
-                excludedNames: [],
-                textStatus: hasGfx && desc.trim().length > 15 ? 'ready' : 'draft',
-                isDraft: !(hasGfx && desc.trim().length > 15),
-                postStatus: 'pending',
-                storyStatus: 'pending',
-                mediaStatus: hasGfx ? 'done' : 'pending',
-                flyerUrl: hostedFlyerUrl || null
-            };
-        }
-
-        async function persistScheduleToFirebase() {
-            if (!db) return;
-            const { doc, setDoc, getDocs, collection, deleteDoc } = window.fb;
-            const CHUNK_SIZE = 40;
-            const totalChunks = Math.max(1, Math.ceil(eventSchedule.length / CHUNK_SIZE));
-            for (let i = 0; i < totalChunks; i++) {
-                const chunk = eventSchedule.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-                const chunkId = `chunk_${String(i).padStart(3, '0')}`;
-                await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, chunkId), {
-                    chunkIndex: i,
-                    events: chunk,
-                    updatedAt: new Date().toISOString()
-                });
-            }
-            await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, 'meta'), {
-                totalChunks,
-                totalEvents: eventSchedule.length,
-                updatedAt: new Date().toISOString()
-            });
-            const snap = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
-            for (const d of snap.docs) {
-                if (d.id.startsWith('chunk_')) {
-                    const idx = parseInt(d.id.replace('chunk_', ''), 10);
-                    if (!isNaN(idx) && idx >= totalChunks) await deleteDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, d.id));
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items || [];
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) processImageFile(file);
+                    break;
                 }
             }
-        }
+        });
 
-        window.addScoutedEventToFirebase = async (idx) => {
-            const ev = scoutedEvents[idx];
-            if (!ev || ev.pushed) return;
-            try {
-                window.showToast(`Pushing "${ev.eventName}" to FMW...`, "⏳");
-                const hostedUrl = await uploadFlyerToFirebaseStorage(ev);
-                const formatted = formatEventForSchedule(ev, hostedUrl);
-                formatted.isVideo = Boolean(ev.isVideo);
-
-                const existingIdx = eventSchedule.findIndex(e => e.date === formatted.date && e.eventName.toLowerCase() === formatted.eventName.toLowerCase());
-                if (existingIdx > -1) {
-                    formatted.order = eventSchedule[existingIdx].order || 0;
-                    eventSchedule[existingIdx] = formatted;
-                } else {
-                    eventSchedule.push(formatted);
-                }
-
-                await persistScheduleToFirebase();
-                ev.pushed = true;
-                await saveSandboxToFirebase();
-                window.renderScoutedResults();
-                window.renderMissingRegularsRadar();
-                window.showToast(`Pushed "${ev.eventName}" to FMW! ${hostedUrl ? '(Media saved ✓)' : ''}`);
-            } catch (err) {
-                console.error("Push error:", err);
-                window.showToast("Push failed: " + err.message, "❌");
-            }
-        };
-
-        window.pushCheckedToSchedule = async () => {
-            const targets = scoutedEvents.filter(e => e.selected && !e.pushed);
-            if (targets.length === 0) return;
-            try {
-                window.showToast(`Pushing ${targets.length} checked event(s)...`, "⏳");
-                for (const ev of targets) {
-                    const hostedUrl = await uploadFlyerToFirebaseStorage(ev);
-                    const formatted = formatEventForSchedule(ev, hostedUrl);
-                    formatted.isVideo = Boolean(ev.isVideo);
-                    const existingIdx = eventSchedule.findIndex(e => e.date === formatted.date && e.eventName.toLowerCase() === formatted.eventName.toLowerCase());
-                    if (existingIdx > -1) {
-                        formatted.order = eventSchedule[existingIdx].order || 0;
-                        eventSchedule[existingIdx] = formatted;
-                    } else {
-                        eventSchedule.push(formatted);
-                    }
-                    ev.pushed = true;
-                }
-                await persistScheduleToFirebase();
-                await saveSandboxToFirebase();
-                window.renderScoutedResults();
-                window.renderMissingRegularsRadar();
-                window.showToast(`Pushed ${targets.length} event(s) into FMW Schedule!`);
-            } catch (err) {
-                console.error("Batch push error:", err);
-                window.showToast("Batch push failed: " + err.message, "❌");
-            }
-        };
-
-        // --- INITIALIZE FIREBASE ---
         async function initScoutApp() {
-            window.populatePeriodSelector();
             if (!window.fb) {
                 setTimeout(initScoutApp, 200);
                 return;
             }
+            const statusBadge = document.getElementById('fbStatusBadge');
             try {
                 const { initializeApp, getAuth, signInAnonymously, getFirestore, getStorage, doc, getDoc, getDocs, collection } = window.fb;
                 const app = initializeApp(FIREBASE_CONFIG);
-                const auth = getAuth(app);
+                auth = getAuth(app);
                 db = getFirestore(app);
                 storage = getStorage(app);
                 await signInAnonymously(auth);
 
-                // Load Schedule
-                const schedSnaps = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
+                const tagSnap = await getDoc(doc(db, 'name_tag_database', 'main'));
+                if (tagSnap.exists() && tagSnap.data().data) {
+                    nameTagDatabase = tagSnap.data().data;
+                }
+
+                const globSnap = await getDoc(doc(db, 'global_tags', 'main'));
+                if (globSnap.exists() && globSnap.data().tags) {
+                    globalTagsString = globSnap.data().tags;
+                }
+
+                const schedSnaps = await getDocs(collection(db, 'event_schedule'));
                 const chunks = [];
                 schedSnaps.forEach(d => {
                     if (d.id.startsWith('chunk_')) chunks.push(d.data());
                     else if (d.id === 'main' && d.data().events) chunks.push({ chunkIndex: 0, events: d.data().events });
                 });
                 chunks.sort((a, b) => (a.chunkIndex || 0) - (b.chunkIndex || 0));
+                eventSchedule = [];
                 chunks.forEach(c => { if (Array.isArray(c.events)) eventSchedule.push(...c.events); });
 
-                // Load Tag DB
-                const tagSnap = await getDoc(doc(db, DB_CONFIG.INSTA_DB_KEY, 'main'));
-                if (tagSnap.exists() && tagSnap.data().data) {
-                    Object.assign(nameTagDatabase, tagSnap.data().data);
+                const sandboxSnap = await getDoc(doc(db, 'scout_sandbox', 'main'));
+                if (sandboxSnap.exists() && Array.isArray(sandboxSnap.data().events)) {
+                    scoutedEvents = deduplicateSandboxList(sandboxSnap.data().events);
                 }
 
-                // Load Global Hashtags
-                const globSnap = await getDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'));
-                if (globSnap.exists() && globSnap.data().tags) {
-                    globalTagsString = globSnap.data().tags;
-                }
+                const periodSel = document.getElementById('targetPeriodSelect');
+                const todayIso = new Date().toISOString().split('T')[0];
+                const defaultPeak = PEAK_DATES.find(p => p.date >= todayIso) || PEAK_DATES[PEAK_DATES.length - 1];
+                periodSel.innerHTML = PEAK_DATES.map(p => `<option value="${p.name}" ${p.name === defaultPeak.name ? 'selected' : ''}>${p.name} Period</option>`).join('');
 
-                // Load Persistent Sandbox Items
-                const sandboxSnap = await getDoc(doc(db, DB_CONFIG.SANDBOX_DB_KEY, 'main'));
-                if (sandboxSnap.exists() && Array.isArray(sandboxSnap.data().items)) {
-                    scoutedEvents = sandboxSnap.data().items;
-                    scoutedEvents.sort((a, b) => (a.date || '9999-99-99').localeCompare(b.date || '9999-99-99'));
-                }
+                statusBadge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
+                statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live Synced`;
 
-                const badge = document.getElementById('fbStatusBadge');
-                badge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
-                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Synced (${Object.keys(nameTagDatabase).length} Tags)`;
-                const dbSpan = document.getElementById('dbCountSpan');
-                if (dbSpan) dbSpan.textContent = Object.keys(nameTagDatabase).length;
-
-                window.renderMissingRegularsRadar();
                 window.renderQuickTagLookup();
+                window.renderMissingRegularsRadar();
                 window.renderScoutedResults();
             } catch (err) {
                 console.error("Scout init error:", err);
-                const badge = document.getElementById('fbStatusBadge');
-                badge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200";
-                badge.textContent = "Sync Error";
+                statusBadge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200";
+                statusBadge.textContent = "Sync Error";
             }
         }
 
