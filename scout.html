@@ -713,21 +713,48 @@ Rules:
 
         async function uploadFlyerToFirebaseStorage(ev) {
             if (ev.flyerUrl) return ev.flyerUrl;
-            if (!ev.flyerDataUrl || !storage) return null;
-            try {
-                const { ref, uploadString, getDownloadURL } = window.fb;
-                const ext = ev.isVideo ? 'mp4' : 'jpg';
-                const safeName = `${ev.date}_${ev.eventName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.${ext}`;
-                const storageRef = ref(storage, `flyers/${safeName}`);
-                const uploadTask = uploadString(storageRef, ev.flyerDataUrl, 'data_url').then(() => getDownloadURL(storageRef));
-                const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error("Storage upload timeout")), 8000));
-                const downloadUrl = await Promise.race([uploadTask, timeoutTask]);
-                ev.flyerUrl = downloadUrl;
-                return downloadUrl;
-            } catch (err) {
-                console.warn("Storage upload fallback (saving without cloud URL):", err);
-                return null;
+            if (!ev.flyerDataUrl) return null;
+            if (storage) {
+                try {
+                    const { ref, uploadString, getDownloadURL } = window.fb;
+                    const ext = ev.isVideo ? 'mp4' : 'jpg';
+                    const safeName = `${ev.date}_${ev.eventName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.${ext}`;
+                    const storageRef = ref(storage, `flyers/${safeName}`);
+                    const uploadTask = uploadString(storageRef, ev.flyerDataUrl, 'data_url').then(() => getDownloadURL(storageRef));
+                    const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error("Storage upload timeout")), 5000));
+                    const downloadUrl = await Promise.race([uploadTask, timeoutTask]);
+                    ev.flyerUrl = downloadUrl;
+                    return downloadUrl;
+                } catch (err) {
+                    console.warn("Firebase Storage not active or timed out, using inline compressed fallback:", err);
+                }
             }
+            // Fallback: compress image so it fits safely inside Firestore without needing Cloud Storage enabled
+            if (!ev.isVideo && ev.flyerDataUrl.startsWith('data:image/')) {
+                try {
+                    return await new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const maxDim = 900;
+                            let w = img.width, h = img.height;
+                            if (w > maxDim || h > maxDim) {
+                                if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                                else { w = Math.round(w * maxDim / h); h = maxDim; }
+                            }
+                            canvas.width = w;
+                            canvas.height = h;
+                            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                            resolve(canvas.toDataURL('image/jpeg', 0.72));
+                        };
+                        img.onerror = () => resolve(null);
+                        img.src = ev.flyerDataUrl;
+                    });
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
         }
 
         window.renderScoutedResults = () => {
