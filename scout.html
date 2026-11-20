@@ -269,8 +269,9 @@
             { date: '2027-11-13', name: 'November 2027' }, { date: '2027-12-13', name: 'December 2027' },
             { date: '2027-12-31', name: 'NYE 2027' }
         ];
-
-        const apiKey = FIREBASE_CONFIG.apiKey;
+        const isCanvasPreview = window.location.hostname.includes('usercontent.goog') || window.location.protocol === 'blob:';
+        const GEMINI_API_KEY = "AQ.Ab8RN6JZnr44ueQFGzD96xv_RSkZ90EXsFgvrMqNGfREKA3h6Q";
+        const apiKey = isCanvasPreview ? "" : GEMINI_API_KEY;
         let db = null, auth = null, storage = null;
         let nameTagDatabase = {}, eventSchedule = [], globalTagsString = "";
         let scoutedEvents = [], uploadedImageBase64 = null, uploadedImageMime = "image/png";
@@ -434,12 +435,11 @@ Rules:
             }
 
             const payload = {
-                contents: [{ role: "user", parts }],
+                contents: [{ role: 'user', parts }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
                 generationConfig: { responseMimeType: "application/json" }
             };
-
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -447,7 +447,12 @@ Rules:
             });
 
             if (!response.ok) {
-                throw new Error(`Gemini API HTTP ${response.status}`);
+                let errDetail = `HTTP ${response.status}`;
+                try {
+                    const errJson = await response.json();
+                    if (errJson?.error?.message) errDetail += `: ${errJson.error.message}`;
+                } catch (e) {}
+                throw new Error(`Gemini API ${errDetail}`);
             }
             const data = await response.json();
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
