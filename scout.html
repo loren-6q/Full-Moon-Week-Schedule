@@ -991,29 +991,6 @@ Rules:
             }
         };
 
-        window.pushCheckedToSchedule = async () => {
-            const targets = scoutedEvents.filter(e => e.selected && !e.pushed);
-            if (targets.length === 0) return;
-            window.showToast(`Pushing ${targets.length} checked event(s)...`, "⏳");
-            for (const ev of targets) {
-                const hostedUrl = await uploadFlyerToFirebaseStorage(ev);
-                const formatted = formatEventForSchedule(ev, hostedUrl);
-                const existingIdx = eventSchedule.findIndex(e => e.date === formatted.date && e.eventName.toLowerCase() === formatted.eventName.toLowerCase());
-                if (existingIdx > -1) {
-                    formatted.order = eventSchedule[existingIdx].order || 0;
-                    eventSchedule[existingIdx] = formatted;
-                } else {
-                    eventSchedule.push(formatted);
-                }
-                ev.pushed = true;
-            }
-            await persistScheduleToFirebase();
-            await saveSandboxToFirebase();
-            window.renderScoutedResults();
-            window.renderMissingRegularsRadar();
-            window.showToast(`Pushed ${targets.length} event(s) into FMW Schedule!`);
-        };
-
         // --- INITIALIZE FIREBASE ---
         async function initScoutApp() {
             window.populatePeriodSelector();
