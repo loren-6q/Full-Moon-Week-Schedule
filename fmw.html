@@ -49,7 +49,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.fb = { initializeApp, getAuth, signInAnonymously, getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc };
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        window.fb = { initializeApp, getAuth, signInAnonymously, getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, getStorage, ref, uploadBytes, getDownloadURL };
     </script>
 </head>
 <body class="bg-background min-h-screen p-2 sm:p-6 font-sans max-w-full">
@@ -62,6 +63,9 @@
                     <span id="liveStatusBadge" title="Live Sync Active" class="inline-flex items-center justify-center w-5 h-5 bg-emerald-50 rounded-full border border-emerald-200">
                         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     </span>
+                    <a href="scout.html" title="Open Event Scout" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg transition flex items-center gap-1 font-bold text-xs shadow-sm">
+                        <span>🔭</span> <span>Scout</span>
+                    </a>
                     <button onclick="window.openSettingsModal()" title="Settings" class="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition flex items-center gap-1 font-bold text-xs">
                         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                     </button>
@@ -517,8 +521,7 @@
             appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
             measurementId: "G-3SS3BJQCRN"
         };
-        
-        let db = null, auth = null;
+        let db = null, auth = null, storage = null;
         let nameTagDatabase = {}, eventDatabase = {}, textSnippets = {}, eventSchedule = [];
         let globalTagsString = "", eventExtraTags = {}, isSaving = false;
         let resolveModalPromise = null, currentTagEdit = null, currentExclusions = [], pendingRecurringDates = [];
@@ -527,7 +530,9 @@
         let reuseModalTab = 'past'; 
         let calendarModalTab = 'upcoming'; 
         let currentEditorStatus = 'draft';
-        let currentEditorGfx = false; 
+        let currentEditorGfx = false;
+        let currentEditorFlyerUrl = null;
+        let currentEditorIsVideo = false;
         let currentVenueMatchIndex = -1;
         let debounceParseTimer = null;
 
@@ -773,6 +778,8 @@
             currentExclusions = [];
             currentEditorStatus = 'draft';
             currentEditorGfx = false;
+            currentEditorFlyerUrl = null;
+            currentEditorIsVideo = false;
             window.updateEditorStatusUI();
             window.updateEditorGfxUI();
             window.updateSuggestedTags();
@@ -1049,6 +1056,7 @@
                     const postRaw = e.postText || '';
                     const displayPost = postRaw.startsWith('🌕Full Moon Week') ? postRaw.replace(/^🌕Full Moon Week - Day \d+🌕/, `🌕Full Moon Week - Day ${e.dayNumber}🌕`) : `🌕Full Moon Week - Day ${e.dayNumber}🌕\n${postRaw}`;
                     const stageObj = window.getEventStageObj(e), hasGfx = e.mediaStatus === 'done';
+                    const idMediaInp = `media-${e.date}-${e.eventName}`.replace(/[^a-z0-9]/gi, '');
 
                     card.innerHTML = `<div class="flex flex-row gap-3 items-stretch w-full">
                         <div class="w-8 sm:w-10 flex-none bg-slate-100 border border-slate-200 p-1 flex flex-col justify-between items-center select-none rounded-lg" onclick="event.stopPropagation()">
@@ -1074,6 +1082,29 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="w-24 sm:w-32 flex-none flex flex-col justify-between bg-slate-50 border border-slate-200 rounded-lg p-1.5" onclick="event.stopPropagation()">
+                            <input type="file" id="${idMediaInp}" accept="image/*,video/*" class="hidden" onchange="if(this.files[0]) window.uploadEventMedia('${encD}','${encN}',this.files[0])">
+                            ${e.flyerUrl ? `
+                                <div class="relative group flex-grow rounded overflow-hidden bg-slate-900 flex items-center justify-center min-h-[85px]">
+                                    ${e.isVideo
+                                        ? `<video src="${e.flyerUrl}" class="max-h-28 w-full object-contain" muted loop autoplay playsinline></video>`
+                                        : `<img src="${e.flyerUrl}" class="max-h-28 w-full object-contain" alt="GFX">`
+                                    }
+                                    <div class="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1 p-1">
+                                        <a href="${e.flyerUrl}" target="_blank" download class="w-full text-center px-1.5 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-bold">Open / Save</a>
+                                        <button onclick="document.getElementById('${idMediaInp}').click()" class="w-full px-1.5 py-0.5 bg-white text-slate-900 rounded text-[9px] font-bold">Replace</button>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div onclick="document.getElementById('${idMediaInp}').click()" class="flex-grow border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded flex flex-col items-center justify-center text-center p-1 cursor-pointer transition min-h-[85px]">
+                                    <span class="text-base">🖼️</span>
+                                    <span class="text-[9px] font-bold text-slate-600 leading-tight mt-0.5">Add Image / Video</span>
+                                </div>
+                            `}
+                            <div class="mt-1 text-center">
+                                <button onclick="document.getElementById('${idMediaInp}').click()" class="w-full py-0.5 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[9px] font-bold text-slate-700 transition">${e.flyerUrl ? (e.isVideo ? '🎬 Video' : '🖼️ Flyer') : '+ Upload'}</button>
+                            </div>
+                        </div>
                         <div class="w-32 sm:w-44 flex-none flex flex-col justify-between" onclick="event.stopPropagation()">
                             <div class="flex flex-col flex-grow">
                                 <div class="flex justify-between items-center mb-1">
@@ -1096,35 +1127,27 @@
             window.renderHistory(past);
         };
 
-        window.duplicateEvent = async (encDate, encName) => {
+        window.uploadEventMedia = async (encDate, encName, file) => {
+            if (!file || !storage) return;
             const date = decodeURIComponent(encDate);
             const name = decodeURIComponent(encName);
-            const eventObj = eventSchedule.find(e => e.date === date && e.eventName === name); if (!eventObj) return;
-            const newName = `${eventObj.eventName} (Copy)`;
-            eventSchedule.push({ ...eventObj, eventName: newName });
-            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-            window.loadEventForEdit(encodeURIComponent(date), encodeURIComponent(newName));
-        };
-
-        window.openMoveDateModal = (encDate, encName) => {
-            const date = decodeURIComponent(encDate);
-            const name = decodeURIComponent(encName);
-            activeMoveTarget = { date, name };
-            document.getElementById('moveDateModalEventName').textContent = `${name} (${date})`;
-            document.getElementById('moveDateInput').value = date;
-            document.getElementById('moveDateModal').classList.add('active');
-        };
-
-        window.confirmMoveEventDate = async () => {
-            if (!activeMoveTarget) return;
-            const newDate = document.getElementById('moveDateInput').value; if (!newDate) return;
-            const idx = eventSchedule.findIndex(e => e.date === activeMoveTarget.date && e.eventName === activeMoveTarget.name);
-            if (idx > -1) {
-                eventSchedule[idx].date = newDate;
+            const idx = eventSchedule.findIndex(e => e.date === date && e.eventName === name);
+            if (idx === -1) return;
+            try {
+                const { ref, uploadBytes, getDownloadURL } = window.fb;
+                const isVideo = file.type.startsWith('video/');
+                const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+                const safeName = `${date}_${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.${ext}`;
+                const storageRef = ref(storage, `flyers/${safeName}`);
+                await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(storageRef);
+                eventSchedule[idx].flyerUrl = url;
+                eventSchedule[idx].isVideo = isVideo;
+                eventSchedule[idx].mediaStatus = 'done';
                 await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
-                document.getElementById('moveDateModal').classList.remove('active');
-                activeMoveTarget = null;
                 window.renderScheduleList();
+            } catch (err) {
+                console.error("Media upload error:", err);
             }
         };
 
@@ -1140,6 +1163,8 @@
             currentExclusions = e.excludedNames || []; 
             currentEditorStatus = e.textStatus || (e.isDraft ? 'draft' : 'ready');
             currentEditorGfx = e.mediaStatus === 'done';
+            currentEditorFlyerUrl = e.flyerUrl || null;
+            currentEditorIsVideo = Boolean(e.isVideo);
             window.updateEditorStatusUI();
             window.updateEditorGfxUI();
             window.toggleRecurringUI(); 
@@ -1449,7 +1474,7 @@
 
                 return { 
                     result: { 
-                        eventName: displayParseName, date, location: displayParseLoc, postText: fullRes, description: inj, tagsOnly: uniqueTagsList.join('\n'), extraTags: xtra, order: 0, excludedNames: currentExclusions, textStatus: currentEditorStatus, isDraft: currentEditorStatus === 'draft', postStatus: currentEditorStatus === 'posted' ? 'done' : 'pending', storyStatus: (currentEditorStatus === 'story' || currentEditorStatus === 'posted') ? 'done' : 'pending', mediaStatus: currentEditorGfx ? 'done' : 'pending' 
+                        eventName: displayParseName, date, location: displayParseLoc, postText: fullRes, description: inj, tagsOnly: uniqueTagsList.join('\n'), extraTags: xtra, order: 0, excludedNames: currentExclusions, textStatus: currentEditorStatus, isDraft: currentEditorStatus === 'draft', postStatus: currentEditorStatus === 'posted' ? 'done' : 'pending', storyStatus: (currentEditorStatus === 'story' || currentEditorStatus === 'posted') ? 'done' : 'pending', mediaStatus: currentEditorGfx ? 'done' : 'pending', flyerUrl: currentEditorFlyerUrl || null, isVideo: currentEditorIsVideo 
                     }, 
                     fullRes, valid, uniqueTagsList 
                 };
@@ -1576,6 +1601,47 @@
             window.renderScheduleList(); 
         };
 
+        window.duplicateEvent = async function(encDate, encName) {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const orig = eventSchedule.find(e => e.date === date && e.eventName === name);
+            if (!orig) return;
+            const copy = JSON.parse(JSON.stringify(orig));
+            copy.eventName = `${orig.eventName} (Copy)`;
+            copy.order = eventSchedule.filter(e => e.date === date).reduce((max, e) => Math.max(max, e.order || 0), -1) + 1;
+            eventSchedule.push(copy);
+            await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+            window.renderScheduleList();
+        };
+
+        window.openMoveDateModal = function(encDate, encName) {
+            const date = decodeURIComponent(encDate);
+            const name = decodeURIComponent(encName);
+            const ev = eventSchedule.find(e => e.date === date && e.eventName === name);
+            if (!ev) return;
+            activeMoveTarget = { date, eventName: name };
+            const nameLabel = document.getElementById('moveDateModalEventName');
+            const dateInput = document.getElementById('moveDateInput');
+            if (nameLabel) nameLabel.textContent = `${ev.eventName} (${ev.date})`;
+            if (dateInput) dateInput.value = ev.date;
+            document.getElementById('moveDateModal')?.classList.add('active');
+        };
+
+        window.confirmMoveEventDate = async function() {
+            if (!activeMoveTarget) return;
+            const newDate = document.getElementById('moveDateInput')?.value;
+            if (!newDate) return;
+            const idx = eventSchedule.findIndex(e => e.date === activeMoveTarget.date && e.eventName === activeMoveTarget.eventName);
+            if (idx > -1) {
+                eventSchedule[idx].date = newDate;
+                eventSchedule[idx].order = eventSchedule.filter(e => e.date === newDate && e !== eventSchedule[idx]).reduce((max, e) => Math.max(max, e.order || 0), -1) + 1;
+                await window.saveDataToFirebase(DB_CONFIG.SCHEDULE_DB_KEY, eventSchedule);
+                window.renderScheduleList();
+            }
+            activeMoveTarget = null;
+            document.getElementById('moveDateModal')?.classList.remove('active');
+        };
+
         window.exportFullDatabase = () => { 
             const blob = new Blob([JSON.stringify({ nameTagDatabase, eventDatabase, textSnippets, eventSchedule, globalTagsString, ts: new Date().toISOString() }, null, 2)], { type: 'application/json' }); 
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); 
@@ -1654,10 +1720,11 @@
                 return;
             }
             try {
-                const { initializeApp, getAuth, signInAnonymously, getFirestore, doc, getDoc, getDocs, collection } = window.fb;
+                const { initializeApp, getAuth, signInAnonymously, getFirestore, getStorage, doc, getDoc, getDocs, collection } = window.fb;
                 const app = initializeApp(FIREBASE_CONFIG);
                 auth = getAuth(app);
                 db = getFirestore(app);
+                storage = getStorage(app);
 
                 await signInAnonymously(auth);
 
