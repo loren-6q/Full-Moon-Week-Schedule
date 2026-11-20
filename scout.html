@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Moon Event Scout</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔭</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { primary: '#4f46e5', secondary: '#10b981', background: '#f8fafc' }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .modal { transition: opacity 0.2s ease-in-out; pointer-events: none; opacity: 0; z-index: 100; }
+        .modal.active { pointer-events: auto; opacity: 1; }
+    </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        window.fb = { initializeApp, getAuth, signInAnonymously, getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, getStorage, ref, uploadString, uploadBytes, getDownloadURL };
+    </script>
+</head>
+<body class="bg-background min-h-screen font-sans text-slate-800 p-2 sm:p-6">
+    <div class="max-w-7xl mx-auto space-y-5">
+        <!-- Header -->
+        <header class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white text-2xl shadow">
+                    🔭
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Full Moon Event Scout</h1>
+                        <span id="fbStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Connecting...
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500">Companion AI scraper & regulars radar synced live with <code class="text-indigo-600 font-bold">full-moon-week</code></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <select id="targetPeriodSelect" onchange="window.renderMissingRegularsRadar()" class="flex-grow sm:flex-grow-0 p-2 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-950 bg-indigo-50/60 outline-none focus:border-indigo-500 cursor-pointer">
+                    <!-- Populated via JS -->
+                </select>
+                <a href="fmw.html" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition whitespace-nowrap">
+                    ← Back to Scheduler
+                </a>
+            </div>
+        </header>
+
+        <!-- Step 3: Missing Regulars Radar -->
+        <section class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-indigo-100 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                <div>
+                    <h2 class="text-sm font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>📡</span> <span>Regulars Radar — Who's Missing?</span>
+                    </h2>
+                    <p class="text-[11px] text-slate-500">Top recurring venues from your history without an event scheduled yet for the selected Full Moon period. Click any venue to open their IG.</p>
+                </div>
+                <div class="flex items-center gap-2 text-[10px] font-bold">
+                    <span class="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200" id="missingCountBadge">0 Missing</span>
+                    <span class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200" id="scheduledCountBadge">0 Scheduled</span>
+                </div>
+            </div>
+
+            <!-- Missing Venues Pills -->
+            <div>
+                <div class="text-[10px] font-bold text-rose-600 uppercase mb-1.5 tracking-wider">Missing / Unscheduled Regulars (Click to Check IG):</div>
+                <div id="missingVenuesContainer" class="flex flex-wrap gap-1.5 min-h-[32px]">
+                    <span class="text-xs text-slate-400 italic">Loading schedule history...</span>
+                </div>
+            </div>
+
+            <!-- Already Scheduled Venues Pills -->
+            <details class="pt-1">
+                <summary class="text-[10px] font-bold text-emerald-700 uppercase cursor-pointer select-none hover:underline">
+                    ▸ View Already Scheduled Venues for this Period
+                </summary>
+                <div id="scheduledVenuesContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
+            </details>
+        </section>
+
+        <!-- Main Workspace: Input Sources (Left) & Extracted Event Cards (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            <!-- Left Column: Bulk Text Dump & Flyer Vision -->
+            <div class="lg:col-span-5 space-y-4">
+                <!-- Mode Switcher -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                    <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                        <button id="modeTextBtn" onclick="window.setScoutMode('text')" class="flex-1 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition">
+                            📋 Bulk Text Dump
+                        </button>
+                        <button id="modeImageBtn" onclick="window.setScoutMode('image')" class="flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition">
+                            🖼️ Flyer / Poster Vision
+                        </button>
+                    </div>
+
+                    <!-- Text Input Panel -->
+                    <div id="textInputPanel" class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-700">Paste Telegram, FB Chat, or Website Text:</label>
+                            <button onclick="document.getElementById('rawScoutText').value=''" class="text-[10px] text-slate-400 hover:text-rose-500 font-bold">Clear</button>
+                        </div>
+                        <textarea id="rawScoutText" rows="11" placeholder="Select All (Ctrl+A) and Paste (Ctrl+V) messy Telegram channel messages, Facebook chats, or event listings here...&#10;&#10;Example:&#10;🔥 NOV 23 - JUNGLE EXPERIENCE&#10;Lineup: Rob Gritton, Vakabular, Peter G&#10;24 NOV - WET Pool Party 24h Nonstop..." class="w-full p-3 border border-slate-300 rounded-xl text-xs font-mono leading-relaxed outline-none focus:border-indigo-500 custom-scrollbar"></textarea>
+                        <button onclick="window.scanTextWithAI()" id="btnScanText" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                            <span>✨</span> <span>Extract Events & Match Tag DB</span>
+                        </button>
+                    </div>
+
+                    <!-- Image Input Panel -->
+                    <div id="imageInputPanel" class="hidden space-y-3">
+                        <label class="block text-xs font-bold text-slate-700">Paste Screenshot (Ctrl+V) or Upload Flyer:</label>
+                        <div id="imageDropZone" onclick="document.getElementById('flyerFileInput').click()" class="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/30 rounded-xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[210px]">
+                            <input type="file" id="flyerFileInput" accept="image/*,video/*" class="hidden" onchange="window.handleImageUpload(event)">
+                            <div id="imagePreviewPlaceholder" class="space-y-1.5">
+                                <div class="text-3xl">📸</div>
+                                <p class="text-xs font-bold text-indigo-900">Click to select flyer image/video or press Ctrl+V anywhere</p>
+                                <p class="text-[10px] text-slate-500">Reads dates, venues, event titles, and full DJ lineups</p>
+                            </div>
+                            <img id="flyerPreviewImg" class="hidden max-h-64 rounded-lg shadow-sm object-contain" alt="Flyer Preview">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.clearFlyerImage()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl">Clear</button>
+                            <button onclick="window.scanImageWithAI()" id="btnScanImage" disabled class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                                <span>👁️</span> <span>Read Flyer & Match Tag DB</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Tag DB Lookup Card -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-2">
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider">⚡ Quick IG Handle Lookup (<span id="dbCountSpan">0</span>)</h3>
+                    <input type="text" id="quickTagLookupInput" oninput="window.renderQuickTagLookup()" placeholder="Type DJ or Venue name to open their IG..." class="w-full p-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500">
+                    <div id="quickTagLookupResults" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pt-1"></div>
+                </div>
+            </div>
+
+            <!-- Right Column: Sandbox Staging Workbench -->
+            <div class="lg:col-span-7 bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 min-h-[450px] flex flex-col">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-black text-slate-900">Staging Sandbox (<span id="scoutedCount">0</span>)</h2>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Sorted by Date ↑</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">Check off events you want, grab IG text & attach flyer per card, then push to FMW.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button id="btnClearDismissed" onclick="window.clearPushedOrDismissed()" class="hidden px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition">
+                            🧹 Clear Done
+                        </button>
+                        <button id="btnAddCheckedDrafts" onclick="window.pushCheckedToSchedule()" class="hidden px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                            🚀 Push Checked (<span id="checkedCountSpan">0</span>) to FMW
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div id="scoutLoadingState" class="hidden flex-grow flex flex-col items-center justify-center py-16 text-center space-y-3">
+                    <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p class="text-xs font-bold text-indigo-900" id="scoutLoadingText">Analyzing events & cross-referencing your Tag Database...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div id="scoutEmptyState" class="flex-grow flex flex-col items-center justify-center py-16 text-center space-y-2">
+                    <div class="text-4xl">🕵️‍♂️</div>
+                    <p class="text-sm font-bold text-slate-700">Sandbox is empty</p>
+                    <p class="text-xs text-slate-400 max-w-sm">Paste a Telegram/Facebook dump or a party flyer screenshot on the left. Events will sort chronologically into your sandbox.</p>
+                </div>
+
+                <!-- Extracted Cards List -->
+                <div id="scoutResultsList" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toastNotification" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
+        <span id="toastIcon">✅</span>
+        <span id="toastText">Saved!</span>
+    </div>
+
+    <script>
+        const DB_CONFIG = {
+            INSTA_DB_KEY: 'name_tag_database',
+            SCHEDULE_DB_KEY: 'event_schedule',
+            GLOBAL_TAGS_KEY: 'global_tags',
+            SANDBOX_DB_KEY: 'scout_sandbox'
+        };
+
+        const PEAK_DATES = [
+            { date: '2025-12-05', name: 'December 2025' }, { date: '2026-01-03', name: "January 2026" },
+            { date: '2026-02-02', name: 'February 2026' }, { date: '2026-03-03', name: 'March 2026' },
+            { date: '2026-04-02', name: 'April 2026' }, { date: '2026-05-01', name: 'May 2026' },
+            { date: '2026-06-01', name: 'June 2026' }, { date: '2026-06-29', name: 'June 2026 (2nd)' },
+            { date: '2026-07-31', name: 'July 2026' }, { date: '2026-08-28', name: 'August 2026' },
+            { date: '2026-09-26', name: 'September 2026' }, { date: '2026-10-27', name: 'October 2026' },
+            { date: '2026-11-24', name: 'November 2026' }, { date: '2026-12-24', name: 'December 2026' },
+            { date: '2026-12-31', name: 'NYE 2026' },
+            { date: '2027-01-22', name: 'January 2027' }, { date: '2027-02-22', name: 'February 2027' },
+            { date: '2027-03-22', name: 'March 2027' }, { date: '2027-04-21', name: 'April 2027' },
+            { date: '2027-05-21', name: 'May 2027' }, { date: '2027-06-19', name: 'June 2027' },
+            { date: '2027-07-20', name: 'July 2027' }, { date: '2027-08-17', name: 'August 2027' },
+            { date: '2027-09-15', name: 'September 2027' }, { date: '2027-10-16', name: 'October 2027' },
+            { date: '2027-11-13', name: 'November 2027' }, { date: '2027-12-13', name: 'December 2027' },
+            { date: '2027-12-31', name: 'NYE 2027' }
+        ];
+
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBGESFzwqoO9lQivws195udUCo6MXnHeHc",
+            authDomain: "full-moon-week.firebaseapp.com",
+            projectId: "full-moon-week",
+            storageBucket: "full-moon-week.firebasestorage.app",
+            messagingSenderId: "1064130029135",
+            appId: "1:1064130029135:web:32b8a8a4414a7ed4036c3a",
+            measurementId: "G-3SS3BJQCRN"
+        };
+
+        let db = null;
+        let storage = null;
+        let nameTagDatabase = {};
+        let eventSchedule = [];
+        let globalTagsString = "";
+        let scoutedEvents = [];
+        let activeCardFocusIdx = -1;
+        let currentBase64Image = null;
+        let currentImageMime = "image/png";
+
+        window.showToast = (msg, icon = '✅') => {
+            const t = document.getElementById('toastNotification');
+            document.getElementById('toastText').textContent = msg;
+            document.getElementById('toastIcon').textContent = icon;
+            t.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+        };
+
+        window.getLocalDateString = (d = new Date()) => {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+
+        window.getPeriodForDate = (iso) => {
+            if (!iso) return "Other";
+            const evD = new Date(iso + 'T00:00:00');
+            for (let p of PEAK_DATES) {
+                if (Math.abs(evD - new Date(p.date + 'T00:00:00')) / 8.64e7 <= 10) return p.name;
+            }
+            return "Other";
+        };
+
+        window.formatDateFriendly = (iso) => {
+            if (!iso) return 'TBD Date';
+            return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        window.openInstagramHandle = (handleOrName) => {
+            if (!handleOrName) return;
+            const clean = handleOrName.trim();
+            if (clean.startsWith('@')) {
+                window.open(`https://www.instagram.com/${clean.replace(/^@/, '')}/`, '_blank');
+            } else {
+                // Check DB first
+                const dbEntry = Object.entries(nameTagDatabase).find(([k]) => k.toLowerCase() === clean.toLowerCase());
+                if (dbEntry && dbEntry[1].tag) {
+                    window.open(`https://www.instagram.com/${dbEntry[1].tag.replace(/^@/, '')}/`, '_blank');
+                } else {
+                    window.open(`https://www.instagram.com/explore/tags/${encodeURIComponent(clean.replace(/\s+/g, ''))}/`, '_blank');
+                }
+            }
+        };
+
+        // --- STEP 3: REGULARS RADAR (WHO'S MISSING?) ---
+        window.populatePeriodSelector = () => {
+            const sel = document.getElementById('targetPeriodSelect');
+            if (!sel) return;
+            const nowStr = window.getLocalDateString();
+            const upcomingPeak = PEAK_DATES.find(p => p.date >= nowStr) || PEAK_DATES[PEAK_DATES.length - 1];
+
+            sel.innerHTML = PEAK_DATES.map(p => 
+                `<option value="${p.name}" ${p.name === upcomingPeak.name ? 'selected' : ''}>🌕 ${p.name} (${p.date})</option>`
+            ).join('');
+        };
+
+        window.renderMissingRegularsRadar = () => {
+            const targetPeriod = document.getElementById('targetPeriodSelect')?.value;
+            const missingContainer = document.getElementById('missingVenuesContainer');
+            const scheduledContainer = document.getElementById('scheduledVenuesContainer');
+            if (!missingContainer || !scheduledContainer || !targetPeriod) return;
+
+            // 1. Identify top recurring venues from entire historical schedule + DB venues
+            const venueFrequency = {};
+            eventSchedule.forEach(ev => {
+                if (!ev.location) return;
+                const locClean = ev.location.trim();
+                // Match against canonical DB venue if possible
+                let canonical = locClean;
+                for (const [name, info] of Object.entries(nameTagDatabase)) {
+                    if (info.category === 'Venue' && locClean.toLowerCase().includes(name.toLowerCase())) {
+                        canonical = name;
+                        break;
+                    }
+                }
+                venueFrequency[canonical] = (venueFrequency[canonical] || 0) + 1;
+            });
+
+            // Include any DB Venue that appeared at least twice historically, plus core staples
+            const coreStaples = ['WET Pool Party', 'SWIMS: a Social Beach Resort', 'Jungle Experience', 'Waterfall Festival', 'OXA Beach', 'Lighthouse', 'Eden Garden', 'Hollystone', "Guy's Bar"];
+            coreStaples.forEach(s => {
+                if (!venueFrequency[s]) venueFrequency[s] = 1;
+            });
+
+            const regulars = Object.entries(venueFrequency)
+                .filter(([_, count]) => count >= 2 || coreStaples.some(c => c.toLowerCase() === _.toLowerCase()))
+                .sort((a, b) => b[1] - a[1])
+                .map(([name]) => name);
+
+            // 2. Check which events are already scheduled for targetPeriod
+            const periodEvents = eventSchedule.filter(ev => window.getPeriodForDate(ev.date) === targetPeriod);
+            const scheduledSet = new Set();
+            const missingList = [];
+
+            regulars.forEach(regName => {
+                const regLow = regName.toLowerCase();
+                const regFirstWord = regLow.split(/[:\s-]/)[0];
+                const isScheduled = periodEvents.some(ev => {
+                    const evLoc = (ev.location || '').toLowerCase();
+                    const evTitle = (ev.eventName || '').toLowerCase();
+                    return evLoc.includes(regLow) || (regFirstWord.length >= 3 && (evLoc.includes(regFirstWord) || evTitle.includes(regFirstWord)));
+                });
+
+                if (isScheduled) {
+                    scheduledSet.add(regName);
+                } else {
+                    missingList.push(regName);
+                }
+            });
+
+            document.getElementById('missingCountBadge').textContent = `${missingList.length} Missing`;
+            document.getElementById('scheduledCountBadge').textContent = `${scheduledSet.size} Scheduled`;
+
+            if (missingList.length === 0) {
+                missingContainer.innerHTML = `<span class="text-xs text-emerald-700 font-bold">🎉 All regular venues are already accounted for in ${targetPeriod}!</span>`;
+            } else {
+                missingContainer.innerHTML = missingList.map(venue => {
+                    const dbMatch = Object.entries(nameTagDatabase).find(([k]) => k.toLowerCase().includes(venue.toLowerCase()) || venue.toLowerCase().includes(k.toLowerCase()));
+                    const handle = dbMatch ? dbMatch[1].tag : '';
+                    return `
+                        <button onclick="window.openInstagramHandle('${handle || venue}')" title="Open Instagram for ${venue}" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition shadow-sm">
+                            <span>🔍 ${venue}</span>
+                            ${handle ? `<span class="text-[10px] font-mono text-rose-600">${handle}</span>` : `<span class="text-[10px] text-rose-400">↗ IG</span>`}
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            scheduledContainer.innerHTML = [...scheduledSet].map(venue => `
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <span>✓</span> <span>${venue}</span>
+                </span>
+            `).join('') || `<span class="text-xs text-slate-400 italic">None scheduled yet.</span>`;
+        };
+
+        // --- QUICK TAG DB LOOKUP ---
+        window.renderQuickTagLookup = () => {
+            const q = (document.getElementById('quickTagLookupInput')?.value || '').trim().toLowerCase();
+            const res = document.getElementById('quickTagLookupResults');
+            if (!res) return;
+            if (!q) {
+                res.innerHTML = '<span class="text-[10px] text-slate-400 italic">Type a DJ or venue name above...</span>';
+                return;
+            }
+            const matches = Object.entries(nameTagDatabase)
+                .filter(([n, d]) => n.toLowerCase().includes(q) || d.tag.toLowerCase().includes(q))
+                .slice(0, 15);
+
+            res.innerHTML = matches.map(([n, d]) => `
+                <button onclick="window.openInstagramHandle('${d.tag}')" class="px-2 py-1 bg-slate-100 hover:bg-indigo-100 text-slate-800 hover:text-indigo-900 rounded-lg text-[11px] font-bold flex items-center gap-1 transition">
+                    <span>${n}</span>
+                    <span class="text-indigo-600 font-mono text-[10px]">${d.tag}</span>
+                    <span class="text-[9px] text-slate-400">↗</span>
+                </button>
+            `).join('') || '<span class="text-[10px] text-slate-400 italic">No matches in Tag DB.</span>';
+        };
+
+        // --- MODE SWITCHING & IMAGE HANDLING ---
+        window.setScoutMode = (mode) => {
+            document.getElementById('textInputPanel').classList.toggle('hidden', mode !== 'text');
+            document.getElementById('imageInputPanel').classList.toggle('hidden', mode !== 'image');
+            document.getElementById('modeTextBtn').className = mode === 'text' ? 'flex-1 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition' : 'flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition';
+            document.getElementById('modeImageBtn').className = mode === 'image' ? 'flex-1 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition' : 'flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 transition';
+        };
+
+        window.loadFlyerFile = (file) => {
+            if (!file || !file.type.startsWith('image/')) return;
+            currentImageMime = file.type;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                currentBase64Image = dataUrl.split(',')[1];
+                const imgEl = document.getElementById('flyerPreviewImg');
+                imgEl.src = dataUrl;
+                imgEl.classList.remove('hidden');
+                document.getElementById('imagePreviewPlaceholder').classList.add('hidden');
+                document.getElementById('btnScanImage').disabled = false;
+                window.setScoutMode('image');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.handleImageUpload = (e) => {
+            if (e.target.files && e.target.files[0]) window.loadFlyerFile(e.target.files[0]);
+        };
+
+        window.clearFlyerImage = () => {
+            currentBase64Image = null;
+            const imgEl = document.getElementById('flyerPreviewImg');
+            if (imgEl) {
+                imgEl.src = '';
+                imgEl.classList.add('hidden');
+            }
+            document.getElementById('imagePreviewPlaceholder')?.classList.remove('hidden');
+            const btn = document.getElementById('btnScanImage');
+            if (btn) btn.disabled = true;
+            const fileInp = document.getElementById('flyerFileInput');
+            if (fileInp) fileInp.value = '';
+        };
+
+        // Global Ctrl+V Paste listener: attaches to focused sandbox card if active, otherwise left panel
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (let item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (activeCardFocusIdx >= 0 && scoutedEvents[activeCardFocusIdx]) {
+                        window.attachFlyerToCard(activeCardFocusIdx, file);
+                    } else {
+                        window.loadFlyerFile(file);
+                    }
+                    break;
+                }
+            }
+        });
+
+        window.setLoading = (isLoading, message = "Analyzing events...") => {
+            const loader = document.getElementById('scoutLoadingState');
+            const empty = document.getElementById('scoutEmptyState');
+            const list = document.getElementById('scoutResultsList');
+            const txt = document.getElementById('scoutLoadingText');
+            if (txt) txt.textContent = message;
+            if (loader) loader.classList.toggle('hidden', !isLoading);
+            if (isLoading) {
+                if (empty) empty.classList.add('hidden');
+                if (list) list.classList.add('hidden');
+            } else {
+                if (list) list.classList.remove('hidden');
+            }
+        };
+
+        // --- GEMINI AI EXTRACTION (TEXT & VISION) ---
+        async function callGeminiScout(parts) {
+            const targetPeriod = document.getElementById('targetPeriodSelect')?.value || '';
+            const peakObj = PEAK_DATES.find(p => p.name === targetPeriod);
+            const referenceDateContext = peakObj ? `Target Full Moon Period: ${peakObj.name} (Peak Date: ${peakObj.date}).` : `Current Date: ${window.getLocalDateString()}.`;
+
+            const knownVenues = Object.entries(nameTagDatabase)
+                .filter(([_, v]) => v.category === 'Venue' || v.category === 'Presenter')
+                .map(([k, v]) => `${k} (${v.tag})`).join(', ');
+
+            const systemPrompt = `You are an expert Koh Phangan party & event scout for Full Moon Week.
+Extract all distinct events from the user's messy text dump (Telegram, Facebook, website) or flyer screenshot.
+${referenceDateContext}
+Known Venues in DB: ${knownVenues}
+
+Rules:
+1. Convert all dates to strict YYYY-MM-DD format. Infer the year and month from the target period (${peakObj ? peakObj.date : '2026'}) if only day/month or weekday is written.
+2. Match venue names to the Known Venues list whenever applicable.
+3. Extract all DJs / Artists / Performers into the "artists" array.
+4. Keep "description" clean and well-formatted with the lineup, hours, and key info.
+5. Return ONLY a valid JSON array of objects with keys: "eventName", "date", "location", "artists" (array of strings), "description".`;
+
+            const apiKey = "";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ role: "user", parts: parts }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                eventName: { type: "STRING" },
+                                date: { type: "STRING" },
+                                location: { type: "STRING" },
+                                artists: { type: "ARRAY", items: { type: "STRING" } },
+                                description: { type: "STRING" }
+                            },
+                            required: ["eventName", "date", "location", "artists", "description"]
+                        }
+                    }
+                }
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`API Error ${res.status}: ${errText}`);
+            }
+
+            const data = await res.json();
+            const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+            return JSON.parse(rawJson);
+        }
+
+        function enrichWithTagDB(ev) {
+            const results = [];
+            const seenNames = new Set();
+
+            const checkAndAdd = (rawName) => {
+                if (!rawName) return;
+                const clean = rawName.trim();
+                const low = clean.toLowerCase();
+                if (seenNames.has(low)) return;
+                seenNames.add(low);
+
+                const dbMatch = Object.entries(nameTagDatabase).find(([k]) => k.toLowerCase() === low || low.includes(k.toLowerCase()));
+                if (dbMatch) {
+                    results.push({ name: dbMatch[0], tag: dbMatch[1].tag, matched: true });
+                } else {
+                    results.push({ name: clean, tag: null, matched: false });
+                }
+            };
+
+            if (ev.location) checkAndAdd(ev.location);
+            if (Array.isArray(ev.artists)) ev.artists.forEach(a => checkAndAdd(a));
+
+            Object.entries(nameTagDatabase).forEach(([k, v]) => {
+                if (k.length < 3 || seenNames.has(k.toLowerCase())) return;
+                const reg = new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                if (reg.test(ev.description || '') || reg.test(ev.eventName || '')) {
+                    seenNames.add(k.toLowerCase());
+                    results.push({ name: k, tag: v.tag, matched: true });
+                }
+            });
+
+            return results;
+        }
+
+        function mergeAndSortSandbox(newItems) {
+            newItems.forEach(item => {
+                const normalized = {
+                    id: 'sb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                    eventName: item.eventName || 'Untitled Event',
+                    date: item.date || window.getLocalDateString(),
+                    location: item.location || '',
+                    artists: Array.isArray(item.artists) ? item.artists : [],
+                    description: item.description || '',
+                    selected: true,
+                    pushed: false,
+                    flyerDataUrl: null,
+                    flyerUrl: null,
+                    statusNote: 'draft'
+                };
+                // Avoid exact duplicate in sandbox
+                const dup = scoutedEvents.some(existing => existing.date === normalized.date && existing.eventName.toLowerCase() === normalized.eventName.toLowerCase());
+                if (!dup) scoutedEvents.push(normalized);
+            });
+            // Sort strictly chronologically by date, then event name
+            scoutedEvents.sort((a, b) => (a.date || '9999-99-99').localeCompare(b.date || '9999-99-99') || a.eventName.localeCompare(b.eventName));
+            saveSandboxToFirebase();
+        }
+
+        async function saveSandboxToFirebase() {
+            if (!db) return;
+            try {
+                const { doc, setDoc } = window.fb;
+                // Strip raw heavy base64 from Firestore sync if > 200KB (keep in memory for upload, store metadata/URLs in Firestore)
+                const lightweightList = scoutedEvents.map(ev => ({
+                    ...ev,
+                    flyerDataUrl: (ev.flyerDataUrl && ev.flyerDataUrl.length < 180000) ? ev.flyerDataUrl : null
+                }));
+                await setDoc(doc(db, DB_CONFIG.SANDBOX_DB_KEY, 'main'), {
+                    items: lightweightList,
+                    updatedAt: new Date().toISOString()
+                });
+            } catch (e) {
+                console.warn("Sandbox sync notice:", e);
+            }
+        }
+
+        window.scanTextWithAI = async () => {
+            const rawText = document.getElementById('rawScoutText')?.value.trim();
+            if (!rawText) {
+                window.showToast("Paste some text first!", "⚠️");
+                return;
+            }
+            window.setLoading(true, "Scanning text, sorting by date & matching Tag DB...");
+            try {
+                const results = await callGeminiScout([{ text: rawText }]);
+                mergeAndSortSandbox(results || []);
+                window.renderScoutedResults();
+                window.showToast(`Added ${(results || []).length} event(s) to Sandbox!`);
+            } catch (err) {
+                window.showToast("Scan failed: " + err.message, "❌");
+            } finally {
+                window.setLoading(false);
+            }
+        };
+
+        window.scanImageWithAI = async () => {
+            if (!currentBase64Image) return;
+            window.setLoading(true, "Reading flyer poster & extracting lineup...");
+            try {
+                const results = await callGeminiScout([
+                    { text: "Extract the event details, date, venue, and full DJ lineup from this party flyer." },
+                    { inlineData: { mimeType: currentImageMime, data: currentBase64Image } }
+                ]);
+                const dataUrl = `data:${currentImageMime};base64,${currentBase64Image}`;
+                const enrichedResults = (results || []).map(r => ({ ...r, flyerDataUrl: dataUrl }));
+                mergeAndSortSandbox(enrichedResults);
+                // Attach the flyer preview to the newly added items in memory
+                scoutedEvents.forEach(ev => {
+                    if (enrichedResults.some(r => r.date === ev.date && r.eventName === ev.eventName)) {
+                        ev.flyerDataUrl = dataUrl;
+                    }
+                });
+                window.renderScoutedResults();
+                window.showToast("Flyer scanned & attached to Sandbox card!");
+            } catch (err) {
+                window.showToast("Flyer scan failed: " + err.message, "❌");
+            } finally {
+                window.setLoading(false);
+            }
+        };
+        // --- PER-CARD SANDBOX ACTIONS ---
+        window.toggleSandboxCheck = (idx, checked) => {
+            if (!scoutedEvents[idx]) return;
+            scoutedEvents[idx].selected = checked;
+            saveSandboxToFirebase();
+            window.renderScoutedResults();
+        };
+
+        window.removeSandboxCard = (idx) => {
+            scoutedEvents.splice(idx, 1);
+            saveSandboxToFirebase();
+            window.renderScoutedResults();
+        };
+
+        window.clearPushedOrDismissed = () => {
+            scoutedEvents = scoutedEvents.filter(e => !e.pushed);
+            saveSandboxToFirebase();
+            window.renderScoutedResults();
+            window.showToast("Cleared pushed items from Sandbox");
+        };
+
+        window.attachFlyerToCard = (idx, file) => {
+            if (!file || (!file.type.startsWith('image/') && !file.type.startsWith('video/')) || !scoutedEvents[idx]) return;
+            const isVideo = file.type.startsWith('video/');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                scoutedEvents[idx].flyerDataUrl = e.target.result;
+                scoutedEvents[idx].flyerUrl = null;
+                scoutedEvents[idx].isVideo = isVideo;
+                window.renderScoutedResults();
+                window.showToast(`Attached ${isVideo ? 'video' : 'flyer'} to "${scoutedEvents[idx].eventName}"`, isVideo ? "🎬" : "🖼️");
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.scanCardFlyerForText = async (idx) => {
+            const ev = scoutedEvents[idx];
+            if (!ev || !ev.flyerDataUrl || ev.isVideo) return;
+            window.showToast("Reading flyer text & lineup...", "👁️");
+            try {
+                const mime = ev.flyerDataUrl.split(';')[0].split(':')[1] || 'image/png';
+                const b64 = ev.flyerDataUrl.split(',')[1];
+                const parsed = await callGeminiScout([
+                    { text: "Extract the event description, DJ lineup, entry details, and hours from this flyer." },
+                    { inlineData: { mimeType: mime, data: b64 } }
+                ]);
+                if (parsed && parsed[0]) {
+                    if (parsed[0].description) ev.description = parsed[0].description;
+                    if (parsed[0].location && !ev.location) ev.location = parsed[0].location;
+                    if (Array.isArray(parsed[0].artists) && parsed[0].artists.length > 0) {
+                        ev.artists = [...new Set([...(ev.artists || []), ...parsed[0].artists])];
+                    }
+                    saveSandboxToFirebase();
+                    window.renderScoutedResults();
+                    window.showToast("Updated card text & lineup from flyer!");
+                }
+            } catch (err) {
+                window.showToast("Could not read flyer: " + err.message, "❌");
+            }
+        };
+
+        async function uploadFlyerToFirebaseStorage(ev) {
+            if (ev.flyerUrl) return ev.flyerUrl;
+            if (!ev.flyerDataUrl || !storage) return null;
+            try {
+                const { ref, uploadString, getDownloadURL } = window.fb;
+                const ext = ev.isVideo ? 'mp4' : 'jpg';
+                const safeName = `${ev.date}_${ev.eventName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.${ext}`;
+                const storageRef = ref(storage, `flyers/${safeName}`);
+                const uploadTask = uploadString(storageRef, ev.flyerDataUrl, 'data_url').then(() => getDownloadURL(storageRef));
+                const timeoutTask = new Promise((_, reject) => setTimeout(() => reject(new Error("Storage upload timeout")), 8000));
+                const downloadUrl = await Promise.race([uploadTask, timeoutTask]);
+                ev.flyerUrl = downloadUrl;
+                return downloadUrl;
+            } catch (err) {
+                console.warn("Storage upload fallback (saving without cloud URL):", err);
+                return null;
+            }
+        }
+
+        window.renderScoutedResults = () => {
+            const list = document.getElementById('scoutResultsList');
+            const empty = document.getElementById('scoutEmptyState');
+            const countEl = document.getElementById('scoutedCount');
+            const pushCheckedBtn = document.getElementById('btnAddCheckedDrafts');
+            const checkedSpan = document.getElementById('checkedCountSpan');
+            const clearDoneBtn = document.getElementById('btnClearDismissed');
+
+            countEl.textContent = scoutedEvents.length;
+            const checkedReadyCount = scoutedEvents.filter(e => e.selected && !e.pushed).length;
+            const pushedCount = scoutedEvents.filter(e => e.pushed).length;
+
+            if (checkedSpan) checkedSpan.textContent = checkedReadyCount;
+            if (pushCheckedBtn) pushCheckedBtn.classList.toggle('hidden', checkedReadyCount === 0);
+            if (clearDoneBtn) clearDoneBtn.classList.toggle('hidden', pushedCount === 0);
+
+            if (scoutedEvents.length === 0) {
+                empty.classList.remove('hidden');
+                list.innerHTML = '';
+                return;
+            }
+
+            empty.classList.add('hidden');
+
+            list.innerHTML = scoutedEvents.map((ev, idx) => {
+                const enriched = enrichWithTagDB(ev);
+                const alreadyExists = eventSchedule.some(s => s.date === ev.date && s.eventName.toLowerCase() === ev.eventName.toLowerCase());
+                const hasFlyer = Boolean(ev.flyerDataUrl || ev.flyerUrl);
+
+                const igChipsHtml = enriched.map(item => {
+                    if (item.matched && item.tag) {
+                        return `<button onclick="window.openInstagramHandle('${item.tag}')" title="Open ${item.tag} on Instagram" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 transition">
+                            <span>${item.name}</span>
+                            <span class="font-mono text-indigo-600 text-[10px]">${item.tag}</span>
+                            <span class="text-[9px]">↗</span>
+                        </button>`;
+                    } else {
+                        return `<button onclick="window.openInstagramHandle('${item.name.replace(/'/g, "\\'")}')" title="Search Instagram for ${item.name}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 hover:bg-pink-50 text-slate-700 hover:text-pink-700 border border-slate-200 transition">
+                            <span>${item.name}</span>
+                            <span class="text-[9px] text-pink-600 font-bold">IG 🔍</span>
+                        </button>`;
+                    }
+                }).join('');
+
+                return `
+                    <div onclick="activeCardFocusIdx = ${idx}" class="p-3.5 rounded-xl border-2 ${ev.pushed ? 'border-emerald-300 bg-emerald-50/30 opacity-85' : (ev.selected ? 'border-indigo-200 bg-white shadow-sm' : 'border-slate-200 bg-slate-50/60 opacity-60')} space-y-2.5 transition">
+                        <!-- Top Bar: Checkbox, Editable Date/Title/Venue, Push & Dismiss -->
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div class="flex items-start gap-2.5 flex-grow min-w-0">
+                                <input type="checkbox" ${ev.selected ? 'checked' : ''} onchange="window.toggleSandboxCheck(${idx}, this.checked)" class="mt-1 w-4 h-4 rounded accent-indigo-600 cursor-pointer flex-none">
+                                <div class="space-y-1 flex-grow min-w-0">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <input type="date" value="${ev.date}" onchange="scoutedEvents[${idx}].date = this.value; mergeAndSortSandbox([]); window.renderScoutedResults();" class="px-1.5 py-0.5 rounded bg-indigo-600 text-white font-mono text-[10px] font-bold outline-none cursor-pointer">
+                                        <input type="text" value="${ev.eventName.replace(/"/g, '&quot;')}" onchange="scoutedEvents[${idx}].eventName = this.value; saveSandboxToFirebase();" class="text-sm font-black text-slate-900 bg-transparent border-b border-transparent focus:border-indigo-400 outline-none flex-grow min-w-[140px]">
+                                        ${alreadyExists ? `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">In FMW</span>` : ''}
+                                    </div>
+                                    <div class="flex items-center gap-1 text-xs font-bold text-slate-600">
+                                        <span>📍</span>
+                                        <input type="text" value="${(ev.location || '').replace(/"/g, '&quot;')}" placeholder="Venue..." onchange="scoutedEvents[${idx}].location = this.value; saveSandboxToFirebase(); window.renderScoutedResults();" class="bg-transparent border-b border-transparent focus:border-indigo-400 outline-none w-full">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 flex-none">
+                                <button onclick="window.addScoutedEventToFirebase(${idx})" ${ev.pushed ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1 ${ev.pushed ? 'bg-emerald-600 text-white cursor-default' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}">
+                                    ${ev.pushed ? '✓ In FMW' : '🚀 Push to FMW'}
+                                </button>
+                                <button onclick="window.removeSandboxCard(${idx})" title="Remove from Sandbox" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition">✕</button>
+                            </div>
+                        </div>
+
+                        <!-- Step 1: Clickable IG Handles -->
+                        <div class="flex flex-wrap gap-1.5 items-center pl-6">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase mr-0.5">1. Check IG:</span>
+                            ${igChipsHtml || '<span class="text-[10px] text-slate-400 italic">No handles matched</span>'}
+                        </div>
+
+                        <!-- Step 2 & 3 Split: IG Caption Text (Left) + Flyer Uploader/Scanner (Right) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pl-6 pt-1">
+                            <div class="sm:col-span-8 flex flex-col">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">2. Paste / Edit IG Caption Text:</span>
+                                    ${hasFlyer ? `<button onclick="window.scanCardFlyerForText(${idx})" class="text-[10px] font-bold text-indigo-600 hover:underline">👁️ Extract Text from Flyer</button>` : ''}
+                                </div>
+                                <textarea onchange="scoutedEvents[${idx}].description = this.value; saveSandboxToFirebase();" rows="4" placeholder="Paste official Instagram caption here..." class="w-full flex-grow p-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-xs text-slate-700 leading-relaxed outline-none focus:border-indigo-400">${ev.description || ''}</textarea>
+                            </div>
+
+                            <div class="sm:col-span-4 flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase mb-1">3. Flyer / Video:</span>
+                                <input type="file" id="cardFlyerInput_${idx}" accept="image/*,video/*" class="hidden" onchange="if(this.files[0]) window.attachFlyerToCard(${idx}, this.files[0])">
+                                ${hasFlyer ? `
+                                    <div class="relative group rounded-lg overflow-hidden border border-emerald-300 bg-slate-900 h-28 flex items-center justify-center">
+                                        ${ev.isVideo
+                                            ? `<video src="${ev.flyerDataUrl || ev.flyerUrl}" class="max-h-full max-w-full object-contain" muted loop autoplay playsinline></video>`
+                                            : `<img src="${ev.flyerDataUrl || ev.flyerUrl}" class="max-h-full max-w-full object-contain" alt="Event Flyer">`
+                                        }
+                                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1.5">
+                                            <button onclick="document.getElementById('cardFlyerInput_${idx}').click()" class="px-2 py-1 bg-white text-slate-900 rounded text-[10px] font-bold">Replace</button>
+                                            <button onclick="scoutedEvents[${idx}].flyerDataUrl=null; scoutedEvents[${idx}].flyerUrl=null; scoutedEvents[${idx}].isVideo=false; window.renderScoutedResults();" class="px-2 py-1 bg-rose-600 text-white rounded text-[10px] font-bold">Remove</button>
+                                        </div>
+                                        <span class="absolute bottom-1 right-1 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-bold rounded">${ev.isVideo ? 'VIDEO ✓' : 'GFX Ready ✓'}</span>
+                                    </div>
+                                ` : `
+                                    <div onclick="document.getElementById('cardFlyerInput_${idx}').click()" class="h-28 border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50 hover:bg-indigo-50/40 rounded-lg p-2 flex flex-col items-center justify-center text-center cursor-pointer transition">
+                                        <span class="text-lg">🖼️</span>
+                                        <span class="text-[10px] font-bold text-slate-600">Drop Image / Video</span>
+                                        <span class="text-[9px] text-slate-400">or click card & Ctrl+V</span>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        // --- SAVE SCOUTED DRAFT + FLYER TO FIREBASE ---
+        function formatEventForSchedule(ev, hostedFlyerUrl = null) {
+            let desc = ev.description || '';
+            const detectedTags = [];
+
+            // Inject matched @tags into description
+            const matches = [];
+            Object.entries(nameTagDatabase).forEach(([n, d]) => {
+                if (!n || !d.tag) return;
+                const reg = new RegExp(`(\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi');
+                let m;
+                while ((m = reg.exec(desc)) !== null) {
+                    matches.push({ name: n, tag: d.tag, index: m.index, length: n.length, isPreTagged: desc.substring(m.index + m.length, m.index + m.length + 60).toLowerCase().includes(d.tag.toLowerCase()) });
+                }
+            });
+
+            matches.sort((a, b) => b.length - a.length || a.index - b.index);
+            const valid = [];
+            const occ = new Set();
+            matches.forEach(m => {
+                let ov = false;
+                for (let i = m.index; i < m.index + m.length; i++) if (occ.has(i)) ov = true;
+                if (!ov) {
+                    valid.push(m);
+                    for (let i = m.index; i < m.index + m.length; i++) occ.add(i);
+                }
+            });
+
+            [...valid].sort((a, b) => b.index - a.index).forEach(m => {
+                if (!m.isPreTagged) {
+                    desc = desc.substring(0, m.index + m.length) + " " + m.tag + desc.substring(m.index + m.length);
+                }
+            });
+
+            valid.sort((a, b) => a.index - b.index).forEach(v => detectedTags.push(v.tag));
+            const uniqueTags = [...new Set(detectedTags)];
+            const hashes = [...new Set((globalTagsString.match(/#\w+/g) || []).map(t => t.toLowerCase()))].join(' ');
+            const fullPost = `🌕Full Moon Week - Day X🌕\n🗓 DATE: ${window.formatDateFriendly(ev.date)}\n🎉 EVENT: ${ev.eventName}\n📍 LOCATION: ${ev.location}\n\n${desc}${hashes ? "\n\n" + hashes : ""}`;
+            const hasGfx = Boolean(hostedFlyerUrl || ev.flyerDataUrl);
+
+            return {
+                eventName: ev.eventName,
+                date: ev.date,
+                location: ev.location,
+                postText: fullPost,
+                description: desc,
+                tagsOnly: uniqueTags.join('\n'),
+                extraTags: "",
+                order: eventSchedule.filter(e => e.date === ev.date).length,
+                excludedNames: [],
+                textStatus: hasGfx && desc.trim().length > 15 ? 'ready' : 'draft',
+                isDraft: !(hasGfx && desc.trim().length > 15),
+                postStatus: 'pending',
+                storyStatus: 'pending',
+                mediaStatus: hasGfx ? 'done' : 'pending',
+                flyerUrl: hostedFlyerUrl || null
+            };
+        }
+
+        async function persistScheduleToFirebase() {
+            if (!db) return;
+            const { doc, setDoc, getDocs, collection, deleteDoc } = window.fb;
+            const CHUNK_SIZE = 40;
+            const totalChunks = Math.max(1, Math.ceil(eventSchedule.length / CHUNK_SIZE));
+            for (let i = 0; i < totalChunks; i++) {
+                const chunk = eventSchedule.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+                const chunkId = `chunk_${String(i).padStart(3, '0')}`;
+                await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, chunkId), {
+                    chunkIndex: i,
+                    events: chunk,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+            await setDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, 'meta'), {
+                totalChunks,
+                totalEvents: eventSchedule.length,
+                updatedAt: new Date().toISOString()
+            });
+            const snap = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
+            for (const d of snap.docs) {
+                if (d.id.startsWith('chunk_')) {
+                    const idx = parseInt(d.id.replace('chunk_', ''), 10);
+                    if (!isNaN(idx) && idx >= totalChunks) await deleteDoc(doc(db, DB_CONFIG.SCHEDULE_DB_KEY, d.id));
+                }
+            }
+        }
+
+        window.addScoutedEventToFirebase = async (idx) => {
+            const ev = scoutedEvents[idx];
+            if (!ev || ev.pushed) return;
+            try {
+                window.showToast(`Pushing "${ev.eventName}" to FMW...`, "⏳");
+                const hostedUrl = await uploadFlyerToFirebaseStorage(ev);
+                const formatted = formatEventForSchedule(ev, hostedUrl);
+                formatted.isVideo = Boolean(ev.isVideo);
+
+                const existingIdx = eventSchedule.findIndex(e => e.date === formatted.date && e.eventName.toLowerCase() === formatted.eventName.toLowerCase());
+                if (existingIdx > -1) {
+                    formatted.order = eventSchedule[existingIdx].order || 0;
+                    eventSchedule[existingIdx] = formatted;
+                } else {
+                    eventSchedule.push(formatted);
+                }
+
+                await persistScheduleToFirebase();
+                ev.pushed = true;
+                await saveSandboxToFirebase();
+                window.renderScoutedResults();
+                window.renderMissingRegularsRadar();
+                window.showToast(`Pushed "${ev.eventName}" to FMW! ${hostedUrl ? '(Media saved ✓)' : ''}`);
+            } catch (err) {
+                console.error("Push error:", err);
+                window.showToast("Push failed: " + err.message, "❌");
+            }
+        };
+
+        window.pushCheckedToSchedule = async () => {
+            const targets = scoutedEvents.filter(e => e.selected && !e.pushed);
+            if (targets.length === 0) return;
+            try {
+                window.showToast(`Pushing ${targets.length} checked event(s)...`, "⏳");
+                for (const ev of targets) {
+                    const hostedUrl = await uploadFlyerToFirebaseStorage(ev);
+                    const formatted = formatEventForSchedule(ev, hostedUrl);
+                    formatted.isVideo = Boolean(ev.isVideo);
+                    const existingIdx = eventSchedule.findIndex(e => e.date === formatted.date && e.eventName.toLowerCase() === formatted.eventName.toLowerCase());
+                    if (existingIdx > -1) {
+                        formatted.order = eventSchedule[existingIdx].order || 0;
+                        eventSchedule[existingIdx] = formatted;
+                    } else {
+                        eventSchedule.push(formatted);
+                    }
+                    ev.pushed = true;
+                }
+                await persistScheduleToFirebase();
+                await saveSandboxToFirebase();
+                window.renderScoutedResults();
+                window.renderMissingRegularsRadar();
+                window.showToast(`Pushed ${targets.length} event(s) into FMW Schedule!`);
+            } catch (err) {
+                console.error("Batch push error:", err);
+                window.showToast("Batch push failed: " + err.message, "❌");
+            }
+        };
+
+        window.pushCheckedToSchedule = async () => {
+            const targets = scoutedEvents.filter(e => e.selected && !e.pushed);
+            if (targets.length === 0) return;
+            window.showToast(`Pushing ${targets.length} checked event(s)...`, "⏳");
+            for (const ev of targets) {
+                const hostedUrl = await uploadFlyerToFirebaseStorage(ev);
+                const formatted = formatEventForSchedule(ev, hostedUrl);
+                const existingIdx = eventSchedule.findIndex(e => e.date === formatted.date && e.eventName.toLowerCase() === formatted.eventName.toLowerCase());
+                if (existingIdx > -1) {
+                    formatted.order = eventSchedule[existingIdx].order || 0;
+                    eventSchedule[existingIdx] = formatted;
+                } else {
+                    eventSchedule.push(formatted);
+                }
+                ev.pushed = true;
+            }
+            await persistScheduleToFirebase();
+            await saveSandboxToFirebase();
+            window.renderScoutedResults();
+            window.renderMissingRegularsRadar();
+            window.showToast(`Pushed ${targets.length} event(s) into FMW Schedule!`);
+        };
+
+        // --- INITIALIZE FIREBASE ---
+        async function initScoutApp() {
+            window.populatePeriodSelector();
+            if (!window.fb) {
+                setTimeout(initScoutApp, 200);
+                return;
+            }
+            try {
+                const { initializeApp, getAuth, signInAnonymously, getFirestore, getStorage, doc, getDoc, getDocs, collection } = window.fb;
+                const app = initializeApp(FIREBASE_CONFIG);
+                const auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
+                await signInAnonymously(auth);
+
+                // Load Schedule
+                const schedSnaps = await getDocs(collection(db, DB_CONFIG.SCHEDULE_DB_KEY));
+                const chunks = [];
+                schedSnaps.forEach(d => {
+                    if (d.id.startsWith('chunk_')) chunks.push(d.data());
+                    else if (d.id === 'main' && d.data().events) chunks.push({ chunkIndex: 0, events: d.data().events });
+                });
+                chunks.sort((a, b) => (a.chunkIndex || 0) - (b.chunkIndex || 0));
+                chunks.forEach(c => { if (Array.isArray(c.events)) eventSchedule.push(...c.events); });
+
+                // Load Tag DB
+                const tagSnap = await getDoc(doc(db, DB_CONFIG.INSTA_DB_KEY, 'main'));
+                if (tagSnap.exists() && tagSnap.data().data) {
+                    Object.assign(nameTagDatabase, tagSnap.data().data);
+                }
+
+                // Load Global Hashtags
+                const globSnap = await getDoc(doc(db, DB_CONFIG.GLOBAL_TAGS_KEY, 'main'));
+                if (globSnap.exists() && globSnap.data().tags) {
+                    globalTagsString = globSnap.data().tags;
+                }
+
+                // Load Persistent Sandbox Items
+                const sandboxSnap = await getDoc(doc(db, DB_CONFIG.SANDBOX_DB_KEY, 'main'));
+                if (sandboxSnap.exists() && Array.isArray(sandboxSnap.data().items)) {
+                    scoutedEvents = sandboxSnap.data().items;
+                    scoutedEvents.sort((a, b) => (a.date || '9999-99-99').localeCompare(b.date || '9999-99-99'));
+                }
+
+                const badge = document.getElementById('fbStatusBadge');
+                badge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Synced (${Object.keys(nameTagDatabase).length} Tags)`;
+                const dbSpan = document.getElementById('dbCountSpan');
+                if (dbSpan) dbSpan.textContent = Object.keys(nameTagDatabase).length;
+
+                window.renderMissingRegularsRadar();
+                window.renderQuickTagLookup();
+                window.renderScoutedResults();
+            } catch (err) {
+                console.error("Scout init error:", err);
+                const badge = document.getElementById('fbStatusBadge');
+                badge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200";
+                badge.textContent = "Sync Error";
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initScoutApp);
+        } else {
+            initScoutApp();
+        }
+    </script>
+</body>
+</html>
